@@ -1,17 +1,21 @@
 from librerias import *
-from rutas.ruta_inicio_sesion import *
-from rutas.insertar_imagen import *
+from routes.ruta_inicio_sesion import *
+from routes.insertar_imagen import *
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 app = Flask(__name__)
 jwt = JWTManager(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
-app.config['JWT_SECRET_KEY'] = 'super-secret' # Clave secreta para firmar los JWT
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 
 app.register_blueprint(inicio_de_sesion)
 app.register_blueprint(insertar)
 
-
-
 def pagina_no_encontrada(error):
+
     return "<h1>Pagina no encontrada ...<h1>"
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from librerias import *
-from modelo.generales.generales import *
+from model.generales.generales import *
 
 class modeloIniciarSesion():
     
