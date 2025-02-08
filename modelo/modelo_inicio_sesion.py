@@ -1,5 +1,4 @@
 from librerias import *
-from modelo.supabase.keys import *
 from modelo.generales.generales import *
 
 class modeloIniciarSesion():
