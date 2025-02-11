@@ -1,4 +1,4 @@
-from modelo.insertar_imagen import *
+from model.insertar_imagen import *
 
 modimagen = insertar()
 
