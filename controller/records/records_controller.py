@@ -9,3 +9,6 @@ class recordsControlador():
             query = mod_records.add_record()
             return query
     
+    def select_cont(self):
+        query = mod_records.select_data()
+        return query    
