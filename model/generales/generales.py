@@ -7,3 +7,4 @@ load_dotenv()
 supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
 
 tabla_usuarios = 'TABLA_USUARIOS'
+tabla_solicitantes = 'SOLICITANTES'
