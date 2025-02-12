@@ -145,9 +145,7 @@ class recordsModel():
                 "financial_info": financial_info.data,
                 "product": product.data,
                 "solicitud": solicitud.data
-            }
-
-            
+            }            
 
             print(registros)
 

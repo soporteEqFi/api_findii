@@ -16,6 +16,7 @@ app.register_blueprint(inicio_de_sesion)
 app.register_blueprint(insertar)
 app.register_blueprint(records)
 app.register_blueprint(get_records)
+app.register_blueprint(usuario_crear)
 
 def pagina_no_encontrada(error):
 
