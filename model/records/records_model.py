@@ -128,25 +128,21 @@ class recordsModel():
 
         try:
             #Consultas a las tablas
-            agents_info = supabase.table("ASESORES").select('*').order('id.desc').execute()
-            solicitantes = supabase.table(tabla_solicitantes).select("*").order('id.desc').execute()
-            location = supabase.table("UBICACION").select("*").order('id.desc').execute()
-            economic_activity= supabase.table("ACTIVIDAD_ECONOMICA").select("*").order('id.desc').execute()
-            financial_info = supabase.table("INFORMACION_FINANCIERA").select("*").order('id.desc').execute()
-            product = supabase.table("PRODUCTO_SOLICITADO").select("*").order('id.desc').execute()
-            solicitud = supabase.table("SOLICITUDES").select("*").order('id.desc').execute()
-            
-            #Diccionario que las almacena
-            registros = {
-                "agents_info": agents_info.data,
-                "solicitantes": solicitantes.data,
-                "location": location.data,
-                "economic_activity": economic_activity.data,
-                "financial_info": financial_info.data,
-                "product": product.data,
-                "solicitud": solicitud.data
-            }            
+            tablas = {
+                "agents_info": "ASESORES",
+                "solicitantes": tabla_solicitantes,
+                "location": "UBICACION",
+                "economic_activity": "ACTIVIDAD_ECONOMICA",
+                "financial_info": "INFORMACION_FINANCIERA",
+                "product": "PRODUCTO_SOLICITADO",
+                "solicitud": "SOLICITUDES"
+            }
 
+            # Consultas a las tablas de Supabase en un solo paso
+            registros = {
+                clave: supabase.table(tabla).select("*").order("id.desc").execute().data
+                for clave, tabla in tablas.items()         
+            }
             print(registros)
 
 
