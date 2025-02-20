@@ -143,7 +143,7 @@ class recordsModel():
                 clave: supabase.table(tabla).select("*").order("id.desc").execute().data
                 for clave, tabla in tablas.items()         
             }
-            print(registros)
+            # print(registros)
 
 
             if all(len(value) == 0 for value in registros.values()):
@@ -155,3 +155,28 @@ class recordsModel():
         except Exception as e:
             print("Ocurrio un error", e)
             return jsonify({"mensaje": "Error en la lectura"}), 500
+        
+    def mostrar_datos_personales(self, cedula):
+
+        try:
+
+            if cedula is None or cedula == "":
+                return jsonify({"error" : "campo cedula vacío"}), 401
+
+            response = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
+
+            response_data = response.data
+
+            return jsonify({
+                "id": response_data[0]['id'],
+                "cedula": response_data[0]['cedula'],
+                "nombre": response_data[0]['nombre'],
+                "rol": response_data[0]['rol'],
+                "empresa": response_data[0]['empresa'],
+                "imagen_aliado": response_data[0]['imagen_aliado']
+                })
+
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+    

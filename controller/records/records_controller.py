@@ -12,3 +12,6 @@ class recordsControlador():
     def select_cont(self):
         query = mod_records.select_data()
         return query    
+    def get_data_user(self, cedula):
+         query = mod_records.mostrar_datos_personales(cedula)
+         return query
