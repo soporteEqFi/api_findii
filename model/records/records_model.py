@@ -140,7 +140,7 @@ class recordsModel():
 
             # Consultas a las tablas de Supabase en un solo paso
             registros = {
-                clave: supabase.table(tabla).select("*").order("id.desc").execute().data
+                clave: supabase.table(tabla).select("*").execute().data
                 for clave, tabla in tablas.items()         
             }
             # print(registros)
@@ -179,4 +179,54 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+    def filtrar_tabla(self):
+        try:
+            data = request.get_json()
+
+            if not data or "columna_buscar" not in data or "texto_buscar" not in data:
+                return jsonify({"error": "Faltan parámetros en la solicitud"}), 400
+
+            columna_buscar = data["columna_buscar"]
+            texto_buscar = data["texto_buscar"]
+
+            # Diccionario con las columnas de cada tabla (definido manualmente)
+            columnas_tablas = {
+                "SOLICITANTES": ["solicitante_id","nombre_completo","tipo_documento","numero_documento","fecha_nacimiento","numero_celular","correo_electronico","nivel_estudios","profesion","estado_civil","personas_a_cargo"],
+
+                "UBICACION": ["id", "solicitante_id", "barrio", "ciudad_gestion", "direccion_residencia","estrato","tipo_vivienda"],
+
+                "ACTIVIDAD_ECONOMICA": ["id", "solicitante_id", "actividad_economica", "empresa_labora", "fecha_vinculacion","direccion_empresa","telefono_empresa", "tipo_contrato", "cargo_actual"],
+
+                "INFORMACION_FINANCIERA": ["id", "solicitante_id", "ingresos", "total_egresos", "valor_inmueble","cuota_inicial", "porcentaje_financiar","total_activos", "total_pasivos"],
+
+                "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "observacion"],
+                
+                "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud"]
+            }
+
+            solicitante_ids = set()
+
+            # Buscar en cada tabla si la columna existe y tiene coincidencias
+            for tabla, columnas in columnas_tablas.items():
+                if columna_buscar in columnas:
+                    try:
+                        res = supabase.table(tabla).select("solicitante_id").eq(columna_buscar, texto_buscar).execute()
+                        if res.data:
+                            solicitante_ids.update(row["solicitante_id"] for row in res.data)
+                    except Exception as e:
+                        print(f"Error al consultar {tabla}: {e}")
+
+            if not solicitante_ids:
+                return jsonify({"error": "No se encontraron registros con ese criterio"}), 404
+
+            # Obtener datos de todas las tablas filtrando por solicitante_id
+            registros = {
+                tabla: supabase.table(tabla).select("*").in_("solicitante_id", list(solicitante_ids)).execute().data
+                for tabla in columnas_tablas.keys()
+            }
+
+            return jsonify({"registros": registros}), 200
+
+        except requests.exceptions.HTTPError as err:
+            print("Error en la solicitud a Supabase:", err)
+            return jsonify({"error": "Error al consultar la base de datos"}), 500

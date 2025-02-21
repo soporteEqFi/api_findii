@@ -19,6 +19,7 @@ app.register_blueprint(records)
 app.register_blueprint(get_records)
 app.register_blueprint(usuario_crear)
 app.register_blueprint(get_data_user)
+app.register_blueprint(filtrar_tabla)
 
 def pagina_no_encontrada(error):
 
