@@ -1,6 +1,7 @@
 from librerias import *
 from model.generales.generales import *
 from datetime import datetime
+import time
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -125,69 +126,85 @@ class recordsModel():
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
     
     def select_data(self):
+        max_retries = 3
+        retry_delay = 2  # seconds
 
-        try:
-            #Consultas a las tablas
-            tablas = {
-                "agents_info": "ASESORES",
-                "solicitantes": tabla_solicitantes,
-                "location": "UBICACION",
-                "economic_activity": "ACTIVIDAD_ECONOMICA",
-                "financial_info": "INFORMACION_FINANCIERA",
-                "product": "PRODUCTO_SOLICITADO",
-                "solicitud": "SOLICITUDES"
-            }
+        for attempt in range(max_retries):
+            try:
+                # Consultas a las tablas
+                tablas = {
+                    "agents_info": "ASESORES",
+                    "solicitantes": tabla_solicitantes,
+                    "location": "UBICACION",
+                    "economic_activity": "ACTIVIDAD_ECONOMICA",
+                    "financial_info": "INFORMACION_FINANCIERA",
+                    "product": "PRODUCTO_SOLICITADO",
+                    "solicitud": "SOLICITUDES"
+                }
 
-            # Consultas a las tablas de Supabase en un solo paso
-            registros = {
-                clave: supabase.table(tabla).select("*").execute().data
-                for clave, tabla in tablas.items()         
-            }
-            # print(registros)
+                # Consultas a las tablas de Supabase en un solo paso
+                registros = {
+                    clave: supabase.table(tabla).select("*").execute().data
+                    for clave, tabla in tablas.items()
+                }
+                # print(registros)
 
+                if all(len(value) == 0 for value in registros.values()):
+                    return jsonify({"mensaje": "No hay registros en estas tablas"}), 200
 
-            if all(len(value) == 0 for value in registros.values()):
-                return jsonify({"mensaje": "No hay registros en estas tablas"}), 200
+                return jsonify({"registros": registros}), 200
 
-            return jsonify({"registros": registros}), 200
-            
-
-        except Exception as e:
-            print("Ocurrio un error", e)
-            return jsonify({"mensaje": "Error en la lectura"}), 500
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    return jsonify({"mensaje": "Error en la lectura"}), 500
         
-    def mostrar_datos_personales(self, cedula):
+    def get_user_info(self, cedula):
+        max_retries = 3
+        retry_delay = 2  # seconds
 
-        try:
+        for attempt in range(max_retries):
+            try:
+                if cedula is None or cedula == "":
+                    return jsonify({"error" : "campo cedula vacío"}), 401
 
-            if cedula is None or cedula == "":
-                return jsonify({"error" : "campo cedula vacío"}), 401
+                response = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
 
-            response = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
+                response_data = response.data
 
-            response_data = response.data
+                return jsonify({
+                    "id": response_data[0]['id'],
+                    "cedula": response_data[0]['cedula'],
+                    "nombre": response_data[0]['nombre'],
+                    "rol": response_data[0]['rol'],
+                    "empresa": response_data[0]['empresa'],
+                    "imagen_aliado": response_data[0]['imagen_aliado']
+                    })
 
-            return jsonify({
-                "id": response_data[0]['id'],
-                "cedula": response_data[0]['cedula'],
-                "nombre": response_data[0]['nombre'],
-                "rol": response_data[0]['rol'],
-                "empresa": response_data[0]['empresa'],
-                "imagen_aliado": response_data[0]['imagen_aliado']
-                })
-
-        except Exception as e:
-            print("Ocurrió un error:", e)
-            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    print("Ocurrió un error:", e)
+                    return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+        
     def filtrar_tabla(self):
         try:
             data = request.get_json()
 
+            print("Datos recibidos:", data)
+
             if not data or "columna_buscar" not in data or "texto_buscar" not in data:
+                print("Error: Faltan parámetros requeridos en la solicitud")
                 return jsonify({"error": "Faltan parámetros en la solicitud"}), 400
 
             columna_buscar = data["columna_buscar"]
             texto_buscar = data["texto_buscar"]
+
+            print(f"Buscando columna: {columna_buscar}, texto: {texto_buscar}")
 
             # Diccionario con las columnas de cada tabla (definido manualmente)
             columnas_tablas = {
@@ -204,20 +221,28 @@ class recordsModel():
                 "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud"]
             }
 
+            print("Estructura de columnas_tablas:", columnas_tablas)
+
             solicitante_ids = set()
 
             # Buscar en cada tabla si la columna existe y tiene coincidencias
             for tabla, columnas in columnas_tablas.items():
+                print(f"\nRevisando tabla: {tabla}")
                 if columna_buscar in columnas:
+                    print(f"Columna {columna_buscar} encontrada en tabla {tabla}")
                     try:
                         res = supabase.table(tabla).select("solicitante_id").eq(columna_buscar, texto_buscar).execute()
+                        print(f"Resultado de búsqueda en {tabla}:", res.data)
                         if res.data:
                             solicitante_ids.update(row["solicitante_id"] for row in res.data)
                     except Exception as e:
                         print(f"Error al consultar {tabla}: {e}")
 
+            print("IDs de solicitantes encontrados:", solicitante_ids)
+
             if not solicitante_ids:
-                return jsonify({"error": "No se encontraron registros con ese criterio"}), 404
+                print("No se encontraron registros que coincidan con el criterio de búsqueda")
+                return jsonify({"error": "No se encontraron registros con ese criterio"}), 204
 
             # Obtener datos de todas las tablas filtrando por solicitante_id
             registros = {
@@ -225,6 +250,7 @@ class recordsModel():
                 for tabla in columnas_tablas.keys()
             }
 
+            print("Registros recuperados:", registros)
             return jsonify({"registros": registros}), 200
 
         except requests.exceptions.HTTPError as err:
