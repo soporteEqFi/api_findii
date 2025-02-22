@@ -16,10 +16,10 @@ def post_add_record():
 def select_rou():
     return con_records.select_cont()
 
-@records.route('/data-user/<cedula>', methods=['GET'])
+@records.route('/get-user-info/<cedula>', methods=['GET'])
 @cross_origin()
-def get_user_data(cedula):
-    return con_records.get_data_user(cedula)
+def get_user_info(cedula):
+    return con_records.get_user_info(cedula)
 
 @records.route('/filtrar-tabla/', methods=['POST'])
 @cross_origin()
