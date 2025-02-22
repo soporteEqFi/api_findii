@@ -13,11 +13,10 @@ jwt = JWTManager(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 
-app.register_blueprint(inicio_de_sesion)
 app.register_blueprint(insertar)
 app.register_blueprint(records)
 app.register_blueprint(get_records)
-app.register_blueprint(usuario_crear)
+app.register_blueprint(login)
 app.register_blueprint(get_data_user)
 app.register_blueprint(filtrar_tabla)
 
