@@ -20,3 +20,7 @@ class recordsControlador():
     def filtrar_tabla(self):
         query = mod_records.filtrar_tabla()
         return query
+    
+    def get_agent_info(self, cedula):
+        query = mod_records.get_agent_info(cedula)
+        return query

@@ -21,6 +21,11 @@ def select_rou():
 def get_user_info(cedula):
     return con_records.get_user_info(cedula)
 
+@records.route('/get-agent-info/<cedula>', methods=['GET'])
+@cross_origin()
+def get_agent_info(cedula):
+    return con_records.get_agent_info(cedula)
+
 @records.route('/filtrar-tabla/', methods=['POST'])
 @cross_origin()
 def post_filtrar_tabla():
