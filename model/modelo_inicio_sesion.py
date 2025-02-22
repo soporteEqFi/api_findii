@@ -77,4 +77,4 @@ class modeloIniciarSesion():
         except Exception as e:
             return jsonify({"msg": "Error inesperado al crear usuario: " + str(e)}), 500
 
-        return jsonify({"msg": "Usuario creado exitosamente", "user_id": user_id}), 201
+        return jsonify({"msg": "Usuario creado exitosamente. VERIFICA TU CORREO PARA ACTIVAR TU CUENTA", "user_id": user_id}), 201
