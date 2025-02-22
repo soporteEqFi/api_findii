@@ -2,7 +2,6 @@ from librerias import *
 from model.generales.generales import *
 from model.utils.login.validate_info import *
 from model.utils.login.fill_data import *
-import re
 
 class modeloIniciarSesion():
     
@@ -32,10 +31,10 @@ class modeloIniciarSesion():
         datos = request.json
         email = datos.get('email', '').strip()
         password = datos.get('password', '').strip()
-        nombre = datos.get('nombre', '').strip()
+        name = datos.get('nombre', '').strip()
         rol = datos.get('rol', '').strip()
-        cedula = datos.get('cedula', '').strip()
-        empresa = datos.get('empresa', '').strip()
+        identification = datos.get('cedula', '').strip()
+        business = datos.get('empresa', '').strip()
 
         # 1. Validar email
         if not validar_email(email):
@@ -52,20 +51,20 @@ class modeloIniciarSesion():
             # ✅ CORRECCIÓN: Verificar si hubo un error en la respuesta
             if response is None or response.user is None:
                 return jsonify({"msg": "Error en Supabase Auth: No se pudo crear el usuario"}), 400
-
+            
             # ✅ CORRECCIÓN: Obtener correctamente el ID del usuario
             user_id = response.user.id
             print(f"Usuario creado en Auth con ID: {user_id}")
 
             # 4. Insertar usuario en la tabla personalizada
             api_response = supabase.from_('TABLA_USUARIOS').insert({
-                
                 "email": email,
-                "nombre": nombre,
+                "nombre": name,
                 "rol": rol,
                 "password": password,
-                "cedula": cedula,
-                "empresa": empresa
+                "cedula": identification,
+                "empresa": business,
+                "imagen_aliado": get_business_image()
             }).execute()
 
             # ✅ Verificar si la inserción falló
@@ -76,6 +75,6 @@ class modeloIniciarSesion():
             print(f"Usuario insertado en TABLA_USUARIOS: {api_response.data}")
 
         except Exception as e:
-            return jsonify({"msg": "Error inesperado: " + str(e)}), 500
+            return jsonify({"msg": "Error inesperado al crear usuario: " + str(e)}), 500
 
         return jsonify({"msg": "Usuario creado exitosamente", "user_id": user_id}), 201
