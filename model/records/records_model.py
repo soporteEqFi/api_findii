@@ -27,6 +27,8 @@ class recordsModel():
             data = request.get_json()
             if not data:
                 return jsonify({"error": "No se recibieron datos"}), 400
+            
+            print(request.get_json())
 
             # Verificar campos faltantes
             missing_fields = required_fields - set(data.keys())
@@ -45,10 +47,14 @@ class recordsModel():
             #     }), 400
 
             # Obtener el asesor de la tabla de asesores
-            agents_info = supabase.table("ASESORES").select('*').eq('usuario', request.json.get('asesor_usuario')).execute()
+            agents_info = supabase.table("ASESORES").select('*').eq('cedula', request.json.get('asesor_usuario')).execute()
             print("Asesores info")
             print(agents_info.data)
             agent_id = agents_info.data[0]['id']
+
+            # agent_id = request.json.get('asesor_usuario')
+
+            print(agent_id)
 
             # Crear registro del solicitante
             applicant = {
@@ -125,7 +131,7 @@ class recordsModel():
                 "solicitante_id": applicant_id,
                 "tipo_credito": request.json.get('tipo_credito'),
                 "plazo_meses": request.json.get('plazo_meses'),
-                "segundo_titular": request.json.get('segundo_titular'),
+                "segundo_titular": True if request.json.get('segundo_titular') == 'si' else False,
                 "observacion": request.json.get('observacion')
             }
 
@@ -195,6 +201,37 @@ class recordsModel():
                     time.sleep(retry_delay)
                 else:
                     return jsonify({"mensaje": "Error en la lectura"}), 500
+                
+    def get_agent_info(self, cedula):
+        max_retries = 3
+        retry_delay = 2  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                if cedula is None or cedula == "":
+                    return jsonify({"error" : "campo cedula vacío"}), 401
+
+                response = supabase.table("ASESORES").select('*').eq('cedula', cedula).execute()
+
+                response_data = response.data
+
+                return jsonify({
+                    "id": response_data[0]['id'],
+                    "cedula": response_data[0]['cedula'],
+                    "nombre": response_data[0]['nombre'],
+                    "rol": response_data[0]['rol'],
+                    "correo": response_data[0]['correo'],
+                    "apellido": response_data[0]['apellido']
+                    })
+
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    print("Ocurrió un error:", e)
+                    return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+                
         
     def get_user_info(self, cedula):
         max_retries = 3
