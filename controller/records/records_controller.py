@@ -13,8 +13,8 @@ class recordsControlador():
         query = mod_records.select_data()
         return query 
        
-    def get_data_user(self, cedula):
-         query = mod_records.mostrar_datos_personales(cedula)
+    def get_user_info(self, cedula):
+         query = mod_records.get_user_info(cedula)
          return query
     
     def filtrar_tabla(self):
