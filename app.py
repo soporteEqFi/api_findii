@@ -3,7 +3,6 @@ from routes.ruta_inicio_sesion import *
 from routes.insertar_imagen import *
 from routes.records.records_routes import *
 from dotenv import load_dotenv
-
 import os
 
 load_dotenv()

@@ -1,11 +1,12 @@
 from librerias import *
 from model.generales.generales import *
+from model.utils.login.validate_info import *
+from model.utils.login.fill_data import *
 import re
 
 class modeloIniciarSesion():
     
     def iniciar_sesion(self):
-        
         datos = request.json
         email = datos.get('email')
         password = datos.get('password')
@@ -33,13 +34,15 @@ class modeloIniciarSesion():
         password = datos.get('password', '').strip()
         nombre = datos.get('nombre', '').strip()
         rol = datos.get('rol', '').strip()
+        cedula = datos.get('cedula', '').strip()
+        empresa = datos.get('empresa', '').strip()
 
         # 1. Validar email
-        if not self.validar_email(email):
+        if not validar_email(email):
             return jsonify({"msg": "El formato del email es inválido"}), 400
 
         # 2. Verificar si el usuario ya existe en Supabase Auth
-        if self.usuario_existe(email):
+        if usuario_existe(email):
             return jsonify({"msg": "El usuario ya está registrado. Intenta iniciar sesión."}), 400
 
         # 3. Crear usuario en Supabase Auth (SIN verificación por correo)
@@ -60,7 +63,9 @@ class modeloIniciarSesion():
                 "email": email,
                 "nombre": nombre,
                 "rol": rol,
-                "password": password
+                "password": password,
+                "cedula": cedula,
+                "empresa": empresa
             }).execute()
 
             # ✅ Verificar si la inserción falló
@@ -74,17 +79,3 @@ class modeloIniciarSesion():
             return jsonify({"msg": "Error inesperado: " + str(e)}), 500
 
         return jsonify({"msg": "Usuario creado exitosamente", "user_id": user_id}), 201
-
-    def validar_email(self, email):
-        """Valida el formato del email usando una expresión regular"""
-        patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-        return re.match(patron, email) is not None
-
-    def usuario_existe(self, email):
-        """Verifica si un usuario ya existe en Supabase Auth"""
-        try:
-            response = supabase.auth.admin.list_users()
-            usuarios = response.data.users
-            return any(user.email == email for user in usuarios)
-        except Exception:
-            return False
