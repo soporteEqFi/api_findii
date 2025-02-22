@@ -10,6 +10,41 @@ import time
 class recordsModel():
     def add_record(self):
         try:
+            # Lista de campos requeridos
+            required_fields = {
+                "nombre_completo", "tipo_documento", "numero_documento", "fecha_nacimiento",
+                "numero_celular", "correo_electronico", "nivel_estudio", "profesion",
+                "estado_civil", "personas_a_cargo", "direccion_residencia", "tipo_vivienda",
+                "barrio", "departamento", "estrato", "ciudad_gestion", "actividad_economica",
+                "empresa_labora", "fecha_vinculacion", "direccion_empresa", "telefono_empresa",
+                "tipo_contrato", "cargo_actual", "ingresos", "valor_inmueble", "cuota_inicial",
+                "porcentaje_financiar", "total_egresos", "total_activos", "total_pasivos",
+                "tipo_credito", "plazo_meses", "segundo_titular", "observacion", "asesor_usuario",
+                "banco"
+            }
+
+            # Obtener datos del request
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+
+            # Verificar campos faltantes
+            missing_fields = required_fields - set(data.keys())
+            if missing_fields:
+                return jsonify({
+                    "error": "Faltan campos requeridos",
+                    "campos_faltantes": list(missing_fields)
+                }), 400
+
+            # # Verificar que ningún campo requerido esté vacío
+            # empty_fields = [field for field in required_fields if not data.get(field) and data.get(field) != 0]
+            # if empty_fields:
+            #     return jsonify({
+            #         "error": "Los siguientes campos están vacíos",
+            #         "campos_vacios": empty_fields
+            #     }), 400
+
+            # Obtener el asesor de la tabla de asesores
             agents_info = supabase.table("ASESORES").select('*').eq('usuario', request.json.get('asesor_usuario')).execute()
             print("Asesores info")
             print(agents_info.data)
@@ -33,7 +68,7 @@ class recordsModel():
             print("Solicitante")
             print(res.data)
 
-            applicant_id = res.data[0]['id']
+            applicant_id = res.data[0]['solicitante_id']
 
             # Crear registro de ubicación
             location = {
@@ -190,6 +225,8 @@ class recordsModel():
                 else:
                     print("Ocurrió un error:", e)
                     return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+                
+
         
     def filtrar_tabla(self):
         try:
