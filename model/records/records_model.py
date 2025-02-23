@@ -166,7 +166,7 @@ class recordsModel():
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
     
-    def select_data(self):
+    def get_all_data(self):
         max_retries = 3
         retry_delay = 2  # seconds
 
@@ -175,7 +175,7 @@ class recordsModel():
                 # Consultas a las tablas
                 tablas = {
                     "agents_info": "ASESORES",
-                    "solicitantes": tabla_solicitantes,
+                    "solicitantes": "SOLICITANTES",
                     "location": "UBICACION",
                     "economic_activity": "ACTIVIDAD_ECONOMICA",
                     "financial_info": "INFORMACION_FINANCIERA",
@@ -290,7 +290,7 @@ class recordsModel():
 
                 "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "observacion"],
                 
-                "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud"]
+                "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud", "estado"]
             }
 
             print("Estructura de columnas_tablas:", columnas_tablas)
