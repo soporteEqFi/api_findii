@@ -9,8 +9,8 @@ class recordsControlador():
             query = mod_records.add_record()
             return query
     
-    def select_cont(self):
-        query = mod_records.select_data()
+    def get_all_data(self):
+        query = mod_records.get_all_data()
         return query 
        
     def get_user_info(self, cedula):
