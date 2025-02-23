@@ -11,10 +11,10 @@ records = Blueprint('records', __name__)
 def post_add_record():
     return con_records.post_add_record()
     
-@records.route("/select-data/", methods = ['GET'])
+@records.route("/get-all-data/", methods = ['GET'])
 @cross_origin()
-def select_rou():
-    return con_records.select_cont()
+def get_all_data():
+    return con_records.get_all_data()
 
 @records.route('/get-user-info/<cedula>', methods=['GET'])
 @cross_origin()
