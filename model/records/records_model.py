@@ -262,9 +262,7 @@ class recordsModel():
                 else:
                     print("Ocurrió un error:", e)
                     return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-                
-
-        
+                      
     def filtrar_tabla(self):
         try:
             data = request.get_json()
@@ -330,3 +328,52 @@ class recordsModel():
         except requests.exceptions.HTTPError as err:
             print("Error en la solicitud a Supabase:", err)
             return jsonify({"error": "Error al consultar la base de datos"}), 500
+    
+    # Descarga todas las ventas con id's mayor a 1000
+    # /descargar-ventas/
+    def descargar_ventas_realizadas(self):
+        try:
+            csv_filename = 'ventas_realizadas.csv'
+            
+            # 1. Descarga de la tabla principal (por ejemplo, "SOLICITANTES")
+            solicitantes_resp = supabase.table("SOLICITANTES").select("*").execute()
+            if not solicitantes_resp.data:
+                return jsonify({"res": "No existen datos en SOLICITANTES"}), 200
+            
+            # Creamos el DataFrame principal
+            df_solicitantes = pd.DataFrame(solicitantes_resp.data)
+
+            # 2. Definir las demás tablas a unir
+            tablas_relacionadas = {
+                "location": "UBICACION",
+                "economic_activity": "ACTIVIDAD_ECONOMICA",
+                "financial_info": "INFORMACION_FINANCIERA",
+                "product": "PRODUCTO_SOLICITADO",
+                "solicitud": "SOLICITUDES"
+            }
+            
+            # 3. Para cada tabla relacionada, la descargamos y unimos con df_solicitantes
+            for clave, nombre_tabla in tablas_relacionadas.items():
+                resp = supabase.table(nombre_tabla).select("*").execute()
+                if resp.data:
+                    df_rel = pd.DataFrame(resp.data)
+                    
+                    # Asegúrate de que 'solicitante_id' exista en ambas tablas
+                    df_solicitantes = df_solicitantes.merge(
+                        df_rel,
+                        on="solicitante_id",               # <-- tu clave de unión
+                        how="left",                        # 'left' para mantener todos los de la tabla principal
+                        suffixes=("", f"_{clave}")         # Para evitar choques de nombres de columnas
+                    )
+                else:
+                    print(f"No se encontraron datos en la tabla {nombre_tabla}")
+            
+            # 4. Exportar el DataFrame unificado a CSV
+            df_solicitantes.to_csv(csv_filename, index=False)
+            
+            # 5. Retornar el CSV para su descarga
+            return send_file(csv_filename, as_attachment=True), 200
+        
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500

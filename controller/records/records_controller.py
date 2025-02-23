@@ -24,3 +24,7 @@ class recordsControlador():
     def get_agent_info(self, cedula):
         query = mod_records.get_agent_info(cedula)
         return query
+    
+    def descargar_ventas_realizadas(self):
+        query = mod_records.descargar_ventas_realizadas()
+        return query

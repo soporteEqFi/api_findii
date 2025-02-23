@@ -30,3 +30,8 @@ def get_agent_info(cedula):
 @cross_origin()
 def post_filtrar_tabla():
    return con_records.filtrar_tabla()
+
+@records.route('/descargar-ventas/', methods=['GET'])
+@cross_origin()
+def get_descargar_ventas_realizadas():
+   return con_records.descargar_ventas_realizadas()
