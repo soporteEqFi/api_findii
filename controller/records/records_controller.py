@@ -32,3 +32,7 @@ class recordsControlador():
     def actualizar_estado(self):
          query = mod_records.editar_estado()
          return query
+    
+    def filtrar_por_fecha(self):
+         query = mod_records.mostrar_por_fecha()
+         return query

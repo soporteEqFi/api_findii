@@ -40,3 +40,8 @@ def get_descargar_ventas_realizadas():
 @cross_origin()
 def editar_estado():
     return con_records.actualizar_estado()
+
+@records.route('/datos-por-fecha/',methods=['POST'])
+@cross_origin()
+def mostrar_fecha():
+    return con_records.filtrar_por_fecha()

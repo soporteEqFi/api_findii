@@ -424,3 +424,57 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+   
+    def mostrar_por_fecha(self):
+        try:
+            # 1. Extraer la fecha enviada en formato dd/mm/yyyy
+            fecha_str = request.json.get("fecha_venta")
+            if not fecha_str:
+                return jsonify({"error": "El campo fecha_venta está vacío"}), 400
+
+            import datetime
+            # 2. Convertir el string a un objeto date usando strptime
+            fecha_obj = datetime.datetime.strptime(fecha_str, "%d/%m/%Y").date()
+
+            # 3. Definir el rango de búsqueda: desde el inicio hasta el final del día
+            inicio_dia = datetime.datetime.combine(fecha_obj, datetime.time.min)
+            fin_dia = datetime.datetime.combine(fecha_obj, datetime.time.max)
+
+            # Convertir a cadena ISO 8601 (asegúrate de que coincida con la zona horaria de tus datos)
+            inicio_iso = inicio_dia.isoformat()
+            fin_iso = fin_dia.isoformat()
+
+            # 4. Definir las tablas a consultar
+            tablas = {
+                "solicitantes": "SOLICITANTES",
+                "location": "UBICACION",
+                "economic_activity": "ACTIVIDAD_ECONOMICA",
+                "financial_info": "INFORMACION_FINANCIERA",
+                "product": "PRODUCTO_SOLICITADO",
+                "solicitud": "SOLICITUDES"  # Únicamente esta tabla tiene la columna created_at
+            }
+
+            resultados = {}
+            for key, tabla in tablas.items():
+                # Si la tabla es SOLICITUDES (clave "solicitud"), aplicamos el filtro de fecha
+                if key == "solicitud":
+                    resp = supabase.table(tabla)\
+                                .select("*")\
+                                .gte("created_at", inicio_iso)\
+                                .lte("created_at", fin_iso)\
+                                .order("id", desc=True)\
+                                .execute()
+                else:
+                    # Para las demás tablas, se listan todos los registros (o puedes aplicar otro filtro si lo requieres)
+                    resp = supabase.table(tabla)\
+                                .select("*")\
+                                .order("solicitante_id", desc=True)\
+                                .execute()
+
+                resultados[key] = resp.data if resp.data is not None else []
+
+            return jsonify({"registros": resultados}), 200
+
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
