@@ -35,3 +35,8 @@ def post_filtrar_tabla():
 @cross_origin()
 def get_descargar_ventas_realizadas():
    return con_records.descargar_ventas_realizadas()
+
+@records.route('/editar-estado/', methods=['PUT'])
+@cross_origin()
+def editar_estado():
+    return con_records.actualizar_estado()

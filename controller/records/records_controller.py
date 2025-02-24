@@ -28,3 +28,7 @@ class recordsControlador():
     def descargar_ventas_realizadas(self):
         query = mod_records.descargar_ventas_realizadas()
         return query
+    
+    def actualizar_estado(self):
+         query = mod_records.editar_estado()
+         return query

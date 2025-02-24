@@ -377,3 +377,50 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+    
+    def editar_estado(self):
+        try:
+            # 1. Extraer los datos del request
+            estado = request.json.get('estado')
+            solicitante_id = request.json.get('solicitante_id')
+            numero_documento = request.json.get('numero_documento')
+
+            # Validar que se reciban todos los datos necesarios
+            if not estado or not solicitante_id or not numero_documento:
+                return jsonify({"error": "Faltan datos para actualizar el estado"}), 400
+
+            # 2. Validar que el solicitante tenga el número de documento indicado
+            respuesta_solicitantes = supabase.table("SOLICITANTES") \
+                                            .select("numero_documento") \
+                                            .eq("solicitante_id", solicitante_id) \
+                                            .execute()
+
+            # Si no se encontró información en SOLICITANTES, se retorna error
+            if not respuesta_solicitantes.data:
+                return jsonify({"error": "No se encontró el solicitante"}), 404
+
+            # Se asume que solo hay un registro por solicitante_id
+            solicitante = respuesta_solicitantes.data[0]
+            if solicitante.get("numero_documento") != numero_documento:
+                return jsonify({"error": "El número de documento no coincide"}), 400
+
+            # 3. Preparar el diccionario con el nuevo valor a actualizar
+            data_dict = {"estado": estado}
+
+            # 4. Actualizar la tabla PRODUCTO_SOLICITADO usando solicitante_id como filtro
+            respuesta_update = supabase.table("PRODUCTO_SOLICITADO") \
+                                        .update(data_dict) \
+                                        .eq("solicitante_id", solicitante_id) \
+                                        .execute()
+
+            # Si la actualización no retorna datos, asumimos que falló
+            if not respuesta_update.data:
+                return jsonify({"error": "No se pudo actualizar el estado"}), 500
+
+            # (Opcional) Aquí podrías registrar un historial de cambios
+
+            return jsonify({"actualizar_estado_venta": "OK"}), 200
+
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
