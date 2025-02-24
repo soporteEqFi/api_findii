@@ -2,6 +2,8 @@ from librerias import *
 from model.generales.generales import *
 from datetime import datetime
 import time
+from datetime import datetime, time
+
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -478,3 +480,70 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+    
+    def mostrar_por_intervalo(self):
+        try:
+            # 1. Extraer las fechas enviadas (en formato dd/mm/yyyy)
+            fecha_inicial_str = request.json.get("fecha_inicial")
+            fecha_final_str = request.json.get("fecha_final")
+
+            if not fecha_inicial_str or not fecha_final_str:
+                return jsonify({"error": "Las fechas de inicio y fin son requeridas"}), 400
+
+            # 2. Convertir las cadenas a objetos datetime
+            fecha_inicial = datetime.strptime(fecha_inicial_str, '%d/%m/%Y')
+            fecha_final = datetime.strptime(fecha_final_str, '%d/%m/%Y')
+
+            # 3. Definir el rango de búsqueda para SOLICITUDES usando created_at
+            inicio_iso = datetime.combine(fecha_inicial.date(), time.min).isoformat()
+            fin_iso = datetime.combine(fecha_final.date(), time.max).isoformat()
+
+            # 4. Consultar la tabla SOLICITUDES con el filtro de fecha
+            resp_solicitud = supabase.table("SOLICITUDES")\
+                            .select("*")\
+                            .gte("created_at", inicio_iso)\
+                            .lte("created_at", fin_iso)\
+                            .order("id", desc=True)\
+                            .execute()
+            ventas_solicitud = resp_solicitud.data if resp_solicitud.data is not None else []
+
+            # 5. (Opcional) Filtrar adicionalmente para ventas que pertenezcan a un mismo mes y año.
+            #    Si el intervalo es amplio, este paso podría eliminar registros de meses intermedios.
+            ventas_en_intervalo = []
+            for venta in ventas_solicitud:
+                try:
+                    # Convertir created_at (ISO 8601) a objeto datetime
+                    # Se reemplaza 'Z' si existe, para que fromisoformat lo procese correctamente.
+                    venta_date = datetime.fromisoformat(venta['created_at'].replace('Z', '+00:00'))
+                except Exception as parse_err:
+                    print("Error al parsear la fecha de la venta:", parse_err)
+                    continue
+
+                # Ejemplo de filtrado: conservar solo ventas del mismo mes y año que la fecha inicial
+                if venta_date.month == fecha_inicial.month and venta_date.year == fecha_inicial.year:
+                    ventas_en_intervalo.append(venta)
+
+            # 6. Consultar las demás tablas sin filtro de fecha
+            otras_tablas = {
+                "solicitantes": "SOLICITANTES",
+                "location": "UBICACION",
+                "economic_activity": "ACTIVIDAD_ECONOMICA",
+                "financial_info": "INFORMACION_FINANCIERA",
+                "product": "PRODUCTO_SOLICITADO"
+            }
+            resultado_tablas = {
+                "solicitud": ventas_en_intervalo,
+
+            }
+            for key, tabla in otras_tablas.items():
+                resp = supabase.table(tabla)\
+                            .select("*")\
+                            .order("solicitante_id", desc=True)\
+                            .execute()
+                resultado_tablas[key] = resp.data if resp.data is not None else []
+
+            return jsonify({"registros": resultado_tablas}), 200
+
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"error": "Ocurrió un error al procesar la solicitud"}), 500

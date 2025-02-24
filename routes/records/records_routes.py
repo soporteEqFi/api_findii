@@ -45,3 +45,8 @@ def editar_estado():
 @cross_origin()
 def mostrar_fecha():
     return con_records.filtrar_por_fecha()
+
+@records.route('/mostrar-por-intervalo/', methods=['POST'])
+@cross_origin()
+def mostrar_intervalo():
+    return con_records.filtro_intervalo()

@@ -36,3 +36,7 @@ class recordsControlador():
     def filtrar_por_fecha(self):
          query = mod_records.mostrar_por_fecha()
          return query
+    
+    def filtro_intervalo(self):
+         query = mod_records.mostrar_por_intervalo()
+         return query
