@@ -1,5 +1,5 @@
 from librerias import *
-from model.generales.generales import *
+from models.generales.generales import *
 from io import BytesIO 
 import uuid  # Para generar nombres únicos
 from datetime import datetime

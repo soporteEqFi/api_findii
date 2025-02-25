@@ -1,4 +1,4 @@
-from controller.controlador_inicio_sesion import  *
+from controllers.controlador_inicio_sesion import  *
 from librerias import * 
 
 con_inicio_seion = iniciarSesionControlador()

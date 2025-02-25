@@ -1,4 +1,4 @@
-from controller.controlador_imagen import * 
+from controllers.controlador_imagen import * 
 from librerias import *
 
 con_insertar = insertar_imagen_controlador()

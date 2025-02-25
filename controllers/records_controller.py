@@ -1,10 +1,10 @@
-from model.records.records_model import *
+from models.records_model import *
 
 mod_records = recordsModel()
 
 class recordsControlador():
 
-    def post_add_record(self):
+    def post_add_record(self):  
         query = mod_records.add_record()
         return query
     

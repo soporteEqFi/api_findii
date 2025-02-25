@@ -1,7 +1,7 @@
 from librerias import *
-from model.generales.generales import *
-from model.utils.login.validate_info import *
-from model.utils.login.fill_data import *
+from models.generales.generales import *
+from models.utils.login.validate_info import *
+from models.utils.login.fill_data import *
 
 class modeloIniciarSesion():
     

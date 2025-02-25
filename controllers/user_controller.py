@@ -1,4 +1,4 @@
-from model.user.user_model import *
+from models.user_model import *
 
 mod_user = userModel()
 

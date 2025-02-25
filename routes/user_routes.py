@@ -1,4 +1,4 @@
-from controller.user_controller import  *
+from controllers.user_controller import  *
 from librerias import * 
 
 con_user = userController()

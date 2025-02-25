@@ -1,4 +1,4 @@
-from model.modelo_inicio_sesion import *
+from models.modelo_inicio_sesion import *
 
 mod_inicio_sesion = modeloIniciarSesion()
 

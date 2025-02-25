@@ -1,4 +1,4 @@
-from controller.records.records_controller import  *
+from controllers.records_controller import  *
 from librerias import * 
 
 con_records = recordsControlador()

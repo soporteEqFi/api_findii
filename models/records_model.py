@@ -1,5 +1,5 @@
 from librerias import *
-from model.generales.generales import *
+from models.generales.generales import *
 from datetime import datetime
 import time
 from datetime import datetime, time
