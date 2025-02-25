@@ -10,8 +10,3 @@ login = Blueprint('crear_usuario', __name__)
 @cross_origin()
 def iniciar_sesion():
     return con_inicio_seion.inicio_de_sesion()
-
-@login.route('/crear-user/', methods = ['POST'])
-@cross_origin()
-def crear_usuario():
-    return con_inicio_seion.user_create()
