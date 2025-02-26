@@ -1,8 +1,9 @@
 from librerias import *
 from models.generales.generales import *
 from datetime import datetime
-import time
+import time as std_time
 from datetime import datetime, time
+import errno
 
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
@@ -198,11 +199,18 @@ class recordsModel():
                 return jsonify({"registros": registros}), 200
 
             except Exception as e:
-                print(f"Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
+                if isinstance(e, OSError) and e.errno == errno.WSAEWOULDBLOCK:
+                    print(f"Attempt {attempt + 1} failed due to non-blocking socket operation: {e}")
+                    if attempt < max_retries - 1:
+                        std_time.sleep(retry_delay)
+                    else:
+                        return jsonify({"mensaje": "Error en la lectura debido a operación de socket no bloqueante"}), 500
                 else:
-                    return jsonify({"mensaje": "Error en la lectura"}), 500
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        std_time.sleep(retry_delay)
+                    else:
+                        return jsonify({"mensaje": "Error en la lectura"}), 500
                 
     def filtrar_tabla(self):
         try:
@@ -353,6 +361,8 @@ class recordsModel():
                                         .update(data_dict) \
                                         .eq("solicitante_id", solicitante_id) \
                                         .execute()
+            
+            print(respuesta_update)
 
             # Si la actualización no retorna datos, asumimos que falló
             if not respuesta_update.data:
@@ -364,7 +374,7 @@ class recordsModel():
 
         except Exception as e:
             print("Ocurrió un error:", e)
-            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+            return jsonify({"mensaje": e}), 500
    
     def mostrar_por_fecha(self):
         try:
