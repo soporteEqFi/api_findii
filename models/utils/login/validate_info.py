@@ -1,5 +1,5 @@
 import re
-from model.generales.generales import *
+from models.generales.generales import *
 
 def validar_email(email):
     """Valida el formato del email usando una expresión regular"""

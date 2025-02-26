@@ -1,4 +1,4 @@
-from model.generales.generales import *
+from models.generales.generales import *
 
 def get_business_image():
     try:
