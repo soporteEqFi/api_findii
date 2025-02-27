@@ -40,3 +40,8 @@ def mostrar_fecha():
 @cross_origin()
 def mostrar_intervalo():
     return con_records.filtro_intervalo()
+
+@records.route('/update-user/', methods=['PUT'])
+@cross_origin()
+def update_user():
+    return con_records.update_agent()
