@@ -31,7 +31,3 @@ class recordsControlador():
     def filtro_intervalo(self):
          query = mod_records.mostrar_por_intervalo()
          return query
-    
-    def update_agent(self):
-        query = mod_records.update_user()
-        return query
