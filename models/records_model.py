@@ -50,7 +50,7 @@ class recordsModel():
             #     }), 400
 
             # Obtener el asesor de la tabla de asesores
-            agents_info = supabase.table("ASESORES").select('*').eq('cedula', request.json.get('asesor_usuario')).execute()
+            agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.json.get('asesor_usuario')).execute()
             print("Asesores info")
             print(agents_info.data)
             agent_id = agents_info.data[0]['id']
@@ -135,7 +135,8 @@ class recordsModel():
                 "tipo_credito": request.json.get('tipo_credito'),
                 "plazo_meses": request.json.get('plazo_meses'),
                 "segundo_titular": True if request.json.get('segundo_titular') == 'si' else False,
-                "observacion": request.json.get('observacion')
+                "observacion": request.json.get('observacion'),
+                "estado": "pendiente"
             }
 
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
