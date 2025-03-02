@@ -20,3 +20,8 @@ def get_agent_info(cedula):
 @cross_origin()
 def get_user_info(cedula):
     return con_user.get_user_info(cedula)
+
+@user.route('/update-user/', methods=['PUT'])
+@cross_origin()
+def update_user():
+    return con_user.update_agent()

@@ -121,6 +121,31 @@ class userModel():
                 else:
                     print("Ocurrió un error:", e)
                     return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+                
+    def update_user(self):
+        try:
+            data_dict ={
+                "nombre": request.json.get('nombre'),
+                "cedula": request.json.get('cedula'),
+                "rol": request.json.get('rol'),
+                "empresa": request.json.get('empresa'),
+            }
+
+            id = request.json.get('id')
+
+            campos_vacios = diccionario_vacio(data_dict)
+
+            if campos_vacios:
+                return jsonify({"registrar_agente_status": "existen campos vacios", "campos_vacios": campos_vacios}), 400      
+
+            supabase.table('TABLA_USUARIOS').update(data_dict).eq('id', id).execute()
+            
+
+            return jsonify({"actualizar_agente": "OK"}), 200
+        
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
                       
 
 
