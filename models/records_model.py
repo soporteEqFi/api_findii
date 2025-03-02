@@ -171,7 +171,7 @@ class recordsModel():
     
     def get_all_data(self):
         max_retries = 3
-        retry_delay = 2  # seconds
+        retry_delay = 4  # seconds
 
         for attempt in range(max_retries):
             try:
@@ -333,6 +333,10 @@ class recordsModel():
             estado = request.json.get('estado')
             solicitante_id = request.json.get('solicitante_id')
             numero_documento = request.json.get('numero_documento')
+
+            print(estado)
+            print(solicitante_id)
+            print(numero_documento)
 
             # Validar que se reciban todos los datos necesarios
             if not estado or not solicitante_id or not numero_documento:
