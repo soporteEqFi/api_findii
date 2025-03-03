@@ -122,6 +122,35 @@ class userModel():
                     print("Ocurrió un error:", e)
                     return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
                 
+    def get_solicitante_info(self, cedula):
+
+        print(cedula)
+        max_retries = 3
+        retry_delay = 2  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                if cedula is None or cedula == "":
+                    return jsonify({"error" : "campo cedula vacío"}), 401
+
+                response = supabase.table("SOLICITANTES").select('*').eq('numero_documento', cedula).execute()
+
+                response_data = response.data # Changed from response.datas to response.data
+
+                print(response_data[0]['solicitante_id'])
+
+                return jsonify({
+                    "numero_documento": response_data[0]['numero_documento'],
+                    "solicitante_id": response_data[0]['solicitante_id']
+                    })
+
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    print("Ocurrió un error:", e)
+                    return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
     def update_user(self):
         try:
             data_dict ={

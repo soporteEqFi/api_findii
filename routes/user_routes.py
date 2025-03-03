@@ -16,6 +16,11 @@ def post_create_user():
 def get_agent_info(cedula):
     return con_user.get_agent_info(cedula)
 
+@user.route('/get-solicitante-info/<cedula>', methods=['GET'])
+@cross_origin()
+def get_solicitante_info(cedula):
+    return con_user.get_solicitante_info(cedula)
+
 @user.route('/get-user-info/<cedula>', methods=['GET'])
 @cross_origin()
 def get_user_info(cedula):

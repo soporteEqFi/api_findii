@@ -12,6 +12,10 @@ class userController():
         query = mod_user.get_agent_info(cedula)
         return query
     
+    def get_solicitante_info(self, cedula):
+        query = mod_user.get_solicitante_info(cedula)
+        return query
+    
     def get_user_info(self, cedula):
         query = mod_user.get_user_info(cedula)
         return query
