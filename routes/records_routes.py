@@ -10,6 +10,11 @@ records = Blueprint('records', __name__)
 @cross_origin()
 def post_add_record():
     return con_records.post_add_record()
+
+@records.route('/edit-record/', methods=['PUT'])
+@cross_origin()
+def edit_record():
+    return con_records.edit_record()
     
 @records.route("/get-all-data/", methods = ['GET'])
 @cross_origin()

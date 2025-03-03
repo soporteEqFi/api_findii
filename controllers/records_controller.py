@@ -31,3 +31,7 @@ class recordsControlador():
     def filtro_intervalo(self):
          query = mod_records.mostrar_por_intervalo()
          return query
+    
+    def edit_record(self):
+        query = mod_records.edit_record()
+        return query

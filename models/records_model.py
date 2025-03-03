@@ -502,4 +502,111 @@ class recordsModel():
             print("Ocurrió un error:", e)
             return jsonify({"error": "Ocurrió un error al procesar la solicitud"}), 500
         
+    def edit_record(self):
+        try:
+            data = request.get_json()
+            print(data)
+            if not data:
+                return jsonify({"error": "No se recibieron datos"}), 400
+
+            solicitante_id = data.get('solicitante_id')
+            if not solicitante_id:
+                return jsonify({"error": "Se requiere el ID del solicitante"}), 400
+
+            # Definir los campos por tabla
+            actualizaciones = {
+                "SOLICITANTES": {
+                    "campos_permitidos": {
+                        "nombre_completo", "tipo_documento", "numero_documento",
+                        "fecha_nacimiento", "numero_celular", "correo_electronico",
+                        "nivel_estudio", "profesion", "estado_civil", "personas_a_cargo"
+                    }
+                },
+                "UBICACION": {
+                    "campos_permitidos": {
+                        "direccion_residencia", "tipo_vivienda", "barrio",
+                        "departamento", "estrato", "ciudad_gestion"
+                    }
+                },
+                "ACTIVIDAD_ECONOMICA": {
+                    "campos_permitidos": {
+                        "actividad_economica", "empresa_labora", "fecha_vinculacion",
+                        "direccion_empresa", "telefono_empresa", "tipo_contrato",
+                        "cargo_actual"
+                    }
+                },
+                "INFORMACION_FINANCIERA": {
+                    "campos_permitidos": {
+                        "ingresos", "valor_inmueble", "cuota_inicial",
+                        "porcentaje_financiar", "total_egresos", "total_activos",
+                        "total_pasivos"
+                    }
+                },
+                "PRODUCTO_SOLICITADO": {
+                    "campos_permitidos": {
+                        "tipo_credito", "plazo_meses", "segundo_titular",
+                        "observacion"
+                    }
+                },
+                "SOLICITUDES": {
+                    "campos_permitidos": {
+                        "banco"
+                    }
+                }
+            }
+
+            resultados = {}
+
+            # Procesar cada tabla
+            for tabla, config in actualizaciones.items():
+                # Obtener los datos de la tabla específica
+                datos_tabla = data.get(tabla, {})
+                datos_actualizacion = {}
+                
+                for campo in config["campos_permitidos"]:
+                    if campo in datos_tabla and datos_tabla[campo] is not None and datos_tabla[campo] != "" and datos_tabla[campo] != "undefined":
+                        # Procesamiento especial para algunos campos
+                        if campo == "segundo_titular":
+                            datos_actualizacion[campo] = datos_tabla[campo].lower() == "si"
+                        elif campo in ["fecha_nacimiento", "fecha_vinculacion"]:
+                            try:
+                                fecha = datetime.strptime(datos_tabla[campo], '%Y-%m-%d')
+                                datos_actualizacion[campo] = fecha.strftime('%Y-%m-%d')
+                            except ValueError as e:
+                                print(f"Error en formato de fecha para {campo}: {e}")
+                                continue
+                        else:
+                            datos_actualizacion[campo] = datos_tabla[campo]
+
+                print(f"Datos a actualizar en {tabla}:")
+                print(datos_actualizacion)
+
+                if datos_actualizacion:
+                    try:
+                        res = supabase.table(tabla)\
+                            .update(datos_actualizacion)\
+                            .eq('solicitante_id', solicitante_id)\
+                            .execute()
+                        
+                        resultados[tabla] = {
+                            "estado": "exitoso",
+                            "datos_actualizados": datos_actualizacion
+                        }
+                    except Exception as e:
+                        resultados[tabla] = {
+                            "estado": "error",
+                            "error": str(e)
+                        }
+
+            if not resultados:
+                return jsonify({"error": "No se realizaron actualizaciones"}), 400
+
+            return jsonify({
+                "mensaje": "Registro actualizado exitosamente",
+                "resultados": resultados
+            }), 200
+
+        except Exception as e:
+            print("Error:", e)
+            return jsonify({"error": str(e)}), 500
     
