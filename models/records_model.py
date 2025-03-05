@@ -136,7 +136,7 @@ class recordsModel():
                 "plazo_meses": request.json.get('plazo_meses'),
                 "segundo_titular": True if request.json.get('segundo_titular') == 'si' else False,
                 "observacion": request.json.get('observacion'),
-                "estado": "pendiente"
+                "estado": "Radicado"
             }
 
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
