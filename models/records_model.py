@@ -545,7 +545,7 @@ class recordsModel():
                 "PRODUCTO_SOLICITADO": {
                     "campos_permitidos": {
                         "tipo_credito", "plazo_meses", "segundo_titular",
-                        "observacion"
+                        "observacion", "estado"
                     }
                 },
                 "SOLICITUDES": {
@@ -578,8 +578,8 @@ class recordsModel():
                         else:
                             datos_actualizacion[campo] = datos_tabla[campo]
 
-                print(f"Datos a actualizar en {tabla}:")
-                print(datos_actualizacion)
+                # print(f"Datos a actualizar en {tabla}:")
+                # print(datos_actualizacion)
 
                 if datos_actualizacion:
                     try:
