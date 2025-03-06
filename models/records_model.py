@@ -13,6 +13,7 @@ import uuid  # Para generar nombres únicos
 # TODO: Validar si el asesor existe en la tabla de asesores
 
 class recordsModel():
+
     def add_record(self):
         try:
             # Lista de campos requeridos
@@ -227,7 +228,8 @@ class recordsModel():
                     "economic_activity": "ACTIVIDAD_ECONOMICA",
                     "financial_info": "INFORMACION_FINANCIERA",
                     "product": "PRODUCTO_SOLICITADO",
-                    "solicitud": "SOLICITUDES"
+                    "solicitud": "SOLICITUDES",
+                    "documentos": "PRUEBA_IMAGEN"
                 }
 
                 # Consultas a las tablas de Supabase en un solo paso
