@@ -4,6 +4,8 @@ from datetime import datetime
 import time as std_time
 from datetime import datetime, time
 import errno
+from io import BytesIO 
+import uuid  # Para generar nombres únicos
 
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
@@ -26,141 +28,182 @@ class recordsModel():
                 "banco"
             }
 
-            # Obtener datos del request
-            data = request.get_json()
-            if not data:
+            # Obtener datos del form-data
+            if not request.form:
                 return jsonify({"error": "No se recibieron datos"}), 400
+
+            print("Form data:", request.form)
+
+            # Crear registro del solicitante
+            applicant = {
+                "nombre_completo": request.form.get('nombre_completo'),
+                "tipo_documento": request.form.get('tipo_documento'),
+                "numero_documento": request.form.get('numero_documento'),
+                "fecha_nacimiento": request.form.get('fecha_nacimiento'),
+                "numero_celular": request.form.get('numero_celular'),
+                "correo_electronico": request.form.get('correo_electronico'),
+                "nivel_estudio": request.form.get('nivel_estudio'),
+                "profesion": request.form.get('profesion'),  # Campo opcional
+                "estado_civil": request.form.get('estado_civil'),
+                "personas_a_cargo": request.form.get('personas_a_cargo')
+            }
+
+            res = supabase.table('SOLICITANTES').insert(applicant).execute()
+            # print("Solicitante")
+            # print(res.data)
+
+            applicant_id = res.data[0]['solicitante_id']
+
+            # Procesar archivos
+            print("Files:", request.files)
             
-            print(request.get_json())
+            # Obtener lista de archivos con getlist()
+            files = request.files.getlist('archivos')
+            
+            for file in files:
+                print("Procesando archivo:", file.filename)
+                
+                try:
+                    # Crear nombre único para el archivo
+                    extension = file.filename.split('.')[-1]
+                    unique_filename = f"{uuid.uuid4().hex}_{int(datetime.timestamp(datetime.now()))}.{extension}"
+                    file_path = f"images/{unique_filename}"
+
+                    print("Nombre archivo")
+                    print(unique_filename)
+
+                    # Leer archivo y convertir a bytes
+                    file_data = file.read()
+
+                    # Subir archivo a Supabase Storage
+                    res = supabase.storage.from_("findii").upload(
+                        file_path, 
+                        file_data,
+                        file_options={"content-type": file.mimetype}
+                    )
+
+                    print("Subir archivo")
+                    print(res)
+
+                    if isinstance(res, dict) and "error" in res:
+                        print(f"Error al subir archivo {file.filename}: {res['error']}")
+                        continue
+
+                    # Obtener URL pública e insertar en BD
+                    image_url = supabase.storage.from_("findii").get_public_url(file_path)
+                    
+                    # Insertar registro para esta imagen
+                    datos_insertar = {
+                        "id_solicitante": applicant_id,
+                        "imagen": image_url
+                    }   
+
+                    print("Datos insertar")
+                    print(datos_insertar)
+                    res_db = supabase.table("PRUEBA_IMAGEN").insert(datos_insertar).execute()
+                    print("Respuesta db")
+                    print(res_db)
+
+                except Exception as e:
+                    print(f"Error procesando archivo {file.filename}: {str(e)}")
+                    continue
 
             # Verificar campos faltantes
-            missing_fields = required_fields - set(data.keys())
+            missing_fields = required_fields - set(request.form.keys())
             if missing_fields:
                 return jsonify({
                     "error": "Faltan campos requeridos",
                     "campos_faltantes": list(missing_fields)
                 }), 400
 
-            # # Verificar que ningún campo requerido esté vacío
-            # empty_fields = [field for field in required_fields if not data.get(field) and data.get(field) != 0]
-            # if empty_fields:
-            #     return jsonify({
-            #         "error": "Los siguientes campos están vacíos",
-            #         "campos_vacios": empty_fields
-            #     }), 400
-
             # Obtener el asesor de la tabla de asesores
-            agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.json.get('asesor_usuario')).execute()
+            agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
             print("Asesores info")
-            print(agents_info.data)
+            # print(agents_info.data)
             agent_id = agents_info.data[0]['id']
 
-            # agent_id = request.json.get('asesor_usuario')
-
             print(agent_id)
-
-            # Crear registro del solicitante
-            applicant = {
-                "nombre_completo":  request.json.get('nombre_completo'),
-                "tipo_documento": request.json.get('tipo_documento'),
-                "numero_documento": request.json.get('numero_documento'),
-                "fecha_nacimiento": request.json.get('fecha_nacimiento'),
-                "numero_celular": request.json.get('numero_celular'),
-                "correo_electronico": request.json.get('correo_electronico'),
-                "nivel_estudio":  request.json.get('nivel_estudio'),
-                "profesion": request.json.get('profesion'),  # Campo opcional
-                "estado_civil": request.json.get('estado_civil'),
-                "personas_a_cargo": request.json.get('personas_a_cargo')
-            }
-
-            res = supabase.table('SOLICITANTES').insert(applicant).execute()
-            print("Solicitante")
-            print(res.data)
-
-            applicant_id = res.data[0]['solicitante_id']
 
             # Crear registro de ubicación
             location = {
                 "solicitante_id": applicant_id,
-                "direccion_residencia": request.json.get('direccion_residencia'),
-                "tipo_vivienda": request.json.get('tipo_vivienda'),
-                "barrio": request.json.get('barrio'),
-                "departamento": request.json.get('departamento'),
-                "estrato": request.json.get('estrato'),
-                "ciudad_gestion": request.json.get('ciudad_gestion')
+                "direccion_residencia": request.form.get('direccion_residencia'),
+                "tipo_vivienda": request.form.get('tipo_vivienda'),
+                "barrio": request.form.get('barrio'),
+                "departamento": request.form.get('departamento'),
+                "estrato": request.form.get('estrato'),
+                "ciudad_gestion": request.form.get('ciudad_gestion')
             }
 
             res = supabase.table('UBICACION').insert(location).execute()
 
-            print("Ubicaciones")
-            print(res.data)
+            # print("Ubicaciones")
+            # print(res.data)
             
             # Crear registro de actividad económica
             economic_activity = {
                 "solicitante_id": applicant_id,
-                "actividad_economica": request.json.get('actividad_economica'),
-                "empresa_labora": request.json.get('empresa_labora'),
-                "fecha_vinculacion": datetime.strptime(request.json.get('fecha_vinculacion'), '%Y-%m-%d').strftime('%Y,%m,%d'),  # Comentado debido al error
-                "direccion_empresa": request.json.get('direccion_empresa'),
-                "telefono_empresa": request.json.get('telefono_empresa'),
-                "tipo_contrato": request.json.get('tipo_contrato'),
-                "cargo_actual": request.json.get('cargo_actual')
+                "actividad_economica": request.form.get('actividad_economica'),
+                "empresa_labora": request.form.get('empresa_labora'),
+                "fecha_vinculacion": datetime.strptime(request.form.get('fecha_vinculacion'), '%Y-%m-%d').strftime('%Y,%m,%d'),
+                "direccion_empresa": request.form.get('direccion_empresa'),
+                "telefono_empresa": request.form.get('telefono_empresa'),
+                "tipo_contrato": request.form.get('tipo_contrato'),
+                "cargo_actual": request.form.get('cargo_actual')
             }
 
             res = supabase.table('ACTIVIDAD_ECONOMICA').insert(economic_activity).execute()
 
-            print("Actividad economica")
-            print(res.data)
+            # print("Actividad economica")
+            # print(res.data)
             
             # Crear registro de información financiera
             financial_info = {
                 "solicitante_id": applicant_id,
-                "ingresos": request.json.get('ingresos'),
-                "valor_inmueble": request.json.get('valor_inmueble'),
-                "cuota_inicial": request.json.get('cuota_inicial'),
-                "porcentaje_financiar": request.json.get('porcentaje_financiar'),
-                "total_egresos": request.json.get('total_egresos'),
-                "total_activos": request.json.get('total_activos'),
-                "total_pasivos": request.json.get('total_pasivos')
+                "ingresos": request.form.get('ingresos'),
+                "valor_inmueble": request.form.get('valor_inmueble'),
+                "cuota_inicial": request.form.get('cuota_inicial'),
+                "porcentaje_financiar": request.form.get('porcentaje_financiar'),
+                "total_egresos": request.form.get('total_egresos'),
+                "total_activos": request.form.get('total_activos'),
+                "total_pasivos": request.form.get('total_pasivos')
             }
 
             res = supabase.table('INFORMACION_FINANCIERA').insert(financial_info).execute()
 
-            print("Informacion financiera")
-            print(res.data)
+            # print("Informacion financiera")
+            # print(res.data)
             
             # Crear registro de producto solicitado
             product = {
                 "solicitante_id": applicant_id,
-                "tipo_credito": request.json.get('tipo_credito'),
-                "plazo_meses": request.json.get('plazo_meses'),
-                "segundo_titular": True if request.json.get('segundo_titular') == 'si' else False,
-                "observacion": request.json.get('observacion'),
+                "tipo_credito": request.form.get('tipo_credito'),
+                "plazo_meses": request.form.get('plazo_meses'),
+                "segundo_titular": True if request.form.get('segundo_titular') == 'si' else False,
+                "observacion": request.form.get('observacion'),
                 "estado": "Radicado"
             }
 
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
-            print("Producto solicitado")
-            print(res.data)
+            # print("Producto solicitado")
+            # print(res.data)
             
             # Crear registro de solicitud
             solicitud = {
                 "solicitante_id": applicant_id,
                 "asesor_id": agent_id,
-                "banco": request.json.get('banco'),
-                # "fecha_solicitud": datetime.now().strftime('%d/%m/%Y %H %M %S')
+                "banco": request.form.get('banco'),
             }
 
-            res = supabase.table('SOLICITUDES').insert(solicitud).execute()
-            print("Solicitud")
-            print(res.data)
+            # print("Solicitud")
+            # print(res.data)
 
-            print(applicant)
-            print(location)
-            print(economic_activity)
-            print(financial_info)
-            print(product)
-            print(solicitud)
+            # print(applicant)
+            # print(location)
+            # print(economic_activity)
+            # print(financial_info)
+            # print(product)
+            # print(solicitud)
             
             return jsonify({
                 "mensaje": "Registro creado exitosamente",
