@@ -4,7 +4,7 @@ from datetime import datetime
 import time as std_time
 from datetime import datetime, time
 import errno
-from io import BytesIO 
+from io import BytesIO
 import uuid  # Para generar nombres únicos
 
 
@@ -57,13 +57,13 @@ class recordsModel():
 
             # Procesar archivos
             print("Files:", request.files)
-            
+
             # Obtener lista de archivos con getlist()
             files = request.files.getlist('archivos')
-            
+
             for file in files:
                 print("Procesando archivo:", file.filename)
-                
+
                 try:
                     # Crear nombre único para el archivo
                     extension = file.filename.split('.')[-1]
@@ -78,7 +78,7 @@ class recordsModel():
 
                     # Subir archivo a Supabase Storage
                     res = supabase.storage.from_("findii").upload(
-                        file_path, 
+                        file_path,
                         file_data,
                         file_options={"content-type": file.mimetype}
                     )
@@ -92,12 +92,12 @@ class recordsModel():
 
                     # Obtener URL pública e insertar en BD
                     image_url = supabase.storage.from_("findii").get_public_url(file_path)
-                    
+
                     # Insertar registro para esta imagen
                     datos_insertar = {
                         "id_solicitante": applicant_id,
                         "imagen": image_url
-                    }   
+                    }
 
                     print("Datos insertar")
                     print(datos_insertar)
@@ -140,7 +140,7 @@ class recordsModel():
 
             # print("Ubicaciones")
             # print(res.data)
-            
+
             # Crear registro de actividad económica
             economic_activity = {
                 "solicitante_id": applicant_id,
@@ -157,7 +157,7 @@ class recordsModel():
 
             # print("Actividad economica")
             # print(res.data)
-            
+
             # Crear registro de información financiera
             financial_info = {
                 "solicitante_id": applicant_id,
@@ -174,7 +174,7 @@ class recordsModel():
 
             # print("Informacion financiera")
             # print(res.data)
-            
+
             # Crear registro de producto solicitado
             product = {
                 "solicitante_id": applicant_id,
@@ -188,7 +188,7 @@ class recordsModel():
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
             # print("Producto solicitado")
             # print(res.data)
-            
+
             # Crear registro de solicitud
             solicitud = {
                 "solicitante_id": applicant_id,
@@ -205,15 +205,15 @@ class recordsModel():
             # print(financial_info)
             # print(product)
             # print(solicitud)
-            
+
             return jsonify({
                 "mensaje": "Registro creado exitosamente",
             }), 200
-            
+
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+
     def get_all_data(self):
         max_retries = 3
         retry_delay = 4  # seconds
@@ -257,7 +257,7 @@ class recordsModel():
                         std_time.sleep(retry_delay)
                     else:
                         return jsonify({"mensaje": "Error en la lectura"}), 500
-                
+
     def filtrar_tabla(self):
         try:
             data = request.get_json()
@@ -284,7 +284,7 @@ class recordsModel():
                 "INFORMACION_FINANCIERA": ["id", "solicitante_id", "ingresos", "total_egresos", "valor_inmueble","cuota_inicial", "porcentaje_financiar","total_activos", "total_pasivos"],
 
                 "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "observacion"],
-                
+
                 "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud", "estado"]
             }
 
@@ -323,18 +323,18 @@ class recordsModel():
         except requests.exceptions.HTTPError as err:
             print("Error en la solicitud a Supabase:", err)
             return jsonify({"error": "Error al consultar la base de datos"}), 500
-    
+
     # Descarga todas las ventas con id's mayor a 1000
     # /descargar-ventas/
     def descargar_ventas_realizadas(self):
         try:
-            csv_filename = 'ventas_realizadas.csv'
-            
+            csv_filename= '/home/equitisoporte/api_findii/ventas_realizadas.csv'
+
             # 1. Descarga de la tabla principal (por ejemplo, "SOLICITANTES")
             solicitantes_resp = supabase.table("SOLICITANTES").select("*").execute()
             if not solicitantes_resp.data:
                 return jsonify({"res": "No existen datos en SOLICITANTES"}), 200
-            
+
             # Creamos el DataFrame principal
             df_solicitantes = pd.DataFrame(solicitantes_resp.data)
 
@@ -346,13 +346,13 @@ class recordsModel():
                 "product": "PRODUCTO_SOLICITADO",
                 "solicitud": "SOLICITUDES"
             }
-            
+
             # 3. Para cada tabla relacionada, la descargamos y unimos con df_solicitantes
             for clave, nombre_tabla in tablas_relacionadas.items():
                 resp = supabase.table(nombre_tabla).select("*").execute()
                 if resp.data:
                     df_rel = pd.DataFrame(resp.data)
-                    
+
                     # Asegúrate de que 'solicitante_id' exista en ambas tablas
                     df_solicitantes = df_solicitantes.merge(
                         df_rel,
@@ -362,17 +362,17 @@ class recordsModel():
                     )
                 else:
                     print(f"No se encontraron datos en la tabla {nombre_tabla}")
-            
+
             # 4. Exportar el DataFrame unificado a CSV
             df_solicitantes.to_csv(csv_filename, index=False)
-            
+
             # 5. Retornar el CSV para su descarga
             return send_file(csv_filename, as_attachment=True), 200
-        
+
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+
     def editar_estado(self):
         try:
             # 1. Extraer los datos del request
@@ -411,7 +411,7 @@ class recordsModel():
                                         .update(data_dict) \
                                         .eq("solicitante_id", solicitante_id) \
                                         .execute()
-            
+
             print(respuesta_update)
 
             # Si la actualización no retorna datos, asumimos que falló
@@ -425,7 +425,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": e}), 500
-   
+
     def mostrar_por_fecha(self):
         try:
             # 1. Extraer la fecha enviada en formato dd/mm/yyyy
@@ -479,7 +479,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+
     def mostrar_por_intervalo(self):
         try:
             # 1. Extraer las fechas enviadas (en formato dd/mm/yyyy)
@@ -546,7 +546,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"error": "Ocurrió un error al procesar la solicitud"}), 500
-        
+
     def edit_record(self):
         try:
             data = request.get_json()
@@ -607,7 +607,7 @@ class recordsModel():
                 # Obtener los datos de la tabla específica
                 datos_tabla = data.get(tabla, {})
                 datos_actualizacion = {}
-                
+
                 for campo in config["campos_permitidos"]:
                     if campo in datos_tabla and datos_tabla[campo] is not None and datos_tabla[campo] != "" and datos_tabla[campo] != "undefined":
                         # Procesamiento especial para algunos campos
@@ -632,7 +632,7 @@ class recordsModel():
                             .update(datos_actualizacion)\
                             .eq('solicitante_id', solicitante_id)\
                             .execute()
-                        
+
                         resultados[tabla] = {
                             "estado": "exitoso",
                             "datos_actualizados": datos_actualizacion
@@ -654,4 +654,3 @@ class recordsModel():
         except Exception as e:
             print("Error:", e)
             return jsonify({"error": str(e)}), 500
-    
