@@ -196,6 +196,9 @@ class recordsModel():
                 "banco": request.form.get('banco'),
             }
 
+            res = supabase.table('SOLICITUDES').insert(solicitud).execute()
+
+
             # print("Solicitud")
             # print(res.data)
 
