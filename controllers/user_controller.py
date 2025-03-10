@@ -23,3 +23,7 @@ class userController():
     def update_agent(self):
         query = mod_user.update_user()
         return query
+    
+    def all_users(self):
+        query = mod_user.get_all_users()
+        return query
