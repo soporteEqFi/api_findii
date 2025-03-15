@@ -1,5 +1,7 @@
+
 from models.generales.generales import *
 from datetime import datetime
+from models.utils.pdf.generate_pdf import *
 import time as std_time
 from datetime import datetime, time
 import errno
@@ -57,10 +59,57 @@ class recordsModel():
 
             files = request.files.getlist('archivos')
 
-            # Subir archivos a Supabase Storage
-            uploaded_files = upload_files({"archivos": files}, {"id_solicitante": applicant_id}, supabase)
+            for file in files:
+                print("Procesando archivo:", file.filename)
 
-            print("Llenando los campos faltantes")
+                try:
+                    # Crear nombre único para el archivo
+                    extension = file.filename.split('.')[-1]
+                    unique_filename = f"{uuid.uuid4().hex}_{int(datetime.timestamp(datetime.now()))}.{extension}"
+                    file_path = f"images/{unique_filename}"
+
+                    print("Nombre archivo")
+                    print(unique_filename)
+
+                    # Leer archivo y convertir a bytes
+                    file_data = file.read()
+
+                    # Subir archivo a Supabase Storage
+                    res = supabase.storage.from_("findii").upload(
+                        file_path,
+                        file_data,
+                        file_options={"content-type": file.mimetype}
+                    )
+
+                    print("Subir archivo")
+                    print(res)
+
+                    if isinstance(res, dict) and "error" in res:
+                        print(f"Error al subir archivo {file.filename}: {res['error']}")
+                        continue
+
+                    # Hacer que el archivo sea público (importante para PDFs)
+                    # supabase.storage.from_("findii").update(file_path, {'public': True})
+
+                    # Obtener URL pública e insertar en BD
+                    image_url = supabase.storage.from_("findii").get_public_url(file_path)
+
+                    # Insertar registro para esta imagen
+                    datos_insertar = {
+                        "id_solicitante": applicant_id,
+                        "imagen": image_url
+                    }
+
+                    print("Datos insertar")
+                    print(datos_insertar)
+                    res_db = supabase.table("PRUEBA_IMAGEN").insert(datos_insertar).execute()
+                    print("Respuesta db")
+                    print(res_db)
+
+                except Exception as e:
+                    print(f"Error procesando archivo {file.filename}: {str(e)}")
+                    continue
+
             # Verificar campos faltantes
             missing_fields = required_fields - set(request.form.keys())
             if missing_fields:
@@ -71,12 +120,12 @@ class recordsModel():
                     "campos_faltantes": list(missing_fields)
                 }), 400
 
-            print("Llenando el asesor")
             print(request.form.get('asesor_usuario'))
+
             # Obtener el asesor de la tabla de asesores
             agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
-            # print("Asesores info")
-            # print(agents_info.data)
+            print("Asesores info")
+            print(agents_info.data)
             agent_id = agents_info.data[0]['id']
 
             # print(agent_id)
@@ -158,94 +207,7 @@ class recordsModel():
             }
 
             res = supabase.table('SOLICITUDES').insert(solicitud).execute()
-        
-            print("Llenando la solicitud de seguimiento")
-            # Obtener el ID de la solicitud recién creada (no del producto)
-            solicitud_id = res.data[0]['id']
 
-            # Obtener ID del producto creado
-            product_info = supabase.table('PRODUCTO_SOLICITADO').select('*').eq('solicitante_id', applicant_id).execute()
-            if product_info.data:
-                product_id = product_info.data[0]['id']
-                
-                # Obtener documentos ya subidos
-                docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', applicant_id).execute()
-                archivos_existentes = []
-
-                if docs.data:
-                    for doc in docs.data:
-                        archivos_existentes.append({
-                            "archivo_id": str(uuid.uuid4()),
-                            "nombre": doc.get('nombre'),
-                            "url": doc.get('imagen'),
-                            "estado": "pendiente",
-                            "comentario": "",
-                            "modificado": False,
-                            "fecha_modificacion": datetime.now().isoformat(),
-                            "ultima_fecha_modificacion": datetime.now().isoformat()
-                        })
-
-                # Generar ID de radicado
-                tracking = trackingModel()
-                id_radicado = tracking.generar_id_radicado()
-
-                # Registrar el primer estado en la tabla de seguimiento usando el ID del producto correcto
-                seguimiento_inicial = {
-                    "id_producto": product_id,
-                    "id_asesor": agent_id,
-                    "producto_solicitado": request.form.get('tipo_credito'),
-                    "cambio_por": request.form.get('asesor_usuario'),
-                    "fecha_cambio": datetime.now().isoformat(),
-                    "banco": request.form.get('banco'),
-                    "estado_global": "Radicado",
-                    "fecha_creacion": datetime.now().isoformat(),
-                    "solicitante_id": applicant_id,
-                    "id_radicado": id_radicado,
-                    "etapas": [
-                        {
-                            "etapa": "documentos",
-                            "archivos": archivos_existentes,
-                            "requisitos_pendientes": ["Documentos en revisión"],
-                            "fecha_actualizacion": datetime.now().isoformat(),
-                            "comentarios": "Sus documentos han sido recibidos y están en proceso de revisión",
-                            "estado": "En revisión",
-                            "historial": [
-                                {"fecha": datetime.now().isoformat(), "estado": "En revisión", "usuario_id": agent_id, "comentario": "Solicitud creada"}
-                            ]
-                        },
-                        {
-                            "etapa": "banco",
-                            "archivos": [],
-                            "viabilidad": "Pendiente",
-                            "fecha_actualizacion": datetime.now().isoformat(),
-                            "comentarios": "",
-                            "estado": "Pendiente",
-                            "historial": []
-                        },
-                        {
-                            "etapa": "desembolso",
-                            "desembolsado": False,
-                            "estado": "Pendiente",
-                            "fecha_estimada": None,
-                            "fecha_actualizacion": datetime.now().isoformat(),
-                            "comentarios": "",
-                            "historial": []
-                        }
-                    ]
-                }
-
-                # Insertar en la base de datos
-                res = supabase.table('SEGUIMIENTO_SOLICITUDES').insert(seguimiento_inicial).execute()
-                print("Respuesta de la tabla de seguimiento")
-                print(res)
-                
-
-                # # Actualizar producto con el ID de radicado
-                # supabase.table('PRODUCTO_SOLICITADO').update({
-                #     "id_radicado": id_radicado
-                # }).eq('id', product_id).execute()
-            
-            print("Terminaste de crear el seguimiento")
             # Recopilar toda la información en un diccionario data
             data = {
                 "solicitante": {
@@ -297,8 +259,7 @@ class recordsModel():
                     "plazo_meses": request.form.get('plazo_meses'),
                     "segundo_titular": True if request.form.get('segundo_titular') == 's' else False,
                     "observacion": request.form.get('observacion'),
-                    "estado": "Radicado",
-                    "informacion_producto": request.form.get('informacion_producto')
+                    "estado": "Radicado"
                 },
                 "solicitud": {
                     "solicitante_id": applicant_id,
@@ -309,16 +270,31 @@ class recordsModel():
                 "asesor_id": agent_id
             }
 
-            # Enviar correo
-            email_settings = config_email()
+            # En tu función principal
+            pdf_data = generar_pdf_desde_html(data)
+            if pdf_data:
+                # Crear nombre único para el PDF
+                unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
+                file_path = f"documentos/{unique_filename}"
+                
+                # Subir a Supabase Storage
+                res = supabase.storage.from_("findii").upload(
+                    file_path,
+                    pdf_data,
+                    file_options={"content-type": "application/pdf"}
+                )
+                
+                if isinstance(res, dict) and "error" in res:
+                    print(f"Error al subir PDF: {res['error']}")
+                else:
+                    # Obtener URL pública
+                    pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
+                    print("PDF guardado:", pdf_url)
 
-            email_body_and_send(email_settings, data)
+                return jsonify({
+                    "mensaje": "Registro creado exitosamente",
+                }), 200
 
-
-            return jsonify({
-                "mensaje": "Registro creado exitosamente",
-            }), 200
-            
         except Exception as e:
             error_msg = str(e)
             print("Ocurrió un error al crear un registro:", error_msg)
@@ -442,170 +418,73 @@ class recordsModel():
                         std_time.sleep(retry_delay)
                     else:
                         return jsonify({"mensaje": "Error en la lectura"}), 500
-                
-    def get_combined_data(self):
-        try:
-            max_retries = 3
-            retry_delay = 4  # seconds
 
-            for attempt in range(max_retries):
-                try:
-                    # Consultas a las tablas
-                    tablas = {
-                        "SOLICITANTES": "SOLICITANTES",
-                        "UBICACION": "UBICACION",
-                        "ACTIVIDAD_ECONOMICA": "ACTIVIDAD_ECONOMICA",
-                        "INFORMACION_FINANCIERA": "INFORMACION_FINANCIERA",
-                        "PRODUCTO_SOLICITADO": "PRODUCTO_SOLICITADO",
-                        "SOLICITUDES": "SOLICITUDES",
-                        "PRUEBA_IMAGEN": "PRUEBA_IMAGEN"
-                    }
-
-                    # Consultas a las tablas de Supabase en un solo paso
-                    registros = {
-                        clave: supabase.table(tabla).select("*").execute().data
-                        for clave, tabla in tablas.items()
-                    }
-
-                    if all(len(value) == 0 for value in registros.values()):
-                        return jsonify({"mensaje": "No hay registros en estas tablas"}), 200
-
-                    # Combinar datos por solicitante_id
-                    solicitantes = registros["SOLICITANTES"]
-                    datos_combinados = []
-
-                    for solicitante in solicitantes:
-                        solicitante_id = solicitante.get("solicitante_id")
-                        
-                        # Buscar datos relacionados en cada tabla
-                        actividad = next((a for a in registros["ACTIVIDAD_ECONOMICA"] if a.get("solicitante_id") == solicitante_id), {})
-                        finanzas = next((f for f in registros["INFORMACION_FINANCIERA"] if f.get("solicitante_id") == solicitante_id), {})
-                        ubicacion = next((l for l in registros["UBICACION"] if l.get("solicitante_id") == solicitante_id), {})
-                        producto = next((p for p in registros["PRODUCTO_SOLICITADO"] if p.get("solicitante_id") == solicitante_id), {})
-                        solicitud_info = next((s for s in registros["SOLICITUDES"] if s.get("solicitante_id") == solicitante_id), {})
-                        
-                        # Cambiar esto para obtener TODOS los documentos
-                        documentos = [d for d in registros["PRUEBA_IMAGEN"] if d.get("id_solicitante") == solicitante_id]
-                        
-                        # Crear objeto combinado
-                        registro_combinado = {
-                            # Info solicitante
-                            "id_solicitante": solicitante.get("solicitante_id", "N/A"),
-                            "nombre": solicitante.get("nombre_completo", "N/A"),
-                            "tipo_documento": solicitante.get("tipo_documento", "N/A"),
-                            "fecha_nacimiento": solicitante.get("fecha_nacimiento", "N/A"),
-                            "numero_documento": solicitante.get("numero_documento", "N/A"),
-                            "correo": solicitante.get("correo_electronico", "N/A"),
-                            "profesion": solicitante.get("profesion", "N/A"),
-                            "personas_a_cargo": solicitante.get("personas_a_cargo", "N/A"),
-                            "numero_celular": solicitante.get("numero_celular", "N/A"),
-                            "nivel_estudio": solicitante.get("nivel_estudio", "N/A"),
-                            "estado_civil": solicitante.get("estado_civil", "N/A"),
-                            
-                            # Actividad económica
-                            "actividad_economica": actividad.get("actividad_economica", "N/A"),
-                            "cargo_actual": actividad.get("cargo_actual", "N/A"),
-                            "empresa_labora": actividad.get("empresa_labora", "N/A"),
-                            "direccion_empresa": actividad.get("direccion_empresa", "N/A"),
-                            "telefono_empresa": actividad.get("telefono_empresa", "N/A"),
-                            "tipo_de_contrato": actividad.get("tipo_contrato", "N/A"),
-                            "fecha_vinculacion": actividad.get("fecha_vinculacion", "N/A"),
-                            
-                            # Finanzas
-                            "ingresos": finanzas.get("ingresos", "N/A"),
-                            "total_egresos": finanzas.get("total_egresos", "N/A"),
-                            "cuota_inicial": finanzas.get("cuota_inicial", "N/A"),
-                            "porcentaje_financiar": finanzas.get("porcentaje_financiar", "N/A"),
-                            "total_activos": finanzas.get("total_activos", "N/A"),
-                            "total_pasivos": finanzas.get("total_pasivos", "N/A"),
-                            "valor_inmueble": finanzas.get("valor_inmueble", "N/A"),
-                            
-                            # Ubicación
-                            "ciudad_gestion": ubicacion.get("ciudad_gestion", "N/A"),
-                            "departamento": ubicacion.get("departamento", "N/A"),
-                            "direccion": ubicacion.get("direccion_residencia", "N/A"),
-                            "barrio": ubicacion.get("barrio", "N/A"),
-                            "estrato": ubicacion.get("estrato", "N/A"),
-                            "tipo_vivienda": ubicacion.get("tipo_vivienda", "N/A"),
-                            
-                            # Producto
-                            "producto_solicitado": producto.get("tipo_credito", "N/A"),
-                            "observacion": producto.get("observacion", "N/A"),
-                            "plazo_meses": producto.get("plazo_meses", "N/A"),
-                            "segundo_titular": producto.get("segundo_titular", "N/A"),
-                            "estado": producto.get("estado", "N/A"),
-                            "tipo_de_credito": producto.get("tipo_credito", "N/A"),
-                            
-                            # Documentos - Ahora enviamos una lista de documentos
-                            "archivos": [doc.get("imagen", "N/A") for doc in documentos] if documentos else ["N/A"],
-                            "tipos_archivo": [doc.get("tipo", "N/A") for doc in documentos] if documentos else ["N/A"],
-                            
-                            "banco": solicitud_info.get("banco", "N/A"),
-                            "created_at": format_date(solicitud_info.get("created_at", "N/A")),
-                            "asesor_id": solicitud_info.get("asesor_id", "N/A"),
-                            "informacion_producto": producto.get("informacion_producto", {}),
-                        }
-                        
-                        datos_combinados.append(registro_combinado)
-
-                    return jsonify({"datos_combinados": datos_combinados}), 200
-
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        import time
-                        time.sleep(retry_delay)
-                    else:
-                        print(f"Error en la lectura: {e}")
-                        return jsonify({"mensaje": f"Error en la lectura: {str(e)}"}), 500
-                
-        except Exception as e:
-            print(f"Error general: {e}")
-            return jsonify({"mensaje": f"Error general: {str(e)}"}), 500
-
-    def filtrar_tabla_combinada(self):
+    def filtrar_tabla(self):
         try:
             data = request.get_json()
 
+            print("Datos recibidos:", data)
+
             if not data or "columna_buscar" not in data or "texto_buscar" not in data:
+                print("Error: Faltan parámetros requeridos en la solicitud")
                 return jsonify({"error": "Faltan parámetros en la solicitud"}), 400
 
             columna_buscar = data["columna_buscar"]
             texto_buscar = data["texto_buscar"]
 
-            # Primero obtenemos todos los datos combinados
-            response, status_code = self.get_combined_data()
-            
-            # Si hay un error, lo devolvemos
-            if status_code != 200:
-                return response, status_code
-            
-            # Obtenemos los datos combinados
-            datos_combinados = response.json.get("datos_combinados", [])
-            
-            # Si no hay datos, devolvemos un mensaje
-            if not datos_combinados:
-                return jsonify({"mensaje": "No hay registros para filtrar"}), 204
-            
-            # Filtramos los datos según la columna y el texto
-            resultados_filtrados = []
-            
-            for registro in datos_combinados:
-                # Verificamos si la columna existe en el registro
-                if columna_buscar in registro:
-                    valor = str(registro[columna_buscar]).lower()
-                    if texto_buscar.lower() in valor:
-                        resultados_filtrados.append(registro)
-            
-            # Si no hay resultados, devolvemos un mensaje
-            if not resultados_filtrados:
-                return jsonify({"mensaje": "No se encontraron coincidencias"}), 204
-            
-            return jsonify({"datos_filtrados": resultados_filtrados}), 200
+            print(f"Buscando columna: {columna_buscar}, texto: {texto_buscar}")
 
-        except Exception as e:
-            print(f"Error al filtrar tabla: {e}")
-            return jsonify({"error": f"Error al filtrar tabla: {str(e)}"}), 500
-    
+            # Diccionario con las columnas de cada tabla (definido manualmente)
+            columnas_tablas = {
+                "SOLICITANTES": ["solicitante_id","nombre_completo","tipo_documento","numero_documento","fecha_nacimiento","numero_celular","correo_electronico","nivel_estudios","profesion","estado_civil","personas_a_cargo"],
+
+                "UBICACION": ["id", "solicitante_id", "barrio", "ciudad_gestion", "direccion_residencia","estrato","tipo_vivienda"],
+
+                "ACTIVIDAD_ECONOMICA": ["id", "solicitante_id", "actividad_economica", "empresa_labora", "fecha_vinculacion","direccion_empresa","telefono_empresa", "tipo_contrato", "cargo_actual"],
+
+                "INFORMACION_FINANCIERA": ["id", "solicitante_id", "ingresos", "total_egresos", "valor_inmueble","cuota_inicial", "porcentaje_financiar","total_activos", "total_pasivos"],
+
+                "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "observacion"],
+
+                "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud", "estado"]
+            }
+
+            print("Estructura de columnas_tablas:", columnas_tablas)
+
+            solicitante_ids = set()
+
+            # Buscar en cada tabla si la columna existe y tiene coincidencias
+            for tabla, columnas in columnas_tablas.items():
+                print(f"\nRevisando tabla: {tabla}")
+                if columna_buscar in columnas:
+                    print(f"Columna {columna_buscar} encontrada en tabla {tabla}")
+                    try:
+                        res = supabase.table(tabla).select("solicitante_id").eq(columna_buscar, texto_buscar).execute()
+                        print(f"Resultado de búsqueda en {tabla}:", res.data)
+                        if res.data:
+                            solicitante_ids.update(row["solicitante_id"] for row in res.data)
+                    except Exception as e:
+                        print(f"Error al consultar {tabla}: {e}")
+
+            print("IDs de solicitantes encontrados:", solicitante_ids)
+
+            if not solicitante_ids:
+                print("No se encontraron registros que coincidan con el criterio de búsqueda")
+                return jsonify({"error": "No se encontraron registros con ese criterio"}), 204
+
+            # Obtener datos de todas las tablas filtrando por solicitante_id
+            registros = {
+                tabla: supabase.table(tabla).select("*").in_("solicitante_id", list(solicitante_ids)).execute().data
+                for tabla in columnas_tablas.keys()
+            }
+
+            print("Registros recuperados:", registros)
+            return jsonify({"registros": registros}), 200
+
+        except requests.exceptions.HTTPError as err:
+            print("Error en la solicitud a Supabase:", err)
+            return jsonify({"error": "Error al consultar la base de datos"}), 500
+
     # Descarga todas las ventas con id's mayor a 1000
     # /descargar-ventas/
     def descargar_ventas_realizadas(self):
