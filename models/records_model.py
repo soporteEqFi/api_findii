@@ -1,6 +1,7 @@
-from librerias import *
+
 from models.generales.generales import *
 from datetime import datetime
+from models.utils.pdf.generate_pdf import *
 import time as std_time
 from datetime import datetime, time
 import errno
@@ -90,6 +91,9 @@ class recordsModel():
                         print(f"Error al subir archivo {file.filename}: {res['error']}")
                         continue
 
+                    # Hacer que el archivo sea público (importante para PDFs)
+                    # supabase.storage.from_("findii").update(file_path, {'public': True})
+
                     # Obtener URL pública e insertar en BD
                     image_url = supabase.storage.from_("findii").get_public_url(file_path)
 
@@ -117,10 +121,12 @@ class recordsModel():
                     "campos_faltantes": list(missing_fields)
                 }), 400
 
+            print(request.form.get('asesor_usuario'))
+
             # Obtener el asesor de la tabla de asesores
             agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
             print("Asesores info")
-            # print(agents_info.data)
+            print(agents_info.data)
             agent_id = agents_info.data[0]['id']
 
             print(agent_id)
@@ -198,20 +204,92 @@ class recordsModel():
 
             res = supabase.table('SOLICITUDES').insert(solicitud).execute()
 
+            # Recopilar toda la información en un diccionario data
+            data = {
+                "solicitante": {
+                    "id": applicant_id,
+                    "nombre": request.form.get('nombre_completo', '').split()[0] if request.form.get('nombre_completo') else '',
+                    "apellido": ' '.join(request.form.get('nombre_completo', '').split()[1:]) if request.form.get('nombre_completo') and len(request.form.get('nombre_completo', '').split()) > 1 else '',
+                    "tipo_documento": request.form.get('tipo_documento'),
+                    "numero_documento": request.form.get('numero_documento'),
+                    "fecha_nacimiento": request.form.get('fecha_nacimiento'),
+                    "estado_civil": request.form.get('estado_civil'),
+                    "email": request.form.get('correo_electronico'),
+                    "numero_celular": request.form.get('numero_celular'),
+                    "nivel_estudio": request.form.get('nivel_estudio'),
+                    "profesion": request.form.get('profesion'),
+                    "personas_a_cargo": request.form.get('personas_a_cargo')
+                },
+                "ubicacion": {
+                    "solicitante_id": applicant_id,
+                    "direccion": request.form.get('direccion_residencia'),
+                    "ciudad": request.form.get('ciudad_gestion'),
+                    "departamento": request.form.get('departamento'),
+                    "estrato": request.form.get('estrato'),
+                    "tipo_vivienda": request.form.get('tipo_vivienda'),
+                    "tiempo_residencia": request.form.get('barrio')  # Usando barrio como tiempo_residencia por compatibilidad con PDF
+                },
+                "actividad_economica": {
+                    "solicitante_id": applicant_id,
+                    "actividad": request.form.get('actividad_economica'),
+                    "empresa": request.form.get('empresa_labora'),
+                    "cargo": request.form.get('cargo_actual'),
+                    "tipo_contrato": request.form.get('tipo_contrato'),
+                    "fecha_vinculacion": request.form.get('fecha_vinculacion'),
+                    "direccion_empresa": request.form.get('direccion_empresa'),
+                    "telefono_empresa": request.form.get('telefono_empresa')
+                },
+                "informacion_financiera": {
+                    "solicitante_id": applicant_id,
+                    "ingresos": request.form.get('ingresos'),
+                    "valor_inmueble": request.form.get('valor_inmueble'),
+                    "cuota_inicial": request.form.get('cuota_inicial'),
+                    "porcentaje_financiar": request.form.get('porcentaje_financiar'),
+                    "total_egresos": request.form.get('total_egresos'),
+                    "total_activos": request.form.get('total_activos'),
+                    "total_pasivos": request.form.get('total_pasivos')
+                },
+                "producto": {
+                    "solicitante_id": applicant_id,
+                    "tipo_credito": request.form.get('tipo_credito'),
+                    "plazo_meses": request.form.get('plazo_meses'),
+                    "segundo_titular": True if request.form.get('segundo_titular') == 's' else False,
+                    "observacion": request.form.get('observacion'),
+                    "estado": "Radicado"
+                },
+                "solicitud": {
+                    "solicitante_id": applicant_id,
+                    "asesor_id": agent_id,
+                    "banco": request.form.get('banco')
+                },
+                "banco": request.form.get('banco'),
+                "asesor_id": agent_id
+            }
 
-            # print("Solicitud")
-            # print(res.data)
+            # En tu función principal
+            pdf_data = generar_pdf_desde_html(data)
+            if pdf_data:
+                # Crear nombre único para el PDF
+                unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
+                file_path = f"documentos/{unique_filename}"
+                
+                # Subir a Supabase Storage
+                res = supabase.storage.from_("findii").upload(
+                    file_path,
+                    pdf_data,
+                    file_options={"content-type": "application/pdf"}
+                )
+                
+                if isinstance(res, dict) and "error" in res:
+                    print(f"Error al subir PDF: {res['error']}")
+                else:
+                    # Obtener URL pública
+                    pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
+                    print("PDF guardado:", pdf_url)
 
-            # print(applicant)
-            # print(location)
-            # print(economic_activity)
-            # print(financial_info)
-            # print(product)
-            # print(solicitud)
-
-            return jsonify({
-                "mensaje": "Registro creado exitosamente",
-            }), 200
+                return jsonify({
+                    "mensaje": "Registro creado exitosamente",
+                }), 200
 
         except Exception as e:
             print("Ocurrió un error:", e)
