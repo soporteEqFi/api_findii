@@ -453,7 +453,7 @@ class recordsModel():
                         producto = next((p for p in registros["PRODUCTO_SOLICITADO"] if p.get("solicitante_id") == solicitante_id), {})
                         solicitud_info = next((s for s in registros["SOLICITUDES"] if s.get("solicitante_id") == solicitante_id), {})
                         documento = next((d for d in registros["PRUEBA_IMAGEN"] if d.get("id_solicitante") == solicitante_id), {})
-                        
+                        # print(solicitante.get("tipo_documento", "N/A"))
                         # Crear objeto combinado
                         registro_combinado = {
                             # Info solicitante
@@ -504,7 +504,7 @@ class recordsModel():
                             
                             # Documentos
                             "archivos": documento.get("imagen", "N/A"),
-                            "tipo_documento": documento.get("tipo", "N/A"),
+                            "tipo_archivo": documento.get("tipo", "N/A"),
                             
                             # Banco y fecha
                             "banco": solicitud_info.get("banco", "N/A"),
@@ -513,7 +513,10 @@ class recordsModel():
                         }
                         
                         datos_combinados.append(registro_combinado)
+                        # Ordenar los datos combinados por fecha (campo created_at) de forma descendente
+                        datos_combinados.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
+                        # print(datos_combinados)
                     return jsonify({"datos_combinados": datos_combinados}), 200
 
                 except Exception as e:
