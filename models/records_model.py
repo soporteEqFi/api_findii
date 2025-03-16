@@ -1,6 +1,5 @@
 from models.generales.generales import *
 from datetime import datetime
-from models.utils.pdf.generate_pdf import *
 import time as std_time
 from datetime import datetime, time
 import errno
@@ -265,26 +264,26 @@ class recordsModel():
                 "asesor_id": agent_id
             }
 
-            # En tu función principal
-            pdf_data = generar_pdf_desde_html(data)
-            if pdf_data:
-                # Crear nombre único para el PDF
-                unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
-                file_path = f"documentos/{unique_filename}"
+            # # En tu función principal
+            # pdf_data = generar_pdf_desde_html(data)
+            # if pdf_data:
+            #     # Crear nombre único para el PDF
+            #     unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
+            #     file_path = f"documentos/{unique_filename}"
                 
-                # Subir a Supabase Storage
-                res = supabase.storage.from_("findii").upload(
-                    file_path,
-                    pdf_data,
-                    file_options={"content-type": "application/pdf"}
-                )
+            #     # Subir a Supabase Storage
+            #     res = supabase.storage.from_("findii").upload(
+            #         file_path,
+            #         pdf_data,
+            #         file_options={"content-type": "application/pdf"}
+            #     )
                 
-                if isinstance(res, dict) and "error" in res:
-                    print(f"Error al subir PDF: {res['error']}")
-                else:
-                    # Obtener URL pública
-                    pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
-                    print("PDF guardado:", pdf_url)
+            #     if isinstance(res, dict) and "error" in res:
+            #         print(f"Error al subir PDF: {res['error']}")
+            #     else:
+            #         # Obtener URL pública
+            #         pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
+            #         print("PDF guardado:", pdf_url)
             
             return jsonify({
                 "mensaje": "Registro creado exitosamente",
