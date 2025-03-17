@@ -411,6 +411,27 @@ class recordsModel():
                         std_time.sleep(retry_delay)
                     else:
                         return jsonify({"mensaje": "Error en la lectura"}), 500
+
+    def format_date(self, date_str):
+        try:
+            if date_str == "N/A":
+                return "N/A"
+            
+            from datetime import datetime
+            import dateutil.parser
+            
+            # Limpiamos la cadena
+            date_str = date_str.strip().rstrip("'")
+            
+            # Usamos dateutil.parser que es más flexible con los formatos
+            fecha = dateutil.parser.parse(date_str)
+            
+            # Formateamos la fecha como dd/mm/yyyy
+            return fecha.strftime('%d/%m/%Y')
+        except Exception as e:
+            print(f"Error al formatear fecha: {e}")
+            print(f"Fecha problemática: {date_str}")
+            return date_str
                 
     def get_combined_data(self):
         try:
@@ -506,15 +527,16 @@ class recordsModel():
                             "archivos": documento.get("imagen", "N/A"),
                             "tipo_archivo": documento.get("tipo", "N/A"),
                             
-                            # Banco y fecha
+ 
                             "banco": solicitud_info.get("banco", "N/A"),
-                            "created_at": solicitud_info.get("created_at", "N/A"),
+                            "created_at": self.format_date(solicitud_info.get("created_at", "N/A")),
+                            # "created_at": solicitud_info.get("created_at", "N/A"),
                             "asesor_id": solicitud_info.get("asesor_id", "N/A")
                         }
                         
                         datos_combinados.append(registro_combinado)
                         # Ordenar los datos combinados por fecha (campo created_at) de forma descendente
-                        datos_combinados.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+                        # datos_combinados.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
                         # print(datos_combinados)
                     return jsonify({"datos_combinados": datos_combinados}), 200
