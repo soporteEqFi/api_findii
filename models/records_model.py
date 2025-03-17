@@ -522,6 +522,7 @@ class recordsModel():
                             "plazo_meses": producto.get("plazo_meses", "N/A"),
                             "segundo_titular": producto.get("segundo_titular", "N/A"),
                             "estado": producto.get("estado", "N/A"),
+                            "tipo_de_credito": producto.get("tipo_credito", "N/A"),
                             
                             # Documentos
                             "archivos": documento.get("imagen", "N/A"),
@@ -601,7 +602,8 @@ class recordsModel():
     # /descargar-ventas/
     def descargar_ventas_realizadas(self):
         try:
-            csv_filename= '/home/equitisoporte/api_findii/ventas_realizadas.csv'
+            # csv_filename= '/home/equitisoporte/api_findii/ventas_realizadas.csv'
+            csv_filename = 'ventas_realizadas.csv'
             
             # 1. Descarga de la tabla principal (por ejemplo, "SOLICITANTES")
             solicitantes_resp = supabase.table("SOLICITANTES").select("*").execute()
@@ -834,6 +836,7 @@ class recordsModel():
                 return jsonify({"error": "No se recibieron datos"}), 400
 
             solicitante_id = data.get('solicitante_id')
+            print(solicitante_id)
             if not solicitante_id:
                 return jsonify({"error": "Se requiere el ID del solicitante"}), 400
 
