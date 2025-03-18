@@ -43,3 +43,8 @@ class recordsControlador():
     def edit_record(self):
         query = mod_records.edit_record()
         return query
+
+    def delete_record(self):
+        query = mod_records.delete_record()
+        return query
+

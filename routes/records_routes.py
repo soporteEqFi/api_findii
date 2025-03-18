@@ -54,3 +54,6 @@ def get_combined_data_route():
 def filtrar_tabla_combinada_route():
     return con_records.filtrar_tabla_combinada()
 
+@records.route('/delete-record', methods=['DELETE'])
+def delete_record_route():
+    return con_records.delete_record()

@@ -937,3 +937,69 @@ class recordsModel():
             print("Error:", e)
             return jsonify({"error": str(e)}), 500
     
+    def delete_record(self):
+        try:
+            data = request.get_json()
+            print(data)
+
+            if not data or "solicitante_id" not in data:
+                return jsonify({"error": "Falta el ID del solicitante"}), 400
+                
+            solicitante_id = data["solicitante_id"]
+            
+            # Definir las tablas relacionadas en orden de eliminación (de hijas a padres)
+            tablas_relacionadas = [
+                "PRODUCTO_SOLICITADO",
+                "INFORMACION_FINANCIERA",
+                "ACTIVIDAD_ECONOMICA",
+                "UBICACION",
+                "SOLICITUDES",
+                "SOLICITANTES"
+            ]
+            
+            resultados = {}
+            
+            # Eliminar registros de cada tabla relacionada
+            for tabla in tablas_relacionadas:
+                try:
+                    res = supabase.table(tabla)\
+                        .delete()\
+                        .eq('solicitante_id', solicitante_id)\
+                        .execute()
+                    
+                    resultados[tabla] = {
+                        "estado": "exitoso",
+                        "registros_eliminados": len(res.data) if hasattr(res, 'data') else 0
+                    }
+                except Exception as e:
+                    resultados[tabla] = {
+                        "estado": "error",
+                        "error": str(e)
+                    }
+
+            res_imagen = supabase.table('PRUEBA_IMAGEN')\
+                        .delete()\
+                        .eq('id_solicitante', solicitante_id)\
+                        .execute()
+                    
+            resultados['PRUEBA_IMAGEN'] = {
+                        "estado": "exitoso",
+                        "registros_eliminados": len(res_imagen.data) if hasattr(res_imagen, 'data') else 0
+                    }
+            
+            # Verificar si se eliminó el solicitante principal
+            if resultados.get("SOLICITANTES", {}).get("estado") == "exitoso":
+                return jsonify({
+                    "mensaje": "Registro eliminado exitosamente",
+                    "resultados": resultados
+                }), 200
+            else:
+                return jsonify({
+                    "mensaje": "Eliminación parcial",
+                    "resultados": resultados,
+                    "error": "No se pudo eliminar el registro principal del solicitante"
+                }), 207
+                
+        except Exception as e:
+            print("Error al eliminar registro:", e)
+            return jsonify({"error": f"Error al eliminar registro: {str(e)}"}), 500
