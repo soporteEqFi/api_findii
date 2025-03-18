@@ -940,7 +940,6 @@ class recordsModel():
     def delete_record(self):
         try:
             data = request.get_json()
-            print(data)
 
             if not data or "solicitante_id" not in data:
                 return jsonify({"error": "Falta el ID del solicitante"}), 400
