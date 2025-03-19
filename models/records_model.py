@@ -528,7 +528,6 @@ class recordsModel():
                             "archivos": documento.get("imagen", "N/A"),
                             "tipo_archivo": documento.get("tipo", "N/A"),
                             
- 
                             "banco": solicitud_info.get("banco", "N/A"),
                             "created_at": self.format_date(solicitud_info.get("created_at", "N/A")),
                             # "created_at": solicitud_info.get("created_at", "N/A"),
@@ -941,19 +940,23 @@ class recordsModel():
         try:
             data = request.get_json()
 
+            print(data)
+
             if not data or "solicitante_id" not in data:
                 return jsonify({"error": "Falta el ID del solicitante"}), 400
                 
             solicitante_id = data["solicitante_id"]
             
             # Definir las tablas relacionadas en orden de eliminación (de hijas a padres)
+            # Primero las tablas dependientes, luego las principales
             tablas_relacionadas = [
+                "PRUEBA_IMAGEN",      # Primero eliminamos las imágenes
+                "UBICACION",          # Luego las tablas que tienen restricciones de clave foránea
                 "PRODUCTO_SOLICITADO",
                 "INFORMACION_FINANCIERA",
                 "ACTIVIDAD_ECONOMICA",
-                "UBICACION",
                 "SOLICITUDES",
-                "SOLICITANTES"
+                "SOLICITANTES"        # Finalmente la tabla principal
             ]
             
             resultados = {}
@@ -961,10 +964,17 @@ class recordsModel():
             # Eliminar registros de cada tabla relacionada
             for tabla in tablas_relacionadas:
                 try:
-                    res = supabase.table(tabla)\
-                        .delete()\
-                        .eq('solicitante_id', solicitante_id)\
-                        .execute()
+                    # Manejo especial para PRUEBA_IMAGEN que usa id_solicitante en lugar de solicitante_id
+                    if tabla == "PRUEBA_IMAGEN":
+                        res = supabase.table(tabla)\
+                            .delete()\
+                            .eq('id_solicitante', solicitante_id)\
+                            .execute()
+                    else:
+                        res = supabase.table(tabla)\
+                            .delete()\
+                            .eq('solicitante_id', solicitante_id)\
+                            .execute()
                     
                     resultados[tabla] = {
                         "estado": "exitoso",
@@ -975,19 +985,10 @@ class recordsModel():
                         "estado": "error",
                         "error": str(e)
                     }
-
-            res_imagen = supabase.table('PRUEBA_IMAGEN')\
-                        .delete()\
-                        .eq('id_solicitante', solicitante_id)\
-                        .execute()
-                    
-            resultados['PRUEBA_IMAGEN'] = {
-                        "estado": "exitoso",
-                        "registros_eliminados": len(res_imagen.data) if hasattr(res_imagen, 'data') else 0
-                    }
             
             # Verificar si se eliminó el solicitante principal
             if resultados.get("SOLICITANTES", {}).get("estado") == "exitoso":
+                print(resultados)
                 return jsonify({
                     "mensaje": "Registro eliminado exitosamente",
                     "resultados": resultados
