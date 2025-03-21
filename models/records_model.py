@@ -287,6 +287,30 @@ class recordsModel():
 
             Su solicitud ha sido registrada exitosamente con los siguientes detalles:
 
+            Nombre completo: {request.form.get('nombre_completo')}
+            Tipo de documento: {request.form.get('tipo_documento')}
+            Número de documento: {request.form.get('numero_documento')}
+            Fecha de nacimiento: {request.form.get('fecha_nacimiento')}
+            Número celular: {request.form.get('numero_celular')}
+            Correo electrónico: {request.form.get('correo_electronico')}
+            Nivel de estudio: {request.form.get('nivel_estudio')}
+            Profesión: {request.form.get('profesion')}
+            Estado civil: {request.form.get('estado_civil')}
+            Personas a cargo: {request.form.get('personas_a_cargo')}
+            Dirección residencia: {request.form.get('direccion_residencia')}
+            Tipo de vivienda: {request.form.get('tipo_vivienda')}
+            Barrio: {request.form.get('barrio')}
+            Departamento: {request.form.get('departamento')}
+            Estrato: {request.form.get('estrato')}
+            Ciudad gestión: {request.form.get('ciudad_gestion')}
+            Actividad económica: {request.form.get('actividad_economica')}
+            Empresa donde labora: {request.form.get('empresa_labora')}
+            Fecha vinculación: {request.form.get('fecha_vinculacion')}
+            Dirección empresa: {request.form.get('direccion_empresa')}
+            Teléfono empresa: {request.form.get('telefono_empresa')}
+            Tipo de contrato: {request.form.get('tipo_contrato')}
+            Cargo actual: {request.form.get('cargo_actual')}
+            Ingresos: {request.form.get('ingresos')}
             Tipo de crédito: {request.form.get('tipo_credito')}
             Banco: {request.form.get('banco')}
             Valor del inmueble: {request.form.get('valor_inmueble')}
@@ -298,6 +322,7 @@ class recordsModel():
             Total de pasivos: {request.form.get('total_pasivos')}
             Segundo titular: {'Sí' if request.form.get('segundo_titular') == 's' else 'No'}
             Observaciones: {request.form.get('observacion')}
+            Archivos adjuntos: {', '.join([f.filename for f in request.files.getlist('archivos')])}
             
 
             Nos pondremos en contacto con usted pronto para dar seguimiento a su solicitud.
