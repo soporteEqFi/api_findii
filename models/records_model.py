@@ -5,6 +5,9 @@ from datetime import datetime, time
 import errno
 from io import BytesIO
 import uuid  # Para generar nombres únicos
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
@@ -264,27 +267,58 @@ class recordsModel():
                 "asesor_id": agent_id
             }
 
-            # # En tu función principal
-            # pdf_data = generar_pdf_desde_html(data)
-            # if pdf_data:
-            #     # Crear nombre único para el PDF
-            #     unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
-            #     file_path = f"documentos/{unique_filename}"
-                
-            #     # Subir a Supabase Storage
-            #     res = supabase.storage.from_("findii").upload(
-            #         file_path,
-            #         pdf_data,
-            #         file_options={"content-type": "application/pdf"}
-            #     )
-                
-            #     if isinstance(res, dict) and "error" in res:
-            #         print(f"Error al subir PDF: {res['error']}")
-            #     else:
-            #         # Obtener URL pública
-            #         pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
-            #         print("PDF guardado:", pdf_url)
+            # Enviar correo electrónico de confirmación
+           
+            # Configuración del servidor SMTP de Gmail
+            smtp_server = "smtp.gmail.com"
+            smtp_port = 587
+            sender_email = "equitisoporte@gmail.com"  # Reemplaza con tu correo
+            sender_password = contraseña_correo  # Reemplaza con tu contraseña de aplicación
+
+            # Crear mensaje
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = request.form.get('correo_electronico')
+            msg['Subject'] = "Confirmación de registro de solicitud"
+
+            # Cuerpo del mensaje
+            body = f"""
+            Estimado/a {request.form.get('nombre_completo')},
+
+            Su solicitud ha sido registrada exitosamente con los siguientes detalles:
+
+            Tipo de crédito: {request.form.get('tipo_credito')}
+            Banco: {request.form.get('banco')}
+            Valor del inmueble: {request.form.get('valor_inmueble')}
+            Plazo en meses: {request.form.get('plazo_meses')}
+            Cuota inicial: {request.form.get('cuota_inicial')}
+            Porcentaje a financiar: {request.form.get('porcentaje_financiar')}
+            Total de egresos: {request.form.get('total_egresos')}
+            Total de activos: {request.form.get('total_activos')}
+            Total de pasivos: {request.form.get('total_pasivos')}
+            Segundo titular: {'Sí' if request.form.get('segundo_titular') == 's' else 'No'}
+            Observaciones: {request.form.get('observacion')}
             
+
+            Nos pondremos en contacto con usted pronto para dar seguimiento a su solicitud.
+
+            Saludos cordiales,
+            Equipo de Findii
+            """
+
+            msg.attach(MIMEText(body, 'plain'))
+
+            # Enviar correo
+            try:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+                server.quit()
+                print("Correo enviado exitosamente")
+            except Exception as e:
+                print(f"Error al enviar correo: {str(e)}")
+
             return jsonify({
                 "mensaje": "Registro creado exitosamente",
             }), 200
