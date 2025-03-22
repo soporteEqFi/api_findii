@@ -5,9 +5,7 @@ from datetime import datetime, time
 import errno
 from io import BytesIO
 import uuid  # Para generar nombres únicos
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from models.utils.email.sent_email import config_email, email_body_and_send
 
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
@@ -17,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 class recordsModel():
 
     def add_record(self):
-        try:
+        try:    
             # Lista de campos requeridos
             required_fields = {
                 "nombre_completo", "tipo_documento", "numero_documento", "fecha_nacimiento",
@@ -126,11 +124,11 @@ class recordsModel():
 
             # Obtener el asesor de la tabla de asesores
             agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
-            print("Asesores info")
-            print(agents_info.data)
+            # print("Asesores info")
+            # print(agents_info.data)
             agent_id = agents_info.data[0]['id']
 
-            print(agent_id)
+            # print(agent_id)
 
             # Crear registro de ubicación
             location = {
@@ -187,9 +185,10 @@ class recordsModel():
                 "solicitante_id": applicant_id,
                 "tipo_credito": request.form.get('tipo_credito'),
                 "plazo_meses": request.form.get('plazo_meses'),
+                "informacion_producto": request.form.get('informacion_producto'),
                 "segundo_titular": True if request.form.get('segundo_titular') == 'si' else False,
                 "observacion": request.form.get('observacion'),
-                "estado": "Radicado"
+                "estado": "Radicado",
             }
 
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
@@ -256,7 +255,8 @@ class recordsModel():
                     "plazo_meses": request.form.get('plazo_meses'),
                     "segundo_titular": True if request.form.get('segundo_titular') == 's' else False,
                     "observacion": request.form.get('observacion'),
-                    "estado": "Radicado"
+                    "estado": "Radicado",
+                    "informacion_producto": request.form.get('informacion_producto')
                 },
                 "solicitud": {
                     "solicitante_id": applicant_id,
@@ -267,90 +267,19 @@ class recordsModel():
                 "asesor_id": agent_id
             }
 
-            # Enviar correo electrónico de confirmación
-           
-            # Configuración del servidor SMTP de Gmail
-            smtp_server = "smtp.gmail.com"
-            smtp_port = 587
-            sender_email = "equitisoporte@gmail.com"  # Reemplaza con tu correo
-            sender_password = contraseña_correo  # Reemplaza con tu contraseña de aplicación
-
-            # Crear mensaje
-            msg = MIMEMultipart()
-            msg['From'] = sender_email
-            msg['To'] = request.form.get('correo_electronico')
-            msg['Subject'] = "Confirmación de registro de solicitud"
-
-            # Cuerpo del mensaje
-            body = f"""
-            Estimado/a {request.form.get('nombre_completo')},
-
-            Su solicitud ha sido registrada exitosamente con los siguientes detalles:
-
-            Nombre completo: {request.form.get('nombre_completo')}
-            Tipo de documento: {request.form.get('tipo_documento')}
-            Número de documento: {request.form.get('numero_documento')}
-            Fecha de nacimiento: {request.form.get('fecha_nacimiento')}
-            Número celular: {request.form.get('numero_celular')}
-            Correo electrónico: {request.form.get('correo_electronico')}
-            Nivel de estudio: {request.form.get('nivel_estudio')}
-            Profesión: {request.form.get('profesion')}
-            Estado civil: {request.form.get('estado_civil')}
-            Personas a cargo: {request.form.get('personas_a_cargo')}
-            Dirección residencia: {request.form.get('direccion_residencia')}
-            Tipo de vivienda: {request.form.get('tipo_vivienda')}
-            Barrio: {request.form.get('barrio')}
-            Departamento: {request.form.get('departamento')}
-            Estrato: {request.form.get('estrato')}
-            Ciudad gestión: {request.form.get('ciudad_gestion')}
-            Actividad económica: {request.form.get('actividad_economica')}
-            Empresa donde labora: {request.form.get('empresa_labora')}
-            Fecha vinculación: {request.form.get('fecha_vinculacion')}
-            Dirección empresa: {request.form.get('direccion_empresa')}
-            Teléfono empresa: {request.form.get('telefono_empresa')}
-            Tipo de contrato: {request.form.get('tipo_contrato')}
-            Cargo actual: {request.form.get('cargo_actual')}
-            Ingresos: {request.form.get('ingresos')}
-            Tipo de crédito: {request.form.get('tipo_credito')}
-            Banco: {request.form.get('banco')}
-            Valor del inmueble: {request.form.get('valor_inmueble')}
-            Plazo en meses: {request.form.get('plazo_meses')}
-            Cuota inicial: {request.form.get('cuota_inicial')}
-            Porcentaje a financiar: {request.form.get('porcentaje_financiar')}
-            Total de egresos: {request.form.get('total_egresos')}
-            Total de activos: {request.form.get('total_activos')}
-            Total de pasivos: {request.form.get('total_pasivos')}
-            Segundo titular: {'Sí' if request.form.get('segundo_titular') == 's' else 'No'}
-            Observaciones: {request.form.get('observacion')}
-            Archivos adjuntos: {', '.join([f.filename for f in request.files.getlist('archivos')])}
-            
-
-            Nos pondremos en contacto con usted pronto para dar seguimiento a su solicitud.
-
-            Saludos cordiales,
-            Equipo de Findii
-            """
-
-            msg.attach(MIMEText(body, 'plain'))
-
             # Enviar correo
-            try:
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()
-                server.login(sender_email, sender_password)
-                server.send_message(msg)
-                server.quit()
-                print("Correo enviado exitosamente")
-            except Exception as e:
-                print(f"Error al enviar correo: {str(e)}")
+            email_settings = config_email()
+
+            email_body_and_send(email_settings, data)
+
 
             return jsonify({
                 "mensaje": "Registro creado exitosamente",
             }), 200
             
         except Exception as e:
-            print("Ocurrió un error:", e)
-            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+            print("Ocurrió un error al crear un registro:", e)
+            return jsonify({"mensaje": "Ocurrió un error al crear un registro."}), 500
     
     def get_all_data(self):
         max_retries = 3
