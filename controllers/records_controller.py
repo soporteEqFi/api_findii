@@ -7,7 +7,7 @@ class recordsControlador():
     def post_add_record(self):  
         query = mod_records.add_record()
         return query
-    
+        
     def get_all_data(self):
         query = mod_records.get_all_data()
         return query 

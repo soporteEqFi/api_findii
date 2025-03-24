@@ -281,6 +281,13 @@ class recordsModel():
             print("Ocurrió un error al crear un registro:", e)
             return jsonify({"mensaje": "Ocurrió un error al crear un registro."}), 500
     
+    def get_all_credit_types(self):
+        try:
+            res = supabase.table('TIPOS_CREDITOS_CONFIG').select('*').execute()
+            return jsonify(res.data), 200
+        except Exception as e:
+            return jsonify({"mensaje": "Ocurrió un error al obtener el tipo de crédito."}), 500
+    
     def get_all_data(self):
         max_retries = 3
         retry_delay = 4  # seconds
