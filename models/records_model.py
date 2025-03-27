@@ -26,7 +26,7 @@ class recordsModel():
                 "tipo_contrato", "cargo_actual", "ingresos", "valor_inmueble", "cuota_inicial",
                 "porcentaje_financiar", "total_egresos", "total_activos", "total_pasivos",
                 "tipo_credito", "plazo_meses", "segundo_titular", "observacion", "asesor_usuario",
-                "banco"
+                "banco", "informacion_producto" 
             }
 
             # Obtener datos del form-data
@@ -179,13 +179,17 @@ class recordsModel():
 
             # print("Informacion financiera")
             # print(res.data)
-            
+            # Crear registro de producto solicitado
+            try:
+                informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
+            except json.JSONDecodeError:
+                return jsonify({"error": "El campo informacion_producto debe ser un JSON válido"}), 400
             # Crear registro de producto solicitado
             product = {
                 "solicitante_id": applicant_id,
                 "tipo_credito": request.form.get('tipo_credito'),
                 "plazo_meses": request.form.get('plazo_meses'),
-                "informacion_producto": request.form.get('informacion_producto'),
+                "informacion_producto": informacion_producto,
                 "segundo_titular": True if request.form.get('segundo_titular') == 'si' else False,
                 "observacion": request.form.get('observacion'),
                 "estado": "Radicado",
