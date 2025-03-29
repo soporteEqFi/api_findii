@@ -104,14 +104,16 @@ class userModel():
 
                 response_data = response.data
 
+                datos_empresa = supabase.table('EMPRESAS').select('*').eq('id_empresa', response_data[0]['nombre_empresa']).execute()
+
                 return jsonify({
                     "id": response_data[0]['id'],
                     "nombre": response_data[0]['nombre'],
                     "correo": response_data[0]['email'],
                     "rol": response_data[0]['rol'],
                     "cedula": response_data[0]['cedula'],
-                    "empresa": response_data[0]['empresa'],
-                    "imagen_aliado": response_data[0]['imagen_aliado']
+                    "empresa": datos_empresa.data[0]['nombre'],
+                    "imagen_aliado": datos_empresa.data[0]['imagen']
                     })
 
             except Exception as e:
