@@ -410,27 +410,6 @@ class recordsModel():
                         std_time.sleep(retry_delay)
                     else:
                         return jsonify({"mensaje": "Error en la lectura"}), 500
-
-    def format_date(self, date_str):
-        try:
-            if date_str == "N/A":
-                return "N/A"
-            
-            from datetime import datetime
-            import dateutil.parser
-            
-            # Limpiamos la cadena
-            date_str = date_str.strip().rstrip("'")
-            
-            # Usamos dateutil.parser que es más flexible con los formatos
-            fecha = dateutil.parser.parse(date_str)
-            
-            # Formateamos la fecha como dd/mm/yyyy
-            return fecha.strftime('%d/%m/%Y')
-        except Exception as e:
-            print(f"Error al formatear fecha: {e}")
-            print(f"Fecha problemática: {date_str}")
-            return date_str
                 
     def get_combined_data(self):
         try:
