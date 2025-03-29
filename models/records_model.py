@@ -6,7 +6,7 @@ import errno
 from io import BytesIO
 import uuid  # Para generar nombres únicos
 from models.utils.email.sent_email import config_email, email_body_and_send
-
+from models.utils.others.date_utils import format_date
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -285,13 +285,6 @@ class recordsModel():
             print("Ocurrió un error al crear un registro:", e)
             return jsonify({"mensaje": "Ocurrió un error al crear un registro."}), 500
     
-    def get_all_credit_types(self):
-        try:
-            res = supabase.table('TIPOS_CREDITOS_CONFIG').select('*').execute()
-            return jsonify(res.data), 200
-        except Exception as e:
-            return jsonify({"mensaje": "Ocurrió un error al obtener el tipo de crédito."}), 500
-    
     def get_all_data(self):
         max_retries = 3
         retry_delay = 4  # seconds
@@ -507,7 +500,7 @@ class recordsModel():
                             "tipo_archivo": documento.get("tipo", "N/A"),
                             
                             "banco": solicitud_info.get("banco", "N/A"),
-                            "created_at": self.format_date(solicitud_info.get("created_at", "N/A")),
+                            "created_at": format_date(solicitud_info.get("created_at", "N/A")),
                             # "created_at": solicitud_info.get("created_at", "N/A"),
                             "asesor_id": solicitud_info.get("asesor_id", "N/A")
                         }
