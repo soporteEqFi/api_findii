@@ -12,3 +12,7 @@ class credit_typesControlador():
         query = mod_credit_types.add_credit_type()
         return query
 
+    def edit_credit_type(self):
+        query = mod_credit_types.edit_credit_type()
+        return query
+

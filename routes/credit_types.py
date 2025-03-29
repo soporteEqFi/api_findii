@@ -15,3 +15,8 @@ def get_all_credit_types():
 @cross_origin()
 def add_credit_type():
     return con_credit_types.add_credit_type()
+
+@credit_types.route('/edit-credit-type/', methods=['POST'])
+@cross_origin()
+def edit_credit_type():
+    return con_credit_types.edit_credit_type()
