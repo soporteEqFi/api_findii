@@ -103,9 +103,13 @@ class userModel():
                 response = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
 
                 response_data = response.data
-
-                datos_empresa = supabase.table('EMPRESAS').select('*').eq('id_empresa', response_data[0]['nombre_empresa']).execute()
-
+                print(response_data[0])
+                
+                # Convertir empresa a entero antes de hacer la consulta
+                empresa_id = response_data[0]['id_empresa']
+                datos_empresa = supabase.table('EMPRESAS').select('*').eq('id_empresa', empresa_id).execute()
+                
+                print(datos_empresa.data[0])
                 return jsonify({
                     "id": response_data[0]['id'],
                     "nombre": response_data[0]['nombre'],

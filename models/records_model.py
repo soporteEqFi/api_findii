@@ -502,7 +502,8 @@ class recordsModel():
                             "banco": solicitud_info.get("banco", "N/A"),
                             "created_at": format_date(solicitud_info.get("created_at", "N/A")),
                             # "created_at": solicitud_info.get("created_at", "N/A"),
-                            "asesor_id": solicitud_info.get("asesor_id", "N/A")
+                            "asesor_id": solicitud_info.get("asesor_id", "N/A"),
+                            "informacion_producto": producto.get("informacion_producto", {}),
                         }
                         
                         datos_combinados.append(registro_combinado)
@@ -842,7 +843,7 @@ class recordsModel():
                 "PRODUCTO_SOLICITADO": {
                     "campos_permitidos": {
                         "tipo_credito", "plazo_meses", "segundo_titular",
-                        "observacion", "estado"
+                        "observacion", "estado", "informacion_producto"
                     }
                 },
                 "SOLICITUDES": {

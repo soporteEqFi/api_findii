@@ -6,7 +6,7 @@ con_credit_types = credit_typesControlador()
 #rutas
 credit_types = Blueprint('credit_types', __name__)
 
-@credit_types.route('/get-all-credit-types/', methods=['GET'])
+@credit_types.route('/get-all-credit-types/', methods=['POST'])
 @cross_origin()
 def get_all_credit_types():
     return con_credit_types.get_all_credit_types()

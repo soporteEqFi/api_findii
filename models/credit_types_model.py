@@ -1,32 +1,62 @@
 from models.generales.generales import *
+from models.user_model import *
 from datetime import datetime
 import uuid
 
+
 class credit_typesModel():
+    mod_user = userModel()
+
 
     def get_all_credit_types(self):
+
+        data = request.json 
+        cedula = data['cedula']
         try:
-            res = supabase.table('TIPOS_CREDITOS_CONFIG').select('*').execute()
+            # Consultar la empresa del usuario logeado
+            response_user_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
+            id_empresa_usuario  = response_user_info.data[0]['id_empresa']
+
+            # Consultar los tipos de crédito de la empresa
+            datos_empresa = supabase.table('EMPRESAS').select('*').eq('id_empresa', id_empresa_usuario).execute()
+            id_empresa = datos_empresa.data[0]['id_empresa']
+
+            # Consultar los tipos de crédito de la empresa
+            res = supabase.table('TIPOS_CREDITOS_CONFIG').select('*').eq('id_empresa', id_empresa).execute()
+
             return jsonify(res.data), 200
         except Exception as e:
+            print(f"Error: {str(e)}")
             return jsonify({"mensaje": "Ocurrió un error al obtener el tipo de crédito."}), 500
         
     def add_credit_type(self):
         try:
             data = request.json
+            print("Datos de la solicitud")
+            print(data)
 
-            name = data['name']
-            display_name = data['display_name']
-            description = data['description']
-            fields = data['fields']
-            is_active = data['is_active']
+            cedula = data['cedula']
+            response_user_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
+            print("Datos del usuario")
+            print(response_user_info.data)
+            id_empresa_usuario = response_user_info.data[0]['id_empresa']
+            print(id_empresa_usuario)
+
+            # Obtener los datos del tipo de crédito
+            credit_type = data['credit_type']
+            name = credit_type['name']
+            display_name = credit_type['displayName']
+            description = credit_type['description']
+            fields = credit_type['fields']
+            is_active = credit_type['is_active']
 
             data_to_send = {
                 "name": name,
                 "display_name": display_name,
                 "description": description,
                 "fields": fields,
-                "is_active": is_active
+                "is_active": is_active,
+                "id_empresa": id_empresa_usuario
             }
 
             print(data_to_send)
@@ -35,7 +65,7 @@ class credit_typesModel():
             # print(data)
             res = supabase.table('TIPOS_CREDITOS_CONFIG').insert(data_to_send).execute()
             print(res)
-            return jsonify({"prueba": "si"})
+            return jsonify({"mensaje": "Tipo de crédito agregado exitosamente"}), 200
         except Exception as e:
             print(e)
             return jsonify({"mensaje": "Ocurrió un error al agregar el tipo de crédito."}), 500
@@ -44,6 +74,9 @@ class credit_typesModel():
     def edit_credit_type(self):
         try:
             data = request.get_json()
+
+            print("Datos de la solicitud")
+            print(data)
             
             if not data or 'id' not in data:
                 return jsonify({'error': 'Se requiere el ID del tipo de crédito'}), 400
@@ -62,7 +95,6 @@ class credit_typesModel():
                     
                 current_data = existing_credit.data[0]
 
-                print(current_data)
             except Exception as e:
                 print(f"Error verificando existencia: {e}")
                 return jsonify({'error': 'Error al verificar el tipo de crédito'}), 500
