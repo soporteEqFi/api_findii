@@ -45,7 +45,7 @@ class credit_typesModel():
             # Obtener los datos del tipo de crédito
             credit_type = data['credit_type']
             name = credit_type['name']
-            display_name = credit_type['displayName']
+            display_name = credit_type['display_name']
             description = credit_type['description']
             fields = credit_type['fields']
             is_active = credit_type['is_active']
