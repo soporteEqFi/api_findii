@@ -6,7 +6,7 @@ import os
 load_dotenv(os.path.expanduser("~/api_findii/.env"))
 
 
-supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
+supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SERVICE_ROLE_KEY'))
 
 tabla_usuarios = 'TABLA_USUARIOS'
 tabla_solicitantes = 'SOLICITANTES'

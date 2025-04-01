@@ -35,3 +35,8 @@ def update_user():
 @cross_origin()
 def all_user():
     return con_user.all_users()
+
+@user.route('/delete-user/<id>', methods=['DELETE'])
+@cross_origin()
+def delete_user(id):
+    return con_user.delete_user(id)

@@ -3,6 +3,7 @@ import time
 from models.generales.generales import *
 from models.utils.login.validate_info import *
 from models.utils.login.fill_data import *
+import os
 
 class userModel():
 
@@ -25,7 +26,7 @@ class userModel():
 
         # 3. Crear usuario en Supabase Auth (SIN verificación por correo)
         try:
-            response = supabase.auth.sign_up({"email": email, "password": password})
+            response = supabase.auth.sign_up({"email": email, "password": password, "email_confirmed_at": datetime.utcnow().isoformat()})
 
             # ✅ CORRECCIÓN: Verificar si hubo un error en la respuesta
             if response is None or response.user is None:
@@ -164,6 +165,8 @@ class userModel():
                 "cedula": request.json.get('cedula'),
                 "rol": request.json.get('rol'),
                 "empresa": request.json.get('empresa'),
+                "email": request.json.get('email'),
+                "password": request.json.get('password'),
             }
 
             id = request.json.get('id')
@@ -173,8 +176,15 @@ class userModel():
             if campos_vacios:
                 return jsonify({"registrar_agente_status": "existen campos vacios", "campos_vacios": campos_vacios}), 400      
 
+            # Primero, eliminar las solicitudes asociadas al usuario
+            try:
+                supabase.table('SOLICITUDES').delete().eq('asesor_id', id).execute()
+            except Exception as e:
+                print(f"Error al eliminar solicitudes asociadas: {e}")
+                # Continuamos con la actualización incluso si hay error al eliminar solicitudes
+
+            # Luego actualizamos el usuario
             supabase.table('TABLA_USUARIOS').update(data_dict).eq('id', id).execute()
-            
 
             return jsonify({"actualizar_agente": "OK"}), 200
         
@@ -199,5 +209,48 @@ class userModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-
-
+        
+    def delete_user(self, id):
+        try:
+            # Primero obtener el email del usuario
+            user = supabase.table('TABLA_USUARIOS').select('email').eq('id', id).execute()
+            
+            if not user.data or len(user.data) == 0:
+                return jsonify({"mensaje": "Usuario no encontrado"}), 404
+            
+            email = user.data[0]['email']
+            
+            # Eliminar de la tabla personalizada
+            supabase.table('TABLA_USUARIOS').delete().eq('id', id).execute()
+            
+            # Eliminar usuario de Authentication usando service_role
+            try:
+                # # Crear una nueva instancia de Supabase con service_role
+                # admin_supabase = create_client(
+                #     supabase_url=os.getenv('SUPABASE_URL'),
+                #     supabase_key=os.getenv('SERVICE_ROLE_KEY')
+                # )
+                
+                # Obtener todos los usuarios y filtrar por email
+                users = supabase.auth.admin.list_users()
+                user_to_delete = None
+                
+                for user in users:
+                    if user.email == email:
+                        user_to_delete = user
+                        break
+                
+                if user_to_delete:
+                    # Eliminar usuario de Authentication
+                    admin_supabase.auth.admin.delete_user(user_to_delete.id)
+                    return jsonify({"mensaje": "Usuario eliminado correctamente de la base de datos y Authentication"}), 200
+                else:
+                    print(f"No se encontró el usuario con email {email} en Authentication")
+                    return jsonify({"mensaje": "Usuario eliminado de la base de datos pero no se encontró en Authentication"}), 200
+            except Exception as auth_error:
+                print("Error al eliminar usuario de Authentication:", auth_error)
+                return jsonify({"mensaje": "Usuario eliminado de la base de datos pero no de Authentication. Por favor, verifica los permisos de administrador."}), 500
+            
+        except Exception as e:
+            print("Ocurrió un error:", e)
+            return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500

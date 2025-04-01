@@ -7,6 +7,7 @@ import time as std_time
 
 load_dotenv(os.path.expanduser("~/api_findii/.env"))
 
+
 def config_email():
     smtp_server = "smtp.gmail.com"
     smtp_port = 587
@@ -33,6 +34,7 @@ def email_body_and_send(email_settings, data):
         msg['To'] = data['solicitante']['email']
         msg['Subject'] = "Confirmación de registro de solicitud"
 
+        
         # Cuerpo del mensaje
         body = f"""
         Estimado/a {data['solicitante']['nombre']} {data['solicitante']['apellido']},

@@ -27,3 +27,7 @@ class userController():
     def all_users(self):
         query = mod_user.get_all_users()
         return query
+    
+    def delete_user(self, id):
+        query = mod_user.delete_user(id)
+        return query
