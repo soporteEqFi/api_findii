@@ -444,8 +444,10 @@ class recordsModel():
                         ubicacion = next((l for l in registros["UBICACION"] if l.get("solicitante_id") == solicitante_id), {})
                         producto = next((p for p in registros["PRODUCTO_SOLICITADO"] if p.get("solicitante_id") == solicitante_id), {})
                         solicitud_info = next((s for s in registros["SOLICITUDES"] if s.get("solicitante_id") == solicitante_id), {})
-                        documento = next((d for d in registros["PRUEBA_IMAGEN"] if d.get("id_solicitante") == solicitante_id), {})
-                        # print(solicitante.get("tipo_documento", "N/A"))
+                        
+                        # Cambiar esto para obtener TODOS los documentos
+                        documentos = [d for d in registros["PRUEBA_IMAGEN"] if d.get("id_solicitante") == solicitante_id]
+                        
                         # Crear objeto combinado
                         registro_combinado = {
                             # Info solicitante
@@ -495,22 +497,18 @@ class recordsModel():
                             "estado": producto.get("estado", "N/A"),
                             "tipo_de_credito": producto.get("tipo_credito", "N/A"),
                             
-                            # Documentos
-                            "archivos": documento.get("imagen", "N/A"),
-                            "tipo_archivo": documento.get("tipo", "N/A"),
+                            # Documentos - Ahora enviamos una lista de documentos
+                            "archivos": [doc.get("imagen", "N/A") for doc in documentos] if documentos else ["N/A"],
+                            "tipos_archivo": [doc.get("tipo", "N/A") for doc in documentos] if documentos else ["N/A"],
                             
                             "banco": solicitud_info.get("banco", "N/A"),
                             "created_at": format_date(solicitud_info.get("created_at", "N/A")),
-                            # "created_at": solicitud_info.get("created_at", "N/A"),
                             "asesor_id": solicitud_info.get("asesor_id", "N/A"),
                             "informacion_producto": producto.get("informacion_producto", {}),
                         }
                         
                         datos_combinados.append(registro_combinado)
-                        # Ordenar los datos combinados por fecha (campo created_at) de forma descendente
-                        # datos_combinados.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
-                        # print(datos_combinados)
                     return jsonify({"datos_combinados": datos_combinados}), 200
 
                 except Exception as e:
@@ -975,3 +973,116 @@ class recordsModel():
         except Exception as e:
             print("Error al eliminar registro:", e)
             return jsonify({"error": f"Error al eliminar registro: {str(e)}"}), 500
+
+    def update_files(self):
+        try:
+            # Verificar si hay un ID de solicitante
+            if 'solicitante_id' not in request.form:
+                return jsonify({"error": "Falta el ID del solicitante"}), 400
+            
+            solicitante_id = request.form['solicitante_id']
+
+            print(solicitante_id)
+            
+            resultados = {
+                "archivos_eliminados": [],
+                "archivos_subidos": []
+            }
+
+            # 1. Manejar eliminación de archivos
+            files_to_delete = request.form.getlist('files_to_delete')
+            if files_to_delete:
+                for file_url in files_to_delete:
+                    try:
+                        # Extraer el nombre del archivo de la URL
+                        file_path = file_url.split('findii/')[-1] if 'findii/' in file_url else file_url
+                        
+                        # Eliminar el archivo del storage
+                        supabase.storage.from_("findii").remove([file_path])
+                        
+                        # Eliminar el registro de la base de datos
+                        res = supabase.table('PRUEBA_IMAGEN')\
+                            .delete()\
+                            .eq('imagen', file_url)\
+                            .eq('id_solicitante', solicitante_id)\
+                            .execute()
+                            
+                        resultados["archivos_eliminados"].append({
+                            "url": file_url,
+                            "estado": "eliminado"
+                        })
+                        
+                    except Exception as e:
+                        print(f"Error eliminando archivo {file_url}: {e}")
+                        resultados["archivos_eliminados"].append({
+                            "url": file_url,
+                            "estado": "error",
+                            "error": str(e)
+                        })
+
+            # 2. Manejar nuevos archivos
+            if 'archivos' in request.files:
+                files = request.files.getlist('archivos')
+
+                print("Archivos")
+                print(files)
+                
+                for file in files:
+                    try:
+                        # Crear nombre único para el archivo
+                        extension = file.filename.split('.')[-1]
+                        unique_filename = f"{uuid.uuid4().hex}_{int(datetime.timestamp(datetime.now()))}.{extension}"
+                        file_path = f"images/{unique_filename}"
+
+                        # Leer archivo y convertir a bytes
+                        file_data = file.read()
+
+                        # Subir archivo a Supabase Storage
+                        res = supabase.storage.from_("findii").upload(
+                            file_path,
+                            file_data,
+                            file_options={"content-type": file.mimetype}
+                        )
+
+                        if isinstance(res, dict) and "error" in res:
+                            raise Exception(res["error"])
+
+                        # Obtener URL pública
+                        image_url = supabase.storage.from_("findii").get_public_url(file_path)
+
+                        # Insertar registro en la base de datos
+                        datos_insertar = {
+                            "id_solicitante": solicitante_id,
+                            "imagen": image_url,
+                        }
+
+                        res_db = supabase.table("PRUEBA_IMAGEN").insert(datos_insertar).execute()
+                        print("Respuesta db AHORA")
+                        print(res_db)
+
+                        resultados["archivos_subidos"].append({
+                            "nombre_original": file.filename,
+                            "url": image_url,
+                            "estado": "subido"
+                        })
+
+                    except Exception as e:
+                        print(f"Error procesando archivo {file.filename}: {e}")
+                        resultados["archivos_subidos"].append({
+                            "nombre_original": file.filename,
+                            "estado": "error",
+                            "error": str(e)
+                        })
+
+            # 3. Devolver resultados
+            return jsonify({
+                "mensaje": "Archivos actualizados exitosamente",
+                "resultados": resultados
+            }), 200
+
+        except Exception as e:
+            print(f"Error general actualizando archivos: {e}")
+            return jsonify({
+                "error": "Error actualizando archivos",
+                "detalle": str(e)
+            }), 500
