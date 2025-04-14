@@ -48,3 +48,7 @@ class recordsControlador():
         query = mod_records.delete_record()
         return query
 
+    def update_files(self):
+        query = mod_records.update_files()
+        return query
+
