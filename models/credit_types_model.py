@@ -9,26 +9,59 @@ class credit_typesModel():
 
 
     def get_all_credit_types(self):
+        max_retries = 3
+        retry_delay = 2  # segundos
 
         data = request.json 
         cedula = data['cedula']
-        try:
-            # Consultar la empresa del usuario logeado
-            response_user_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
-            id_empresa_usuario  = response_user_info.data[0]['id_empresa']
 
-            # Consultar los tipos de crédito de la empresa
-            datos_empresa = supabase.table('EMPRESAS').select('*').eq('id_empresa', id_empresa_usuario).execute()
-            id_empresa = datos_empresa.data[0]['id_empresa']
+        for attempt in range(max_retries):
+            try:
+                # Consultar la empresa del usuario logeado
+                response_user_info = supabase.table("TABLA_USUARIOS")\
+                    .select('*')\
+                    .eq('cedula', cedula)\
+                    .execute()
 
-            # Consultar los tipos de crédito de la empresa
-            res = supabase.table('TIPOS_CREDITOS_CONFIG').select('*').eq('id_empresa', id_empresa).execute()
+                if not response_user_info.data:
+                    return jsonify({"mensaje": "Usuario no encontrado"}), 404
 
-            return jsonify(res.data), 200
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            return jsonify({"mensaje": "Ocurrió un error al obtener el tipo de crédito."}), 500
-        
+                id_empresa_usuario = response_user_info.data[0]['id_empresa']
+
+                # Consultar los tipos de crédito de la empresa
+                datos_empresa = supabase.table('EMPRESAS')\
+                    .select('*')\
+                    .eq('id_empresa', id_empresa_usuario)\
+                    .execute()
+
+                if not datos_empresa.data:
+                    return jsonify({"mensaje": "Empresa no encontrada"}), 404
+
+                id_empresa = datos_empresa.data[0]['id_empresa']
+
+                # Consultar los tipos de crédito de la empresa
+                res = supabase.table('TIPOS_CREDITOS_CONFIG')\
+                    .select('*')\
+                    .eq('id_empresa', id_empresa)\
+                    .execute()
+
+                return jsonify(res.data), 200
+
+            except Exception as e:
+                print(f"Intento {attempt + 1} fallido: {str(e)}")
+                
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(retry_delay)
+                    print(f"Reintentando en {retry_delay} segundos...")
+                    continue
+                else:
+                    print(f"Error después de {max_retries} intentos: {str(e)}")
+                    return jsonify({
+                        "mensaje": "Error al obtener los tipos de crédito",
+                        "error": str(e)
+                    }), 500
+
     def add_credit_type(self):
         try:
             data = request.json
