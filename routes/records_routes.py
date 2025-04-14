@@ -57,3 +57,7 @@ def filtrar_tabla_combinada_route():
 @records.route('/delete-record', methods=['DELETE'])
 def delete_record_route():
     return con_records.delete_record()
+
+@records.route('/update-files/', methods=['POST'])
+def update_files_route():
+    return con_records.update_files()
