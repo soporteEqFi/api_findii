@@ -4,6 +4,7 @@ from routes.insertar_imagen import *
 from routes.records_routes import *
 from routes.user_routes import *
 from routes.credit_types import *
+from routes.seguimiento_solicitud_routes import *
 from dotenv import load_dotenv
 import os
 
@@ -19,6 +20,7 @@ app.register_blueprint(records)
 app.register_blueprint(login)
 app.register_blueprint(user)
 app.register_blueprint(credit_types)
+app.register_blueprint(tracking)
 
 def pagina_no_encontrada(error):
     return "<h1>Pagina no encontrada ...<h1>"
