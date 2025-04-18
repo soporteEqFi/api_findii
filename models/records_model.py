@@ -7,6 +7,7 @@ from io import BytesIO
 import uuid  # Para generar nombres únicos
 from models.utils.email.sent_email import config_email, email_body_and_send
 from models.utils.others.date_utils import format_date
+from models.seguimiento_solicitud import trackingModel
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -34,7 +35,7 @@ class recordsModel():
                 return jsonify({"error": "No se recibieron datos"}), 400
             
             print("Form data:", request.form)
-
+            print("Llenando el solicitante")
             # Crear registro del solicitante
             applicant = {
                 "nombre_completo": request.form.get('nombre_completo'),
@@ -50,14 +51,14 @@ class recordsModel():
             }
 
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
-            # print("Solicitante")
-            # print(res.data)
+            print("Solicitante")
+            print(res.data)
 
             applicant_id = res.data[0]['solicitante_id']
 
             # Procesar archivos
             print("Files:", request.files)
-
+            print("Llenando los archivos")
             # Obtener lista de archivos con getlist()
             files = request.files.getlist('archivos')
 
@@ -112,16 +113,19 @@ class recordsModel():
                     print(f"Error procesando archivo {file.filename}: {str(e)}")
                     continue
 
+            print("Llenando los campos faltantes")
             # Verificar campos faltantes
             missing_fields = required_fields - set(request.form.keys())
             if missing_fields:
+                print("Faltan campos requeridos")
+                print(missing_fields)
                 return jsonify({
                     "error": "Faltan campos requeridos",
                     "campos_faltantes": list(missing_fields)
                 }), 400
 
+            print("Llenando el asesor")
             print(request.form.get('asesor_usuario'))
-
             # Obtener el asesor de la tabla de asesores
             agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
             # print("Asesores info")
@@ -129,7 +133,7 @@ class recordsModel():
             agent_id = agents_info.data[0]['id']
 
             # print(agent_id)
-
+            print("Llenando la ubicación")
             # Crear registro de ubicación
             location = {
                 "solicitante_id": applicant_id,
@@ -143,7 +147,7 @@ class recordsModel():
 
             res = supabase.table('UBICACION').insert(location).execute()
 
-            # print("Ubicaciones")
+            print("Ubicaciones")
             # print(res.data)
             
             # Crear registro de actividad económica
@@ -160,7 +164,7 @@ class recordsModel():
 
             res = supabase.table('ACTIVIDAD_ECONOMICA').insert(economic_activity).execute()
 
-            # print("Actividad economica")
+            print("Actividad economica")
             # print(res.data)
             
             # Crear registro de información financiera
@@ -177,7 +181,7 @@ class recordsModel():
 
             res = supabase.table('INFORMACION_FINANCIERA').insert(financial_info).execute()
 
-            # print("Informacion financiera")
+            print("Informacion financiera")
             # print(res.data)
             # Crear registro de producto solicitado
             try:
@@ -196,7 +200,7 @@ class recordsModel():
             }
 
             res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
-            # print("Producto solicitado")
+            print("Producto solicitado")
             # print(res.data)
             
             # Crear registro de solicitud
@@ -207,7 +211,94 @@ class recordsModel():
             }
 
             res = supabase.table('SOLICITUDES').insert(solicitud).execute()
+        
+            print("Llenando la solicitud de seguimiento")
+            # Obtener el ID de la solicitud recién creada (no del producto)
+            solicitud_id = res.data[0]['id']
 
+            # Obtener ID del producto creado
+            product_info = supabase.table('PRODUCTO_SOLICITADO').select('*').eq('solicitante_id', applicant_id).execute()
+            if product_info.data:
+                product_id = product_info.data[0]['id']
+                
+                # Obtener documentos ya subidos
+                docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', applicant_id).execute()
+                archivos_existentes = []
+
+                if docs.data:
+                    for doc in docs.data:
+                        archivos_existentes.append({
+                            "archivo_id": str(uuid.uuid4()),
+                            "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
+                            "url": doc.get('imagen'),
+                            "estado": "pendiente",
+                            "comentario": "",
+                            "modificado": False,
+                            "fecha_modificacion": datetime.now().isoformat(),
+                            "ultima_fecha_modificacion": datetime.now().isoformat()
+                        })
+
+                # Generar ID de radicado
+                tracking = trackingModel()
+                id_radicado = tracking.generar_id_radicado()
+
+                # Registrar el primer estado en la tabla de seguimiento usando el ID del producto correcto
+                seguimiento_inicial = {
+                    "id_producto": product_id,
+                    "id_asesor": agent_id,
+                    "producto_solicitado": request.form.get('tipo_credito'),
+                    "cambio_por": request.form.get('asesor_usuario'),
+                    "fecha_cambio": datetime.now().isoformat(),
+                    "banco": request.form.get('banco'),
+                    "estado_global": "Radicado",
+                    "fecha_creacion": datetime.now().isoformat(),
+                    "solicitante_id": applicant_id,
+                    "id_radicado": id_radicado,
+                    "etapas": [
+                        {
+                            "etapa": "documentos",
+                            "archivos": archivos_existentes,
+                            "requisitos_pendientes": ["Documentos en revisión"],
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "Sus documentos han sido recibidos y están en proceso de revisión",
+                            "estado": "En revisión",
+                            "historial": [
+                                {"fecha": datetime.now().isoformat(), "estado": "En revisión", "usuario_id": agent_id, "comentario": "Solicitud creada"}
+                            ]
+                        },
+                        {
+                            "etapa": "banco",
+                            "archivos": [],
+                            "viabilidad": "Pendiente",
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "",
+                            "estado": "Pendiente",
+                            "historial": []
+                        },
+                        {
+                            "etapa": "desembolso",
+                            "desembolsado": False,
+                            "estado": "Pendiente",
+                            "fecha_estimada": None,
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "",
+                            "historial": []
+                        }
+                    ]
+                }
+
+                # Insertar en la base de datos
+                res = supabase.table('SEGUIMIENTO_SOLICITUDES').insert(seguimiento_inicial).execute()
+                print("Respuesta de la tabla de seguimiento")
+                print(res)
+                
+
+                # # Actualizar producto con el ID de radicado
+                # supabase.table('PRODUCTO_SOLICITADO').update({
+                #     "id_radicado": id_radicado
+                # }).eq('id', product_id).execute()
+            
+            print("Terminaste de crear el seguimiento")
             # Recopilar toda la información en un diccionario data
             data = {
                 "solicitante": {
@@ -282,8 +373,9 @@ class recordsModel():
             }), 200
             
         except Exception as e:
-            print("Ocurrió un error al crear un registro:", e)
-            return jsonify({"mensaje": "Ocurrió un error al crear un registro."}), 500
+            error_msg = str(e)
+            print("Ocurrió un error al crear un registro:", error_msg)
+            return jsonify({"mensaje": f"Ocurrió un error al crear un registro: {error_msg}"}), 500
     
     def get_all_data(self):
         max_retries = 3
