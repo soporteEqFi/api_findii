@@ -2,6 +2,7 @@ from models.generales.generales import *
 from models.user_model import *
 from datetime import datetime
 import uuid
+import errno
 
 
 class credit_typesModel():
@@ -10,57 +11,57 @@ class credit_typesModel():
 
     def get_all_credit_types(self):
         max_retries = 3
-        retry_delay = 2  # segundos
-
-        data = request.json 
-        cedula = data['cedula']
+        retry_delay = 4  # seconds
 
         for attempt in range(max_retries):
             try:
-                # Consultar la empresa del usuario logeado
-                response_user_info = supabase.table("TABLA_USUARIOS")\
-                    .select('*')\
-                    .eq('cedula', cedula)\
-                    .execute()
+                data = request.json 
+                cedula = data['cedula']
 
-                if not response_user_info.data:
-                    return jsonify({"mensaje": "Usuario no encontrado"}), 404
+                # Consultas a las tablas en un solo paso, similar a get_all_data
+                tablas = {
+                    "user_info": supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute().data,
+                    "credit_types": None  # Lo llenaremos después de obtener id_empresa
+                }
 
-                id_empresa_usuario = response_user_info.data[0]['id_empresa']
+                if not tablas["user_info"]:
+                    return jsonify({
+                        "mensaje": "Usuario no encontrado",
+                        "data": []
+                    }), 404
 
-                # Consultar los tipos de crédito de la empresa
-                datos_empresa = supabase.table('EMPRESAS')\
-                    .select('*')\
-                    .eq('id_empresa', id_empresa_usuario)\
-                    .execute()
+                id_empresa = tablas["user_info"][0]['id_empresa']
 
-                if not datos_empresa.data:
-                    return jsonify({"mensaje": "Empresa no encontrada"}), 404
-
-                id_empresa = datos_empresa.data[0]['id_empresa']
-
-                # Consultar los tipos de crédito de la empresa
-                res = supabase.table('TIPOS_CREDITOS_CONFIG')\
+                # Ahora obtenemos los tipos de crédito
+                tablas["credit_types"] = supabase.table('TIPOS_CREDITOS_CONFIG')\
                     .select('*')\
                     .eq('id_empresa', id_empresa)\
-                    .execute()
+                    .execute().data
 
-                return jsonify(res.data), 200
+                return jsonify({
+                    "mensaje": "Tipos de crédito obtenidos exitosamente",
+                    "data": tablas["credit_types"] if tablas["credit_types"] else []
+                }), 200
 
             except Exception as e:
-                print(f"Intento {attempt + 1} fallido: {str(e)}")
-                
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(retry_delay)
-                    print(f"Reintentando en {retry_delay} segundos...")
-                    continue
+                if isinstance(e, OSError) and e.errno == errno.WSAEWOULDBLOCK:
+                    print(f"Intento {attempt + 1} fallido debido a operación de socket no bloqueante: {e}")
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(retry_delay)
+                        continue
                 else:
-                    print(f"Error después de {max_retries} intentos: {str(e)}")
-                    return jsonify({
-                        "mensaje": "Error al obtener los tipos de crédito",
-                        "error": str(e)
-                    }), 500
+                    print(f"Intento {attempt + 1} fallido: {e}")
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(retry_delay)
+                        continue
+
+        # Si llegamos aquí, significa que todos los intentos fallaron
+        return jsonify({
+            "mensaje": "No se pudieron obtener los tipos de crédito después de varios intentos. Por favor, intenta nuevamente.",
+            "data": []
+        }), 500
 
     def add_credit_type(self):
         try:
