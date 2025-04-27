@@ -325,7 +325,7 @@ class trackingModel():
             return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
             
     def actualizar_documentos(self):
-        from models.utils.seguimiento_solicitud.utils import handle_files_update, handle_history_update
+        from models.utils.seguimiento_solicitud.utils import handle_new_files, handle_history_update, handle_update_files
 
         try:
             # Valida que vengan todos los datos necesarios
@@ -356,7 +356,6 @@ class trackingModel():
 
             # Manejar actualizaciones específicas por tipo de etapa
             if etapa_nombre == 'documentos':
-                print("La etapa es documentos")
 
                 user_data = {
                     "id_solicitante": solicitante_id,
@@ -364,36 +363,43 @@ class trackingModel():
                     "etapa": etapa_name
                 }
 
-                print(request.form)
-                print(request.files)
-                files_new_data = handle_files_update(request, etapa_selected, user_data, supabase)
-                history_new_data = handle_history_update(request, etapa_selected)       
+                # Manejar archivos para reemplazar
+                replace_files = request.form.get('hay_archivos_para_reemplazar')
+                new_files = request.form.get('hay_archivos_nuevos')
 
-                # Añadir los datos a la etapa
-                etapa_selected['archivos'].append(files_new_data)
-                etapa_selected['historial'].append(history_new_data)
-                
-                etapa_selected['estado'] = request.form.get('estado') if request.form.get('estado') else etapa_selected['estado']
-                etapa_selected['comentarios'] = request.form.get('comentarios') if request.form.get('comentarios') else etapa_selected['comentarios']
-                etapa_selected['fecha_actualizacion'] = iso_date()
+                if replace_files:
+                    handle_update_files(request, supabase)
+                    history_new_data = handle_history_update(request, etapa_selected)
 
-                print("Etapa a actualizar")
-                print(json.dumps(etapas, indent=4, ensure_ascii=False))
+                if new_files:
+                    files_new_data = handle_new_files(request, etapa_selected, user_data, supabase)
+                    history_new_data = handle_history_update(request, etapa_selected)
+
+                    # Añadir los datos a la etapa
+                    etapa_selected['archivos'].append(files_new_data)
+                    etapa_selected['historial'].append(history_new_data)
+                    
+                    etapa_selected['estado'] = request.form.get('estado') if request.form.get('estado') else etapa_selected['estado']
+                    etapa_selected['comentarios'] = request.form.get('comentarios') if request.form.get('comentarios') else etapa_selected['comentarios']
+                    etapa_selected['fecha_actualizacion'] = iso_date()
+
+                    print("Etapa a actualizar")
+                    print(json.dumps(etapas, indent=4, ensure_ascii=False))
 
 
-                try:
-                    resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
-                        .update({
-                            "etapas": etapas,
-                        })\
-                        .eq('id', seguimiento_id)\
-                        .execute()
-                except Exception as e:
-                    print(f"Error al actualizar el seguimiento: {str(e)}")
-                    return jsonify({"error": "Error al actualizar el seguimiento"}), 500
+                    try:
+                        resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
+                            .update({
+                                "etapas": etapas,
+                            })\
+                            .eq('id', seguimiento_id)\
+                            .execute()
+                    except Exception as e:
+                        print(f"Error al actualizar el seguimiento: {str(e)}")
+                        return jsonify({"error": "Error al actualizar el seguimiento"}), 500
 
-                print("Seguimiento actualizado")
-                print(resultado)
+                    print("Seguimiento actualizado")
+                    print(resultado)
 
             elif etapa_nombre == 'banco':
                 print("La etapa es banco")
