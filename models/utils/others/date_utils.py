@@ -1,3 +1,8 @@
+from datetime import datetime
+
+def iso_date():
+    return datetime.now().isoformat()
+
 
 def format_date(date_str):
     """
