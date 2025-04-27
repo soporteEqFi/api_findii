@@ -427,20 +427,20 @@ class trackingModel():
                 #     etapa_selected['fecha_estimada'] = request.form.get('fecha_estimada')
 
             # Actualizar estado si se proporciona
-            if 'estado' in request.form:
-                estado_anterior = etapa_selected.get('estado')
-                etapa_selected['estado'] = request.form.get('estado')
+            # if 'estado' in request.form:
+            #     estado_anterior = etapa_selected.get('estado')
+            #     etapa_selected['estado'] = request.form.get('estado')
                 
-                # Añadir al historial
-                if 'historial' not in etapa_selected:
-                    etapa_selected['historial'] = []
+            #     # Añadir al historial
+            #     if 'historial' not in etapa_selected:
+            #         etapa_selected['historial'] = []
                     
-                etapa_selected['historial'].append({
-                    "fecha": datetime.now().isoformat(),
-                    "estado": request.form.get('estado'),
-                    "usuario_id": usuario_id,
-                    "comentario": request.form.get('comentario', '')
-                })
+            #     etapa_selected['historial'].append({
+            #         "fecha": datetime.now().isoformat(),
+            #         "estado": request.form.get('estado'),
+            #         "usuario_id": usuario_id,
+            #         "comentario": request.form.get('comentario', '')
+            #     })
 
             # # Actualizar comentarios si se proporcionan
             # if 'comentarios' in request.form:
