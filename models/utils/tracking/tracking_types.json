@@ -1,0 +1,21 @@
+[
+    {
+        "documentos": {
+            "archivos": true,
+            "historial": true,
+            "comentarios": true,
+            "requisitos_pendientes": true
+        },
+        "banco": {
+            "archivos": true,
+            "historial": true,
+            "comentarios": true,
+            "requisitos_pendientes": true
+        },
+        "desembolso": {
+            "historial": true,
+            "comentarios": true,
+            "desembolsado": true
+        }
+    }
+]
