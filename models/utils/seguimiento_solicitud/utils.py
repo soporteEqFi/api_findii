@@ -1,10 +1,11 @@
 from models.utils.files.files import exist_files_in_request, upload_files
 from models.utils.tracking.etapas import files_dict
 from models.utils.others.date_utils import iso_date
+from flask import jsonify
 
-def handle_files_update(request, etapa_selected:str, user_data:dict, supabase):
-    files = exist_files_in_request(request)
-    print("Entraste a handle_files_update")
+def handle_new_files(request, etapa_selected:str, user_data:dict, supabase):
+    print("Entraste a handle_new_files")
+    files = exist_files_in_request(request, "archivos")
     if not files:
         print("No parece haber archivos para subir")
         # return jsonify({"error": "No se recibieron archivos"}), 400
@@ -18,6 +19,35 @@ def handle_files_update(request, etapa_selected:str, user_data:dict, supabase):
     files_new_data = files_dict(uploaded_files_data, user_data["id_solicitante"])
 
     return files_new_data
+
+def handle_update_files(request, supabase):
+    print("Entraste a handle_update_files")
+    files = exist_files_in_request(request, "archivo_reemplazar")
+    if not files:
+        print("No parece haber archivos para subir")
+        return jsonify({"error": "No se recibieron archivos"}), 400
+
+    file = files[0] # Tomamos el primer archivo
+    existing_file_route = request.form.get('ruta_archivo_reemplazar')
+    print(existing_file_route)
+
+    # Extraer la ruta después de "findii/"
+    if "findii/" in existing_file_route:
+        existing_file_route_split = existing_file_route.split("findii/")[1].split("?")[0]
+        print(f"Ruta del archivo extraída: {existing_file_route_split}")
+
+    # 2. Elimina el archivo anterior
+    supabase.storage.from_('findii').remove([existing_file_route_split])
+
+    # 3. Sube el nuevo archivo en la misma ruta
+    file_data = file.read()
+    supabase.storage.from_('findii').upload(
+        existing_file_route_split,
+        file_data,
+        file_options={"content-type": file.mimetype}
+    )
+
+    return True
 
 def handle_history_update(request, etapa_selected:dict):
     """
