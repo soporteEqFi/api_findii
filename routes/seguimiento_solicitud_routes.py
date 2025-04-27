@@ -9,10 +9,6 @@ controller = trackingController()
 def update_status():
     return controller.update_status()
 
-@tracking.route('/api/seguimiento/<solicitud_id>', methods=['GET'])
-def get_status_history(solicitud_id):
-    return controller.get_status_history(solicitud_id)
-
 @tracking.route('/api/solicitudes/usuario/<cedula>', methods=['GET'])
 def get_user_applications(cedula):
     return controller.get_user_applications(cedula)
