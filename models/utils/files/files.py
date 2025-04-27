@@ -1,8 +1,9 @@
 from models.utils.files.utils import create_unique_filename
 import uuid
-def exist_files_in_request(request):
-    if 'archivos' in request.files:
-        files = request.files.getlist('archivos')
+
+def exist_files_in_request(request, column_name:str = "archivos"):
+    if column_name in request.files:
+        files = request.files.getlist(column_name)
         print(len(files))
         return files
     else:
