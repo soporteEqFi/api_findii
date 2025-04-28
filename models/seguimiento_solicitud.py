@@ -32,93 +32,93 @@ class trackingModel():
         
         return f"{prefijo}-{año}-{mes}-{secuencial}"
     
-    def crear_seguimiento(self):
-        try:
-            data = request.json
-            id_solicitante = data.get('id_solicitante')
-            id_producto = data.get('id_producto')
-            id_asesor = data.get('id_asesor')
-            producto_solicitado = data.get('producto_solicitado')
-            banco = data.get('banco')
+    # def crear_seguimiento(self):
+    #     try:
+    #         data = request.json
+    #         id_solicitante = data.get('id_solicitante')
+    #         id_producto = data.get('id_producto')
+    #         id_asesor = data.get('id_asesor')
+    #         producto_solicitado = data.get('producto_solicitado')
+    #         banco = data.get('banco')
             
-            # Validar datos requeridos
-            if not id_solicitante or not id_producto or not id_asesor:
-                return jsonify({"error": "Faltan datos requeridos"}), 400
+    #         # Validar datos requeridos
+    #         if not id_solicitante or not id_producto or not id_asesor:
+    #             return jsonify({"error": "Faltan datos requeridos"}), 400
                 
-            # Generar ID único para seguimiento
-            id_radicado = self.generar_id_radicado()
+    #         # Generar ID único para seguimiento
+    #         id_radicado = self.generar_id_radicado()
             
-            # Obtener documentos ya subidos
-            docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', id_solicitante).execute()
-            archivos_existentes = []
+    #         # Obtener documentos ya subidos
+    #         docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', id_solicitante).execute()
+    #         archivos_existentes = []
             
-            if docs.data:
-                for doc in docs.data:
-                    archivos_existentes.append({
-                        "archivo_id": str(uuid.uuid4()),
-                        "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
-                        "url": doc.get('imagen'),
-                        "estado": "pendiente",
-                        "comentario": "",
-                        "modificado": False,
-                        "fecha_modificacion": datetime.now().isoformat(),
-                        "ultima_fecha_modificacion": datetime.now().isoformat()
-                    })
+    #         if docs.data:
+    #             for doc in docs.data:
+    #                 archivos_existentes.append({
+    #                     "archivo_id": str(uuid.uuid4()),
+    #                     "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
+    #                     "url": doc.get('imagen'),
+    #                     "estado": "pendiente",
+    #                     "comentario": "",
+    #                     "modificado": False,
+    #                     "fecha_modificacion": datetime.now().isoformat(),
+    #                     "ultima_fecha_modificacion": datetime.now().isoformat()
+    #                 })
             
-            # Crear estructura inicial de etapas
-            etapas_iniciales = [
-                {
-                    "etapa": "documentos",
-                    "archivos": archivos_existentes,
-                    "requisitos_pendientes": ["Subir cédula", "Subir desprendibles de pago"],
-                    "fecha_actualizacion": datetime.now().isoformat(),
-                    "comentarios": "Por favor sube los documentos requeridos",
-                    "estado": "Pendiente",
-                    "historial": [
-                        {"fecha": datetime.now().isoformat(), "estado": "Pendiente", "usuario_id": id_asesor, "comentario": "Creación de solicitud"}
-                    ]
-                },
-                {
-                    "etapa": "banco",
-                    "archivos": [],
-                    "viabilidad": "Pendiente",
-                    "fecha_actualizacion": datetime.now().isoformat(),
-                    "comentarios": "",
-                    "estado": "Pendiente",
-                    "historial": []
-                },
-                {
-                    "etapa": "desembolso",
-                    "desembolsado": False,
-                    "estado": "Pendiente",
-                    "fecha_estimada": None,
-                    "fecha_actualizacion": datetime.now().isoformat(),
-                    "comentarios": "",
-                    "historial": []
-                }
-            ]
+    #         # Crear estructura inicial de etapas
+    #         etapas_iniciales = [
+    #             {
+    #                 "etapa": "documentos",
+    #                 "archivos": archivos_existentes,
+    #                 "requisitos_pendientes": ["Subir cédula", "Subir desprendibles de pago"],
+    #                 "fecha_actualizacion": datetime.now().isoformat(),
+    #                 "comentarios": "Por favor sube los documentos requeridos",
+    #                 "estado": "Pendiente",
+    #                 "historial": [
+    #                     {"fecha": datetime.now().isoformat(), "estado": "Pendiente", "usuario_id": id_asesor, "comentario": "Creación de solicitud"}
+    #                 ]
+    #             },
+    #             {
+    #                 "etapa": "banco",
+    #                 "archivos": [],
+    #                 "viabilidad": "Pendiente",
+    #                 "fecha_actualizacion": datetime.now().isoformat(),
+    #                 "comentarios": "",
+    #                 "estado": "Pendiente",
+    #                 "historial": []
+    #             },
+    #             {
+    #                 "etapa": "desembolso",
+    #                 "desembolsado": False,
+    #                 "estado": "Pendiente",
+    #                 "fecha_estimada": None,
+    #                 "fecha_actualizacion": datetime.now().isoformat(),
+    #                 "comentarios": "",
+    #                 "historial": []
+    #             }
+    #         ]
             
-            # Insertar registro de seguimiento
-            resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').insert({
-                "id_radicado": id_radicado,
-                "id_solicitante": id_solicitante,
-                "id_producto": id_producto,
-                "id_asesor": id_asesor,
-                "producto_solicitado": producto_solicitado,
-                "banco": banco,
-                "estado_global": "Iniciado",
-                "etapas": etapas_iniciales
-            }).execute()
+    #         # Insertar registro de seguimiento
+    #         resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').insert({
+    #             "id_radicado": id_radicado,
+    #             "id_solicitante": id_solicitante,
+    #             "id_producto": id_producto,
+    #             "id_asesor": id_asesor,
+    #             "producto_solicitado": producto_solicitado,
+    #             "banco": banco,
+    #             "estado_global": "Iniciado",
+    #             "etapas": etapas_iniciales
+    #         }).execute()
             
-            return jsonify({
-                "mensaje": "Seguimiento creado exitosamente",
-                "id_radicado": id_radicado,
-                "id": resultado.data[0]['id'] if resultado.data else None
-            }), 201
+    #         return jsonify({
+    #             "mensaje": "Seguimiento creado exitosamente",
+    #             "id_radicado": id_radicado,
+    #             "id": resultado.data[0]['id'] if resultado.data else None
+    #         }), 201
             
-        except Exception as e:
-            print(f"Error al crear seguimiento: {e}")
-            return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
+    #     except Exception as e:
+    #         print(f"Error al crear seguimiento: {e}")
+    #         return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
 
     def crear_seguimiento_interno(self, datos):
         try:
@@ -141,10 +141,12 @@ class trackingModel():
             archivos_existentes = []
             
             if docs.data:
+                print("Docs")
+                print(docs.data)
                 for doc in docs.data:
                     archivos_existentes.append({
                         "archivo_id": str(uuid.uuid4()),
-                        "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
+                        "nombre": doc.get('nombre'),
                         "url": doc.get('imagen'),
                         "estado": "pendiente",
                         "comentario": "",
