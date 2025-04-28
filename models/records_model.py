@@ -36,7 +36,7 @@ class recordsModel():
                 return jsonify({"error": "No se recibieron datos"}), 400
             
             print("Form data:", request.form)
-            print("Llenando el solicitante")
+            # print("Llenando el solicitante")
             # Crear registro del solicitante
             applicant = {
                 "nombre_completo": request.form.get('nombre_completo'),
@@ -52,15 +52,19 @@ class recordsModel():
             }
 
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
-            print("Solicitante")
-            print(res.data)
+            # print("Solicitante")
+            # print(res.data)
 
             applicant_id = res.data[0]['solicitante_id']
 
             files = request.files.getlist('archivos')
 
             # Subir archivos a Supabase Storage
-            upload_files({"archivos": files}, {"id_solicitante": applicant_id}, supabase)
+            uploaded_files = upload_files({"archivos": files}, {"id_solicitante": applicant_id}, supabase)
+
+            print("Archivos subidos")
+            print(uploaded_files)
+
 
             print("Llenando los campos faltantes")
             # Verificar campos faltantes
@@ -175,12 +179,10 @@ class recordsModel():
                 archivos_existentes = []
 
                 if docs.data:
-                    print(docs)
-                    print(docs.data)
                     for doc in docs.data:
                         archivos_existentes.append({
                             "archivo_id": str(uuid.uuid4()),
-                            "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
+                            "nombre": doc.get('nombre'),
                             "url": doc.get('imagen'),
                             "estado": "pendiente",
                             "comentario": "",
