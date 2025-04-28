@@ -6,6 +6,7 @@ from models.utils.tracking.etapas import get_etapa_by_radicado
 from models.utils.others.date_utils import iso_date
 
 import uuid
+import json
 
 class trackingModel():
     
@@ -366,28 +367,41 @@ class trackingModel():
                 }
 
                 # Manejar archivos para reemplazar
-                replace_files = request.form.get('hay_archivos_para_reemplazar')
-                new_files = request.form.get('hay_archivos_nuevos')
+                replace_files = request.form.get('hay_archivos_para_reemplazar', '').lower() in ['true', 'True']
+                new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True'] 
+
+                print(type(new_files))
+                
+                print("Replace files")
+                print(replace_files)
+                print("New files")
+                print(new_files)
 
                 if replace_files:
-                    handle_update_files(request, supabase)
+                    print("Hay archivos para reemplazar")
+                    datos_actualizados = handle_update_files(request, supabase)
                     history_new_data = handle_history_update(request, etapa_selected)
 
-                if new_files:
-                    files_new_data = handle_new_files(request, etapa_selected, user_data, supabase)
-                    history_new_data = handle_history_update(request, etapa_selected)
+                    print("Datos actualizados")
+                    print(datos_actualizados)
 
-                    # Añadir los datos a la etapa
-                    etapa_selected['archivos'].append(files_new_data)
+                    # Encontrar y actualizar el archivo en la etapa
+                    for i, archivo in enumerate(etapa_selected['archivos']):
+                        if archivo['url'] == request.form.get('ruta_archivo_reemplazar'):
+                            # Reemplazar los datos del archivo
+                            etapa_selected['archivos'][i] = datos_actualizados
+                            break
+
+                    # Actualizar el historial
                     etapa_selected['historial'].append(history_new_data)
                     
+                    # Actualizar estado y comentarios
                     etapa_selected['estado'] = request.form.get('estado') if request.form.get('estado') else etapa_selected['estado']
                     etapa_selected['comentarios'] = request.form.get('comentarios') if request.form.get('comentarios') else etapa_selected['comentarios']
                     etapa_selected['fecha_actualizacion'] = iso_date()
 
                     print("Etapa a actualizar")
                     print(json.dumps(etapas, indent=4, ensure_ascii=False))
-
 
                     try:
                         resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
