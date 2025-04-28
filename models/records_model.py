@@ -8,6 +8,7 @@ import uuid  # Para generar nombres únicos
 from models.utils.email.sent_email import config_email, email_body_and_send
 from models.utils.others.date_utils import format_date
 from models.seguimiento_solicitud import trackingModel
+from models.utils.files.files import upload_files
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -56,62 +57,10 @@ class recordsModel():
 
             applicant_id = res.data[0]['solicitante_id']
 
-            # Procesar archivos
-            print("Files:", request.files)
-            print("Llenando los archivos")
-            # Obtener lista de archivos con getlist()
             files = request.files.getlist('archivos')
 
-            for file in files:
-                print("Procesando archivo:", file.filename)
-
-                try:
-                    # Crear nombre único para el archivo
-                    extension = file.filename.split('.')[-1]
-                    unique_filename = f"{uuid.uuid4().hex}_{int(datetime.timestamp(datetime.now()))}.{extension}"
-                    file_path = f"images/{unique_filename}"
-
-                    print("Nombre archivo")
-                    print(unique_filename)
-
-                    # Leer archivo y convertir a bytes
-                    file_data = file.read()
-
-                    # Subir archivo a Supabase Storage
-                    res = supabase.storage.from_("findii").upload(
-                        file_path,
-                        file_data,
-                        file_options={"content-type": file.mimetype}
-                    )
-
-                    print("Subir archivo")
-                    print(res)
-
-                    if isinstance(res, dict) and "error" in res:
-                        print(f"Error al subir archivo {file.filename}: {res['error']}")
-                        continue
-
-                    # Hacer que el archivo sea público (importante para PDFs)
-                    # supabase.storage.from_("findii").update(file_path, {'public': True})
-
-                    # Obtener URL pública e insertar en BD
-                    image_url = supabase.storage.from_("findii").get_public_url(file_path)
-
-                    # Insertar registro para esta imagen
-                    datos_insertar = {
-                        "id_solicitante": applicant_id,
-                        "imagen": image_url
-                    }
-
-                    print("Datos insertar")
-                    print(datos_insertar)
-                    res_db = supabase.table("PRUEBA_IMAGEN").insert(datos_insertar).execute()
-                    print("Respuesta db")
-                    print(res_db)
-
-                except Exception as e:
-                    print(f"Error procesando archivo {file.filename}: {str(e)}")
-                    continue
+            # Subir archivos a Supabase Storage
+            upload_files({"archivos": files}, {"id_solicitante": applicant_id}, supabase)
 
             print("Llenando los campos faltantes")
             # Verificar campos faltantes
@@ -226,6 +175,8 @@ class recordsModel():
                 archivos_existentes = []
 
                 if docs.data:
+                    print(docs)
+                    print(docs.data)
                     for doc in docs.data:
                         archivos_existentes.append({
                             "archivo_id": str(uuid.uuid4()),
