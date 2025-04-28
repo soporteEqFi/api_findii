@@ -52,8 +52,6 @@ class recordsModel():
             }
 
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
-            # print("Solicitante")
-            # print(res.data)
 
             applicant_id = res.data[0]['solicitante_id']
 
@@ -61,10 +59,6 @@ class recordsModel():
 
             # Subir archivos a Supabase Storage
             uploaded_files = upload_files({"archivos": files}, {"id_solicitante": applicant_id}, supabase)
-
-            print("Archivos subidos")
-            print(uploaded_files)
-
 
             print("Llenando los campos faltantes")
             # Verificar campos faltantes
