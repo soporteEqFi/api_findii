@@ -4,15 +4,14 @@ import uuid
 def exist_files_in_request(request, column_name:str = "archivos"):
     if column_name in request.files:
         files = request.files.getlist(column_name)
-        print(len(files))
         return files
     else:
         return None
     
 def upload_files(files_data, user_data, supabase):
-
     files = files_data["archivos"]
     id_solicitante = user_data.get('id_solicitante')
+    uploaded_files = []
 
     for file in files:
         try:
@@ -24,6 +23,7 @@ def upload_files(files_data, user_data, supabase):
 
             # Leer archivo y convertir a bytes
             file_data = file.read()
+            file.seek(0)  # Reset file pointer for next read
 
             # Subir archivo a Supabase Storage
             res = supabase.storage.from_("findii").upload(
@@ -42,12 +42,14 @@ def upload_files(files_data, user_data, supabase):
                 "id_solicitante": id_solicitante
             }).execute()
 
-            return {
+            uploaded_files.append({
                 "archivo_id": str(uuid.uuid4()),
                 "nombre": file_name,
                 "url": archivo_url,
-            }
+            })
 
         except Exception as e:
             print(f"Error procesando archivo {file.filename}: {e}")
             continue
+
+    return uploaded_files
