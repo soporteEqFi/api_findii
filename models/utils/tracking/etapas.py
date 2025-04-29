@@ -17,15 +17,25 @@ def update_modification_date(etapa):
     return etapa
 
 def files_dict(uploaded_files_data, usuario_id):
-    etapa_file = {
-        "archivo_id": uploaded_files_data['archivo_id'],
-        "nombre": uploaded_files_data['nombre'],
-        "url": uploaded_files_data['url'],
-        "estado": get_state_avaiable()['pendiente'], # Valor por defecto ya que son archivos nuevos y no se han procesado
-        "comentario": "",
-        "modificado": False,
-        "usuario_id": usuario_id,
-        "fecha_modificacion": iso_date(),
-        "ultima_fecha_modificacion": iso_date()
-    }
-    return etapa_file
+    try:
+        
+        etapa_files = []
+        
+        for file_data in uploaded_files_data:
+            etapa_file = {
+                "archivo_id": file_data['archivo_id'],
+                "nombre": file_data['nombre'], 
+                "url": file_data['url'],
+                "estado": get_state_avaiable()['pendiente'], # Valor por defecto ya que son archivos nuevos y no se han procesado
+                "comentario": "",
+                "modificado": False,
+                "usuario_id": usuario_id,
+                "fecha_modificacion": iso_date(),
+                "ultima_fecha_modificacion": iso_date()
+            }
+            etapa_files.append(etapa_file)
+            
+        return etapa_files
+    except Exception as e:
+        print(f"Error al crear diccionario de archivos: {str(e)}")
+        return None
