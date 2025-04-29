@@ -41,15 +41,17 @@ def upload_files(files_data, user_data, supabase):
                 "nombre": file_name,
                 "id_solicitante": id_solicitante
             }).execute()
+            print("insertaste en la tabla PRUEBA_IMAGEN")
 
             uploaded_files.append({
                 "archivo_id": str(uuid.uuid4()),
                 "nombre": file_name,
                 "url": archivo_url,
             })
-
+            print("insertaste en la lista de archivos")
         except Exception as e:
             print(f"Error procesando archivo {file.filename}: {e}")
             continue
 
+    print("saliste de upload_files")
     return uploaded_files
