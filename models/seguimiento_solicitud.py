@@ -372,18 +372,31 @@ class trackingModel():
 
                 print(type(new_files))
                 
-                print("Replace files")
-                print(replace_files)
-                print("New files")
-                print(new_files)
+                # print("Replace files")
+                # print(replace_files)
+                # print("New files")
+                # print(new_files)
+
+                datos_actualizados = None
+                history_new_data = None
+
+                if new_files:
+                    print("Hay archivos nuevos")
+                    datos_actualizados = handle_new_files(request, etapa_selected, user_data, supabase)
+                    history_new_data = handle_history_update(request, etapa_selected)
+                    
+                    # Agregar los nuevos archivos a la etapa
+                    if 'archivos' not in etapa_selected:
+                        etapa_selected['archivos'] = []
+                    etapa_selected['archivos'].extend(datos_actualizados)
+
+                    print("Datos actualizados")
+                    print(datos_actualizados)
 
                 if replace_files:
                     print("Hay archivos para reemplazar")
                     datos_actualizados = handle_update_files(request, supabase)
                     history_new_data = handle_history_update(request, etapa_selected)
-
-                    print("Datos actualizados")
-                    print(datos_actualizados)
 
                     # Encontrar y actualizar el archivo en la etapa
                     for i, archivo in enumerate(etapa_selected['archivos']):
@@ -392,7 +405,10 @@ class trackingModel():
                             etapa_selected['archivos'][i] = datos_actualizados
                             break
 
+                if datos_actualizados and history_new_data:
                     # Actualizar el historial
+                    if 'historial' not in etapa_selected:
+                        etapa_selected['historial'] = []
                     etapa_selected['historial'].append(history_new_data)
                     
                     # Actualizar estado y comentarios
@@ -410,12 +426,11 @@ class trackingModel():
                             })\
                             .eq('id', seguimiento_id)\
                             .execute()
+                        print("Seguimiento actualizado")
+                        print(resultado)
                     except Exception as e:
                         print(f"Error al actualizar el seguimiento: {str(e)}")
                         return jsonify({"error": "Error al actualizar el seguimiento"}), 500
-
-                    print("Seguimiento actualizado")
-                    print(resultado)
 
             elif etapa_nombre == 'banco':
                 print("La etapa es banco")
