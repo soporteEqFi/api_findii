@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime
 
 def handle_new_files(request, etapa_selected:str, user_data:dict, supabase):    
-    
     files = exist_files_in_request(request, "archivos")
     if not files:
         print("No parece haber archivos para subir")
