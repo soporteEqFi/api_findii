@@ -40,10 +40,17 @@ def handle_update_files(request, supabase):
     # 1. Eliminar el archivo existente del storage
     supabase.storage.from_('findii').remove([existing_file_route_split])
 
-    # 2. Subir el nuevo archivo con su nombre original
+    # 2. Subir el nuevo archivo con un nombre único pero descriptivo
     file_data = file.read()
-    # Reemplazar espacios por guiones bajos en el nombre del archivo
-    file_name = file.filename.replace(" ", "_")
+    # Generar un UUID único para el archivo
+    unique_id = str(uuid.uuid4())
+    # Obtener el nombre base y la extensión del archivo
+    original_name = file.filename.rsplit('.', 1)[0]  # Nombre sin extensión
+    file_extension = file.filename.split('.')[-1]    # Extensión
+    # Crear un nombre único y descriptivo para el archivo
+    file_name = f"{original_name}_{unique_id}.{file_extension}"
+    file_name = file_name.replace(" ", "_")
+    
     # Subir el nuevo archivo
     supabase.storage.from_('findii').upload(
         file_name,
@@ -77,7 +84,7 @@ def handle_update_files(request, supabase):
 
     # Preparar los datos actualizados para la etapa
     datos_actualizados = {
-        "archivo_id": str(uuid.uuid4()),
+        "archivo_id": unique_id,
         "nombre": file_name,
         "url": image_url,
         "estado": "pendiente",
