@@ -142,8 +142,6 @@ class trackingModel():
             archivos_existentes = []
             
             if docs.data:
-                print("Docs")
-                print(docs.data)
                 for doc in docs.data:
                     archivos_existentes.append({
                         "archivo_id": str(uuid.uuid4()),
@@ -213,30 +211,30 @@ class trackingModel():
             print(f"Error al crear seguimiento: {e}")
             return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
         
-    def consultar_seguimiento(self, id_radicado=None, id_solicitante=None):
-        try:
-            if not id_radicado and not id_solicitante:
-                return jsonify({"error": "Se requiere id_radicado o id_solicitante"}), 400
+    # def consultar_seguimiento(self, id_radicado=None, id_solicitante=None):
+    #     try:
+    #         if not id_radicado and not id_solicitante:
+    #             return jsonify({"error": "Se requiere id_radicado o id_solicitante"}), 400
                 
-            query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
-            print(query)
-            if id_radicado:
-                query = query.eq('id_radicado', id_radicado)
-                print(query)
-            elif id_solicitante:
-                query = query.eq('id_solicitante', id_solicitante)
+    #         query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
+    #         print(query)
+    #         if id_radicado:
+    #             query = query.eq('id_radicado', id_radicado)
+    #             print(query)
+    #         elif id_solicitante:
+    #             query = query.eq('id_solicitante', id_solicitante)
                 
-            resultado = query.execute()
-            print(resultado)
+    #         resultado = query.execute()
+    #         print(resultado)
             
-            if not resultado.data:
-                return jsonify({"error": "Seguimiento no encontrado"}), 404
+    #         if not resultado.data:
+    #             return jsonify({"error": "Seguimiento no encontrado"}), 404
                 
-            return jsonify(resultado.data[0]), 200
+    #         return jsonify(resultado.data[0]), 200
             
-        except Exception as e:
-            print(f"Error al consultar seguimiento: {e}")
-            return jsonify({"error": f"Error al consultar seguimiento: {str(e)}"}), 500
+    #     except Exception as e:
+    #         print(f"Error al consultar seguimiento: {e}")
+    #         return jsonify({"error": f"Error al consultar seguimiento: {str(e)}"}), 500
     
     def actualizar_etapa(self):
         try:
@@ -369,13 +367,6 @@ class trackingModel():
                 # Manejar archivos para reemplazar
                 replace_files = request.form.get('hay_archivos_para_reemplazar', '').lower() in ['true', 'True']
                 new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True'] 
-
-                print(type(new_files))
-                
-                # print("Replace files")
-                # print(replace_files)
-                # print("New files")
-                # print(new_files)
 
                 datos_actualizados = None
                 history_new_data = None
