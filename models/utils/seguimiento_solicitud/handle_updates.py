@@ -5,7 +5,13 @@ from flask import jsonify
 import uuid
 from datetime import datetime
 
-def handle_new_files(request, etapa_selected:str, user_data:dict, supabase):    
+def handle_new_files(request, etapa_selected:str, user_data:dict, supabase):
+    """
+        Maneja la subida de nuevos archivos.
+        request: Contiene los datos de del input (archivos, nombres, etc)
+        supabase: Contiene el objeto de supabase para interactuar con la base de datos
+    """
+    # Se valida que eexisten archivos en la request
     files = exist_files_in_request(request, "archivos")
     if not files:
         print("No parece haber archivos para subir")
@@ -98,7 +104,8 @@ def handle_update_files(request, supabase):
 
 def handle_history_update(request, etapa_selected:dict):
     """
-        Actualiza el historial de la etapa.
+        Actualiza el historial de la etapa. Puede ser usado cuando se suben nuevos archivos o se reemplazan los existentes y haga
+        parte del historial.
     """
     print("Entraste a handle_history_update")
     
