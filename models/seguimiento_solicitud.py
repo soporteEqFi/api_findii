@@ -219,9 +219,11 @@ class trackingModel():
             print(f"Error al actualizar etapa: {e}")
             return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
     
-
-    # 
     # TODO: Separar esta etapa en un archivo distinto para que sea mas flexible y fácil de entender.
+    # *: Probada en etapa de documentos.
+    # *: Se comprobó la subida de nuevos archivos (teniendo alguno existen)
+    # *: Se comprobó el reemplazo de un archivo (teniendo alguno existente)
+    # TODO: Validar cuando no existe ningún archivo en la etapa (etapa sin documentos). Debería agregar uno nuevo.
     def actualizar_documentos(self):
         """
         Esta función se encarga de actualizar los documentos de la etapa de documentos. Puede ser que se suban nuevos archivos
