@@ -16,7 +16,10 @@ def update_modification_date(etapa):
     etapa['fecha_actualizacion'] = iso_date()
     return etapa
 
-def files_dict(uploaded_files_data, usuario_id):
+def files_dict(uploaded_files_data: list, usuario_id: str) -> list:
+    """
+        Crea un diccionario de archivos para cada etapa.
+    """
     try:
         
         etapa_files = []
