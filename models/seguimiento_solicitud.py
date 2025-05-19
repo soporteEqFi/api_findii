@@ -33,93 +33,6 @@ class trackingModel():
         
         return f"{prefijo}-{año}-{mes}-{secuencial}"
     
-    # def crear_seguimiento(self):
-    #     try:
-    #         data = request.json
-    #         id_solicitante = data.get('id_solicitante')
-    #         id_producto = data.get('id_producto')
-    #         id_asesor = data.get('id_asesor')
-    #         producto_solicitado = data.get('producto_solicitado')
-    #         banco = data.get('banco')
-            
-    #         # Validar datos requeridos
-    #         if not id_solicitante or not id_producto or not id_asesor:
-    #             return jsonify({"error": "Faltan datos requeridos"}), 400
-                
-    #         # Generar ID único para seguimiento
-    #         id_radicado = self.generar_id_radicado()
-            
-    #         # Obtener documentos ya subidos
-    #         docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', id_solicitante).execute()
-    #         archivos_existentes = []
-            
-    #         if docs.data:
-    #             for doc in docs.data:
-    #                 archivos_existentes.append({
-    #                     "archivo_id": str(uuid.uuid4()),
-    #                     "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
-    #                     "url": doc.get('imagen'),
-    #                     "estado": "pendiente",
-    #                     "comentario": "",
-    #                     "modificado": False,
-    #                     "fecha_modificacion": datetime.now().isoformat(),
-    #                     "ultima_fecha_modificacion": datetime.now().isoformat()
-    #                 })
-            
-    #         # Crear estructura inicial de etapas
-    #         etapas_iniciales = [
-    #             {
-    #                 "etapa": "documentos",
-    #                 "archivos": archivos_existentes,
-    #                 "requisitos_pendientes": ["Subir cédula", "Subir desprendibles de pago"],
-    #                 "fecha_actualizacion": datetime.now().isoformat(),
-    #                 "comentarios": "Por favor sube los documentos requeridos",
-    #                 "estado": "Pendiente",
-    #                 "historial": [
-    #                     {"fecha": datetime.now().isoformat(), "estado": "Pendiente", "usuario_id": id_asesor, "comentario": "Creación de solicitud"}
-    #                 ]
-    #             },
-    #             {
-    #                 "etapa": "banco",
-    #                 "archivos": [],
-    #                 "viabilidad": "Pendiente",
-    #                 "fecha_actualizacion": datetime.now().isoformat(),
-    #                 "comentarios": "",
-    #                 "estado": "Pendiente",
-    #                 "historial": []
-    #             },
-    #             {
-    #                 "etapa": "desembolso",
-    #                 "desembolsado": False,
-    #                 "estado": "Pendiente",
-    #                 "fecha_estimada": None,
-    #                 "fecha_actualizacion": datetime.now().isoformat(),
-    #                 "comentarios": "",
-    #                 "historial": []
-    #             }
-    #         ]
-            
-    #         # Insertar registro de seguimiento
-    #         resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').insert({
-    #             "id_radicado": id_radicado,
-    #             "id_solicitante": id_solicitante,
-    #             "id_producto": id_producto,
-    #             "id_asesor": id_asesor,
-    #             "producto_solicitado": producto_solicitado,
-    #             "banco": banco,
-    #             "estado_global": "Iniciado",
-    #             "etapas": etapas_iniciales
-    #         }).execute()
-            
-    #         return jsonify({
-    #             "mensaje": "Seguimiento creado exitosamente",
-    #             "id_radicado": id_radicado,
-    #             "id": resultado.data[0]['id'] if resultado.data else None
-    #         }), 201
-            
-    #     except Exception as e:
-    #         print(f"Error al crear seguimiento: {e}")
-    #         return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
 
     def crear_seguimiento_interno(self, datos):
         try:
@@ -211,31 +124,7 @@ class trackingModel():
             print(f"Error al crear seguimiento: {e}")
             return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
         
-    # def consultar_seguimiento(self, id_radicado=None, id_solicitante=None):
-    #     try:
-    #         if not id_radicado and not id_solicitante:
-    #             return jsonify({"error": "Se requiere id_radicado o id_solicitante"}), 400
-                
-    #         query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
-    #         print(query)
-    #         if id_radicado:
-    #             query = query.eq('id_radicado', id_radicado)
-    #             print(query)
-    #         elif id_solicitante:
-    #             query = query.eq('id_solicitante', id_solicitante)
-                
-    #         resultado = query.execute()
-    #         print(resultado)
-            
-    #         if not resultado.data:
-    #             return jsonify({"error": "Seguimiento no encontrado"}), 404
-                
-    #         return jsonify(resultado.data[0]), 200
-            
-    #     except Exception as e:
-    #         print(f"Error al consultar seguimiento: {e}")
-    #         return jsonify({"error": f"Error al consultar seguimiento: {str(e)}"}), 500
-    
+  
     def actualizar_etapa(self):
         try:
             data = request.json
@@ -246,10 +135,11 @@ class trackingModel():
             comentarios = data.get('comentarios', '')
             usuario_id = data.get('usuario_id')
             
+            # Si no se proporciona un id_seguimiento, se retorna un error
             if not (id_seguimiento or id_radicado) or not etapa_nombre or not nuevo_estado:
                 return jsonify({"error": "Faltan datos requeridos"}), 400
                 
-            # Obtener el registro actual
+            # Parte de la query para consultar, pero teniendo en cuenta si se da un id o id_radicado
             query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
             
             if id_seguimiento:
@@ -257,16 +147,20 @@ class trackingModel():
             else:
                 query = query.eq('id_radicado', id_radicado)
                 
+            # Se ejecuta la query
             seguimiento = query.execute()
             
+            # Si no se encuentra datos, se retorna un error
             if not seguimiento.data:
                 return jsonify({"error": "Seguimiento no encontrado"}), 404
                 
+            # Se obtiene el seguimiento
             seguimiento_data = seguimiento.data[0]
             etapas = seguimiento_data['etapas']
             
-            # Buscar la etapa a actualizar
+            # Se 
             etapa_actualizada = False
+            # En el input, se indica la etapa a actualizar, por lo que se busca en las etapas del seguimiento
             for etapa in etapas:
                 if etapa['etapa'] == etapa_nombre:
                     estado_anterior = etapa['estado']
@@ -274,7 +168,7 @@ class trackingModel():
                     etapa['comentarios'] = comentarios
                     etapa['fecha_actualizacion'] = datetime.now().isoformat()
                     
-                    # Añadir al historial
+                    # Se no existe el historial, se crea uno incluyendo la fecha, estado, usuario_id y comentarios
                     if 'historial' not in etapa:
                         etapa['historial'] = []
                         
@@ -324,20 +218,28 @@ class trackingModel():
         except Exception as e:
             print(f"Error al actualizar etapa: {e}")
             return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
-            
+    
+
+    # 
+    # TODO: Separar esta etapa en un archivo distinto para que sea mas flexible y fácil de entender.
     def actualizar_documentos(self):
-        from models.utils.seguimiento_solicitud.utils import handle_new_files, handle_history_update, handle_update_files
+        """
+        Esta función se encarga de actualizar los documentos de la etapa de documentos. Puede ser que se suban nuevos archivos
+        o que se reemplacen los archivos existentes.
+        """
+        from models.utils.seguimiento_solicitud.handle_updates import handle_new_files, handle_history_update, handle_update_files
 
         try:
-            # Valida que vengan todos los datos necesarios
+            # Valida que los datos necesarios estén presentes en el input, de lo contrario, retorna un error
             id_radicado, solicitante_id, etapa_nombre = validate_etapa_data(request)
 
+            # Se obtiene la información del seguimiento
             seguimiento_data = get_etapa_by_radicado(id_radicado, supabase)
-            # print(seguimiento_data)
             etapas = seguimiento_data[0]['etapas']
             seguimiento_id = seguimiento_data[0]['id']
 
-            # Traer qué tipo de etapa es, puede ser documentos, banco o desembolso.
+            # Validar cual es el nombre de la etapa, puede ser documentos, banco o desembolso.
+            # TODO: Si se puede validar que existe la etapa, se puede retornar los datos de esta y se evita el for de mas abajo.
             etapa_name = validate_etapa_type(etapa_nombre)
             if not etapa_name:
                 return jsonify({"error": f"La etapa {etapa_nombre} no es válida"}), 400
@@ -346,25 +248,19 @@ class trackingModel():
                 if etapa['etapa'] == etapa_name:
                     etapa_selected = etapa        
                     break
-
-            # etapa_selected = None
-            # etapa_index = None
-            # for i, etapa in enumerate(etapas):
-            #     if etapa['etapa'] == 'documentos':
-            #         etapa_selected = etapa
-            #         etapa_index = i
-            #         break
+            # TODO: Hasta acá
 
             # Manejar actualizaciones específicas por tipo de etapa
             if etapa_nombre == 'documentos':
 
+                # En un diccionario para evitar enviar tantos parámetros
                 user_data = {
                     "id_solicitante": solicitante_id,
                     "id_radicado": id_radicado,
                     "etapa": etapa_name
                 }
 
-                # Manejar archivos para reemplazar
+                # Booleanos para verificar si hay archivos para reemplazar o hay nuevos.
                 replace_files = request.form.get('hay_archivos_para_reemplazar', '').lower() in ['true', 'True']
                 new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True'] 
 
