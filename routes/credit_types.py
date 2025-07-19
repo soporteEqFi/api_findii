@@ -20,3 +20,8 @@ def add_credit_type():
 @cross_origin()
 def edit_credit_type():
     return con_credit_types.edit_credit_type()
+
+@credit_types.route('/delete-credit-type/', methods=['POST'])
+@cross_origin()
+def delete_credit_type():
+    return con_credit_types.delete_credit_type()

@@ -16,3 +16,6 @@ class credit_typesControlador():
         query = mod_credit_types.edit_credit_type()
         return query
 
+    def delete_credit_type(self):
+        query = mod_credit_types.delete_credit_type()
+        return query
