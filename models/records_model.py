@@ -318,11 +318,23 @@ class recordsModel():
                     "documentos": "PRUEBA_IMAGEN"
                 }
 
-                # Consultas a las tablas de Supabase en un solo paso
-                registros = {
-                    clave: supabase.table(tabla).select("*").execute().data
-                    for clave, tabla in tablas.items()
-                }
+                # Consultas a las tablas de Supabase en un solo paso con ordenamiento descendente
+                registros = {}
+                
+                # Para cada tabla, aplicar ordenamiento descendente según su clave primaria
+                for clave, tabla in tablas.items():
+                    if tabla == "SOLICITANTES":
+                        # Ordenar por solicitante_id descendente
+                        registros[clave] = supabase.table(tabla).select("*").order("solicitante_id", desc=True).execute().data
+                    elif tabla == "SOLICITUDES":
+                        # Ordenar por id descendente
+                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
+                    elif tabla == "PRUEBA_IMAGEN":
+                        # Ordenar por id descendente
+                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
+                    else:
+                        # Para las demás tablas, ordenar por id descendente
+                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
 
                 if all(len(value) == 0 for value in registros.values()):
                     return jsonify({"mensaje": "No hay registros en estas tablas"}), 200
@@ -399,10 +411,13 @@ class recordsModel():
                         "created_at": solicitud_info.get("created_at", "N/A"),
                     })
                 
+                # Ordenar datos_combinados por id_solicitante de forma descendente
+                datos_combinados_ordenados = sorted(datos_combinados, key=lambda x: x.get("id_solicitante", 0), reverse=True)
+                
                 # Mantener los registros originales y agregar los datos combinados
                 return jsonify({
                     "registros": registros,
-                    "datos_combinados": datos_combinados
+                    "datos_combinados": datos_combinados_ordenados
                 }), 200
 
             except Exception as e:

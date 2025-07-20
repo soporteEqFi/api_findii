@@ -13,11 +13,11 @@ class recordsControlador():
         return query 
     
     def get_combined_data(self):
-        query = mod_records.get_combined_data()
+        query = mod_records.get_all_data()
         return query
     
     def filtrar_tabla_combinada(self):
-        query = mod_records.filtrar_tabla_combinada()
+        query = mod_records.filtrar_tabla()
         return query
 
     def filtrar_tabla(self):
