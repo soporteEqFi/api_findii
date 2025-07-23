@@ -11,53 +11,84 @@ class credit_typesModel():
 
     def get_all_credit_types(self):
         max_retries = 3
-        retry_delay = 4  # seconds
+        retry_delay = 1  # Reducir a 1 segundo para ser más responsivo
 
+        # PASO 1: Obtener información del usuario (con reintentos)
+        user_info = None
         for attempt in range(max_retries):
             try:
                 data = request.json 
                 cedula = data['cedula']
+                
+                print("Antes de consultar la tabla de usuarios")
+                user_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute().data
 
-                # Consultas a las tablas en un solo paso, similar a get_all_data
-                tablas = {
-                    "user_info": supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute().data,
-                    "credit_types": None  # Lo llenaremos después de obtener id_empresa
-                }
-
-                if not tablas["user_info"]:
+                print("info usuario ejecutado")
+                
+                if not user_info:
                     return jsonify({
                         "mensaje": "Usuario no encontrado",
                         "data": []
                     }), 404
-
-                id_empresa = tablas["user_info"][0]['id_empresa']
-
-                # Ahora obtenemos los tipos de crédito
-                tablas["credit_types"] = supabase.table('TIPOS_CREDITOS_CONFIG')\
-                    .select('*')\
-                    .eq('id_empresa', id_empresa)\
-                    .execute().data
-
-                return jsonify({
-                    "mensaje": "Tipos de crédito obtenidos exitosamente",
-                    "data": tablas["credit_types"] if tablas["credit_types"] else []
-                }), 200
-
+                    
+                break  # ✅ Si llegamos aquí, la consulta del usuario fue exitosa
+                
             except Exception as e:
-                if isinstance(e, OSError) and e.errno == errno.WSAEWOULDBLOCK:
-                    print(f"Intento {attempt + 1} fallido debido a operación de socket no bloqueante: {e}")
+                error_msg = str(e)
+                if "10035" in error_msg or "WSAEWOULDBLOCK" in error_msg:
+                    print(f"Error de conectividad en consulta de usuario (intento {attempt + 1}): {e}")
                     if attempt < max_retries - 1:
                         import time
                         time.sleep(retry_delay)
                         continue
                 else:
-                    print(f"Intento {attempt + 1} fallido: {e}")
+                    print(f"Error no relacionado con conectividad: {e}")
+                    return jsonify({
+                        "mensaje": "Error al obtener información del usuario",
+                        "error": str(e),
+                        "data": []
+                    }), 500
+        else:
+            return jsonify({
+                "mensaje": "No se pudo obtener información del usuario después de varios intentos",
+                "data": []
+            }), 500
+
+        # PASO 2: Obtener tipos de crédito (con reintentos independientes)
+        id_empresa = user_info[0]['id_empresa']
+        
+        for attempt in range(max_retries):
+            try:
+                print("Antes de consultar la tabla de TIPOS DE CRÉDITOS")
+                credit_types = supabase.table('TIPOS_CREDITOS_CONFIG')\
+                    .select('*')\
+                    .eq('id_empresa', id_empresa)\
+                    .execute().data
+                
+                print("tipos de créditos ejecutado")
+
+                return jsonify({
+                    "mensaje": "Tipos de crédito obtenidos exitosamente",
+                    "data": credit_types if credit_types else []
+                }), 200
+
+            except Exception as e:
+                error_msg = str(e)
+                if "10035" in error_msg or "WSAEWOULDBLOCK" in error_msg:
+                    print(f"Error de conectividad en consulta de tipos de crédito (intento {attempt + 1}): {e}")
                     if attempt < max_retries - 1:
                         import time
                         time.sleep(retry_delay)
                         continue
+                else:
+                    print(f"Error no relacionado con conectividad en tipos de crédito: {e}")
+                    return jsonify({
+                        "mensaje": "Error al obtener tipos de crédito",
+                        "error": str(e),
+                        "data": []
+                    }), 500
 
-        # Si llegamos aquí, significa que todos los intentos fallaron
+        # Si llegamos aquí, significa que todos los intentos de la segunda consulta fallaron
         return jsonify({
             "mensaje": "No se pudieron obtener los tipos de crédito después de varios intentos. Por favor, intenta nuevamente.",
             "data": []
