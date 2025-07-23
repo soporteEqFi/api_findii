@@ -33,7 +33,6 @@ class trackingModel():
         
         return f"{prefijo}-{año}-{mes}-{secuencial}"
     
-
     def crear_seguimiento_interno(self, datos):
         try:
             id_solicitante = datos.get('id_solicitante')
@@ -124,7 +123,6 @@ class trackingModel():
             print(f"Error al crear seguimiento: {e}")
             return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
         
-  
     def actualizar_etapa(self):
         try:
             data = request.json
@@ -224,150 +222,6 @@ class trackingModel():
     # *: Se comprobó la subida de nuevos archivos (teniendo alguno existen)
     # *: Se comprobó el reemplazo de un archivo (teniendo alguno existente)
     # TODO: Validar cuando no existe ningún archivo en la etapa (etapa sin documentos). Debería agregar uno nuevo.
-    def actualizar_documentos(self):
-        """
-        Esta función se encarga de actualizar los documentos de la etapa de documentos. Puede ser que se suban nuevos archivos
-        o que se reemplacen los archivos existentes.
-        """
-        from models.utils.seguimiento_solicitud.handle_updates import handle_new_files, handle_history_update, handle_update_files
-
-        try:
-            # Valida que los datos necesarios estén presentes en el input, de lo contrario, retorna un error
-            id_radicado, solicitante_id, etapa_nombre = validate_etapa_data(request)
-
-            # Se obtiene la información del seguimiento
-            seguimiento_data = get_etapa_by_radicado(id_radicado, supabase)
-            etapas = seguimiento_data[0]['etapas']
-            seguimiento_id = seguimiento_data[0]['id']
-
-            # Validar cual es el nombre de la etapa, puede ser documentos, banco o desembolso.
-            # TODO: Si se puede validar que existe la etapa, se puede retornar los datos de esta y se evita el for de mas abajo.
-            etapa_name = validate_etapa_type(etapa_nombre)
-            if not etapa_name:
-                return jsonify({"error": f"La etapa {etapa_nombre} no es válida"}), 400
-            
-            for etapa in etapas:
-                if etapa['etapa'] == etapa_name:
-                    etapa_selected = etapa        
-                    break
-            # TODO: Hasta acá
-
-            # Manejar actualizaciones específicas por tipo de etapa
-            if etapa_nombre == 'documentos':
-
-                # En un diccionario para evitar enviar tantos parámetros
-                user_data = {
-                    "id_solicitante": solicitante_id,
-                    "id_radicado": id_radicado,
-                    "etapa": etapa_name
-                }
-
-                # Booleanos para verificar si hay archivos para reemplazar o hay nuevos.
-                replace_files = request.form.get('hay_archivos_para_reemplazar', '').lower() in ['true', 'True']
-                new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True'] 
-
-                # Si ocurre que se sube archivos nuevos y se modifican otros, acá se almacenan los datos de cada uno
-                # Si por ejemplo, llegaron 2 archivos nuevos, toda la info de cada uno se almacenará en un diccionario
-                # y se añadirán a la etapa.
-                dict_files_info = {}
-                dict_history_info = {}
-
-                # Si existen archivos nuevos, se suben y se actualiza el historial con un nuevo registro.
-                if new_files:
-                    print("Hay archivos nuevos")
-                    # Si existe un archivo nuevo, se sube y se crea un registro de tipo diccionario 
-                    # para tener la información relacionada.
-                    dict_files_info = handle_new_files(request, etapa_selected, user_data, supabase)
-                    dict_history_info = handle_history_update(request, etapa_selected)
-                    
-                    # En caso de que no existan archivos en la etapa, se crea una lista vacía. 
-                    # (puede ser una etapa que no contenía archivos)
-                    if 'archivos' not in etapa_selected:
-                        etapa_selected['archivos'] = []
-                    
-                    # Se agrega el nuevo registro del archivo a la etapa
-                    etapa_selected['archivos'].extend(dict_files_info)
-
-                    print("Datos actualizados")
-                    print(dict_files_info)
-
-                # Si existen archivos para reemplazar, se actualizan y se actualiza el historial con un nuevo registro.
-                if replace_files:
-                    print("Hay archivos para reemplazar")
-                    dict_files_info = handle_update_files(request, supabase)
-                    dict_history_info = handle_history_update(request, etapa_selected)
-
-                    # Encontrar y actualizar el archivo en la etapa
-                    for i, archivo in enumerate(etapa_selected['archivos']):
-                        if archivo['url'] == request.form.get('ruta_archivo_reemplazar'):
-                            # Reemplazar los datos del archivo
-                            etapa_selected['archivos'][i] = dict_files_info
-                            break
-
-                # Si existen archivos nuevos o reemplazados, se actualiza el historial
-                if dict_files_info and dict_history_info:
-                    
-                    # Se valida que exista el historial, de lo contrario, se crea una lista vacía.
-                    if 'historial' not in etapa_selected:
-                        etapa_selected['historial'] = []
-                    
-                    # Se añade el nuevo registro del historial (si ya existe, se añade al final como un nuevo registro)
-                    etapa_selected['historial'].append(dict_history_info)
-
-                    # En caso de que se haya modificado el estado o comentarios, se actualiza el estado y comentarios de la etapa
-                    etapa_selected['estado'] = request.form.get('estado') if request.form.get('estado') else etapa_selected['estado']
-                    etapa_selected['comentarios'] = request.form.get('comentarios') if request.form.get('comentarios') else etapa_selected['comentarios']
-
-                    # Se actualiza la fecha de la etapa con la fecha actual formato ISO
-                    etapa_selected['fecha_actualizacion'] = iso_date()
-
-
-                    # Informativo para ver los datos de la etapa
-                    print("Etapa a actualizar")
-                    print(json.dumps(etapas, indent=4, ensure_ascii=False))
-
-                    try:
-                        resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').update({"etapas": etapas}).eq('id', seguimiento_id).execute()
-                        print("Seguimiento actualizado")
-                        print(resultado)
-                    except Exception as e:
-                        print(f"Error al actualizar el seguimiento: {str(e)}")
-                        return jsonify({"error": "Error al actualizar el seguimiento"}), 500
-
-            elif etapa_nombre == 'banco':
-                print("La etapa es banco")
-                # # Actualizar viabilidad si se proporciona
-                # if 'viabilidad' in request.form:
-                #     etapa_selected['viabilidad'] = request.form.get('viabilidad')
-                
-                # # Manejar archivos si se envían
-                # files = exist_files_in_request(request)
-                # if files:
-                #     if 'archivos' not in etapa_selected:
-                #         etapa_selected['archivos'] = []
-                #     uploaded_files_data = upload_files(request.files, supabase)
-                #     etapa_file = add_files_to_etapa(uploaded_files_data, usuario_id)
-                #     etapa_selected['archivos'].append(etapa_file)
-
-            elif etapa_nombre == 'desembolso':
-                print("La etapa es desembolso")
-                # # Actualizar estado de desembolso
-                # if 'desembolsado' in request.form:
-                #     etapa_selected['desembolsado'] = request.form.get('desembolsado') == 'true'
-                
-                # # Actualizar fecha estimada si se proporciona
-                # if 'fecha_estimada' in request.form:
-                #     etapa_selected['fecha_estimada'] = request.form.get('fecha_estimada')
-
-            # Actualizar estado si se proporciona
-            # if 'estado' in request.form:
-            #     estado_anterior = etapa_selected.get('estado')
-            #     etapa_selected['estado'] = request.form.get('estado')
-                
-            #     # Añadir al historial
-            #     if 'historial' not in etapa_selected:
-            #         etapa_selected['historial'] = []
-                    
             #     etapa_selected['historial'].append({
             #         "fecha": datetime.now().isoformat(),
             #         "estado": request.form.get('estado'),
@@ -442,6 +296,4 @@ class trackingModel():
         except Exception as e:
             print(f"Error al consultar seguimiento público: {e}")
             return jsonify({"error": f"Error al consultar seguimiento: {str(e)}"}), 500
-        
-
-
+    
