@@ -370,6 +370,8 @@ class recordsModel():
                         "personas_a_cargo": solicitante.get("personas_a_cargo", "N/A"),
                         "numero_celular": solicitante.get("numero_celular", "N/A"),
                         "nivel_estudio": solicitante.get("nivel_estudio", "N/A"),
+                        "estado_civil": solicitante.get("estado_civil", "N/A"),
+                        "personas_a_cargo": solicitante.get("personas_a_cargo", "N/A"),
                         
                         # Actividad económica
                         "actividad_economica": actividad.get("actividad_economica", "N/A"),
@@ -395,9 +397,10 @@ class recordsModel():
                         "direccion": ubicacion.get("direccion_residencia", "N/A"),
                         "barrio": ubicacion.get("barrio", "N/A"),
                         "estrato": ubicacion.get("estrato", "N/A"),
+                        "tipo_vivienda": ubicacion.get("tipo_vivienda", "N/A"),
                         
                         # Producto
-                        "producto_solicitado": producto.get("tipo_credito", "N/A"),
+                        "tipo_credito": producto.get("tipo_credito", "N/A"),
                         "observacion": producto.get("observacion", "N/A"),
                         "plazo_meses": producto.get("plazo_meses", "N/A"),
                         "segundo_titular": producto.get("segundo_titular", "N/A"),
