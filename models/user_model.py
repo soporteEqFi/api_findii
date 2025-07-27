@@ -60,38 +60,6 @@ class userModel():
         return jsonify({"msg": "Usuario creado exitosamente. VERIFICA TU CORREO PARA ACTIVAR TU CUENTA", "user_id": user_id}), 201
     
 
-    # def get_agent_info(self, cedula):
-    #     max_retries = 3
-    #     retry_delay = 2  # seconds
-
-    #     for attempt in range(max_retries):
-    #         try:
-    #             if cedula is None or cedula == "":
-    #                 return jsonify({"error" : "campo cedula vacío"}), 401
-
-    #             response = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', cedula).execute()
-
-    #             response_data = response.data
-
-    #             return jsonify({
-    #                 "id": response_data[0]['id'],
-    #                 "nombre": response_data[0]['nombre'],
-    #                 "correo": response_data[0]['email'],
-    #                 "rol": response_data[0]['rol'],
-    #                 "cedula": response_data[0]['cedula'],
-    #                 "empresa": response_data[0]['empresa'],
-    #                 "imagen_aliado": response_data[0]['imagen_aliado']
-    #                 })
-
-    #         except Exception as e:
-    #             print(f"Attempt {attempt + 1} failed: {e}")
-    #             if attempt < max_retries - 1:
-    #                 time.sleep(retry_delay)
-    #             else:
-    #                 print("Ocurrió un error:", e)
-    #                 return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-                
-        
     def get_user_info(self, cedula):
         max_retries = 3
         retry_delay = 2  # seconds
