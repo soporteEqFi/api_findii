@@ -264,6 +264,8 @@ class trackingModel():
                 # Valida que los datos necesarios estén presentes en el input, de lo contrario, retorna un error
                 id_radicado, solicitante_id, etapa_nombre = validate_etapa_data(request)
 
+                print(request.form)
+
                 # Se obtiene la información del seguimiento
                 seguimiento_data = get_etapa_by_radicado(id_radicado, supabase)
                 etapas = seguimiento_data[0]['etapas']
@@ -276,7 +278,7 @@ class trackingModel():
                     return jsonify({"error": f"La etapa {etapa_nombre} no es válida"}), 400
                 
                 for etapa in etapas:
-                    print(etapa)
+                    # print(etapa)
                     if etapa['etapa'] == etapa_name:
                         etapa_selected = etapa        
                         break
@@ -321,7 +323,7 @@ class trackingModel():
                         etapa_selected['archivos'].extend(dict_files_info)
 
                         print("Datos actualizados")
-                        print(dict_files_info)
+                        # print(dict_files_info)
 
                     # Si existen archivos para reemplazar, se actualizan y se actualiza el historial con un nuevo registro.
                     if replace_files:
@@ -355,10 +357,10 @@ class trackingModel():
 
 
                         # Informativo para ver los datos de la etapa
-                        print("Las etapas son:")
-                        print(etapas)
-                        print("Etapa a actualizar")
-                        print(json.dumps(etapas, indent=4, ensure_ascii=False))
+                        # print("Las etapas son:")
+                        # print(etapas)
+                        # print("Etapa a actualizar")
+                        # print(json.dumps(etapas, indent=4, ensure_ascii=False))
 
                         try:
                             resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').update({"etapas": etapas}).eq('id', seguimiento_id).execute()
