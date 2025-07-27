@@ -1,12 +1,12 @@
 def get_state_avaiable():
     return {
-        "pendiente": "Pendiente",
-        "en_proceso": "En proceso",
-        "completado": "Completado",
-        "rechazado": "Rechazado",
-        "cancelado": "Cancelado",
-        "en_revision": "En revisión",
-        "corregir": "Corregir datos",
-        "corregir_documentos": "Corregir documentos",
-        "error": "Error",
+        "pendiente": "pendiente",
+        "en_proceso": "en proceso",
+        "completado": "completado",
+        "rechazado": "rechazado",
+        "cancelado": "cancelado",
+        "en_revision": "en revisión",
+        "corregir": "corregir datos",
+        "corregir_documentos": "corregir documentos",
+        "error": "error",
     }
