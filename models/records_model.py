@@ -38,8 +38,17 @@ class recordsModel():
                 return jsonify({"error": "No se recibieron datos"}), 400
             
             print("Form data:", request.form)
-            # print("Llenando el solicitante")
-            # Crear registro del solicitante
+
+           # Verificar campos faltantes
+            missing_fields = required_fields - set(request.form.keys())
+            if missing_fields:
+                print("Faltan campos requeridos")
+                print(missing_fields)
+                return jsonify({
+                    "error": "Faltan campos requeridos",
+                    "campos_faltantes": list(missing_fields)
+                }), 400
+            
             applicant = {
                 "nombre_completo": request.form.get('nombre_completo'),
                 "tipo_documento": request.form.get('tipo_documento'),
@@ -53,195 +62,30 @@ class recordsModel():
                 "personas_a_cargo": request.form.get('personas_a_cargo')
             }
 
+            
+            print("Llenando SOLICITANTES")
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
-
             applicant_id = res.data[0]['solicitante_id']
 
-            files = request.files.getlist('archivos')
-
-            for file in files:
-                print("Procesando archivo:", file.filename)
-
-                try:
-                    # Crear nombre único para el archivo
-                    extension = file.filename.split('.')[-1]
-                    unique_filename = f"{uuid.uuid4().hex}_{int(datetime.timestamp(datetime.now()))}.{extension}"
-                    file_path = f"images/{unique_filename}"
-
-                    print("Nombre archivo")
-                    print(unique_filename)
-
-                    # Leer archivo y convertir a bytes
-                    file_data = file.read()
-
-                    # Subir archivo a Supabase Storage
-                    res = supabase.storage.from_("findii").upload(
-                        file_path,
-                        file_data,
-                        file_options={"content-type": file.mimetype}
-                    )
-
-                    print("Subir archivo")
-                    print(res)
-
-                    if isinstance(res, dict) and "error" in res:
-                        print(f"Error al subir archivo {file.filename}: {res['error']}")
-                        continue
-
-                    # Hacer que el archivo sea público (importante para PDFs)
-                    # supabase.storage.from_("findii").update(file_path, {'public': True})
-
-                    # Obtener URL pública e insertar en BD
-                    image_url = supabase.storage.from_("findii").get_public_url(file_path)
-
-                    # Insertar registro para esta imagen
-                    datos_insertar = {
-                        "id_solicitante": applicant_id,
-                        "imagen": image_url
-                    }
-
-                    print("Datos insertar")
-                    print(datos_insertar)
-                    res_db = supabase.table("PRUEBA_IMAGEN").insert(datos_insertar).execute()
-                    print("Respuesta db")
-                    print(res_db)
-
-                except Exception as e:
-                    print(f"Error procesando archivo {file.filename}: {str(e)}")
-                    continue
-
-            # Verificar campos faltantes
-            missing_fields = required_fields - set(request.form.keys())
-            if missing_fields:
-                print("Faltan campos requeridos")
-                print(missing_fields)
-                return jsonify({
-                    "error": "Faltan campos requeridos",
-                    "campos_faltantes": list(missing_fields)
-                }), 400
-
-            print(request.form.get('asesor_usuario'))
-
-            # Obtener el asesor de la tabla de asesores
-            agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
-            print("Asesores info")
-            print(agents_info.data)
-            agent_id = agents_info.data[0]['id']
-
-            # print(agent_id)
-            print("Llenando la ubicación")
-            # Crear registro de ubicación
-            location = {
-                "solicitante_id": applicant_id,
-                "direccion_residencia": request.form.get('direccion_residencia'),
-                "tipo_vivienda": request.form.get('tipo_vivienda'),
-                "barrio": request.form.get('barrio'),
-                "departamento": request.form.get('departamento'),
-                "estrato": request.form.get('estrato'),
-                "ciudad_gestion": request.form.get('ciudad_gestion')
-            }
-
-            res = supabase.table('UBICACION').insert(location).execute()
-
-            print("Ubicaciones")
-            # print(res.data)
-            
-            # Crear registro de actividad económica
-            economic_activity = {
-                "solicitante_id": applicant_id,
-                "actividad_economica": request.form.get('actividad_economica'),
-                "empresa_labora": request.form.get('empresa_labora'),
-                "fecha_vinculacion": datetime.strptime(request.form.get('fecha_vinculacion'), '%Y-%m-%d').strftime('%Y,%m,%d'),
-                "direccion_empresa": request.form.get('direccion_empresa'),
-                "telefono_empresa": request.form.get('telefono_empresa'),
-                "tipo_contrato": request.form.get('tipo_contrato'),
-                "cargo_actual": request.form.get('cargo_actual')
-            }
-
-            res = supabase.table('ACTIVIDAD_ECONOMICA').insert(economic_activity).execute()
-
-            print("Actividad economica")
-            # print(res.data)
-            
-            # Crear registro de información financiera
-            financial_info = {
-                "solicitante_id": applicant_id,
-                "ingresos": request.form.get('ingresos'),
-                "valor_inmueble": request.form.get('valor_inmueble'),
-                "cuota_inicial": request.form.get('cuota_inicial'),
-                "porcentaje_financiar": request.form.get('porcentaje_financiar'),
-                "total_egresos": request.form.get('total_egresos'),
-                "total_activos": request.form.get('total_activos'),
-                "total_pasivos": request.form.get('total_pasivos')
-            }
-
-            res = supabase.table('INFORMACION_FINANCIERA').insert(financial_info).execute()
-
-            print("Informacion financiera")
-            # print(res.data)
-            # Crear registro de producto solicitado
-            try:
-                informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
-            except json.JSONDecodeError:
-                return jsonify({"error": "El campo informacion_producto debe ser un JSON válido"}), 400
-            # Crear registro de producto solicitado
-            product = {
-                "solicitante_id": applicant_id,
-                "tipo_credito": request.form.get('tipo_credito'),
-                "plazo_meses": request.form.get('plazo_meses'),
-                "informacion_producto": informacion_producto,
-                "segundo_titular": True if request.form.get('segundo_titular') == 'si' else False,
-                "observacion": request.form.get('observacion'),
-                "estado": "Radicado",
-            }
-
-            res = supabase.table('PRODUCTO_SOLICITADO').insert(product).execute()
-            print("Producto solicitado")
-            # print(res.data)
-            
-            # Crear registro de solicitud
-            solicitud = {
-                "solicitante_id": applicant_id,
-                "asesor_id": agent_id,
-                "banco": request.form.get('banco'),
-            }
-
-            res = supabase.table('SOLICITUDES').insert(solicitud).execute()
-
-            # Recopilar toda la información en un diccionario data
             data = {
-                "solicitante": {
-                    "id": applicant_id,
-                    "nombre": request.form.get('nombre_completo', '').split()[0] if request.form.get('nombre_completo') else '',
-                    "apellido": ' '.join(request.form.get('nombre_completo', '').split()[1:]) if request.form.get('nombre_completo') and len(request.form.get('nombre_completo', '').split()) > 1 else '',
-                    "tipo_documento": request.form.get('tipo_documento'),
-                    "numero_documento": request.form.get('numero_documento'),
-                    "fecha_nacimiento": request.form.get('fecha_nacimiento'),
-                    "estado_civil": request.form.get('estado_civil'),
-                    "email": request.form.get('correo_electronico'),
-                    "numero_celular": request.form.get('numero_celular'),
-                    "nivel_estudio": request.form.get('nivel_estudio'),
-                    "profesion": request.form.get('profesion'),
-                    "personas_a_cargo": request.form.get('personas_a_cargo')
-                },
                 "ubicacion": {
                     "solicitante_id": applicant_id,
-                    "direccion": request.form.get('direccion_residencia'),
-                    "ciudad": request.form.get('ciudad_gestion'),
+                    "direccion_residencia": request.form.get('direccion_residencia'),
+                    "tipo_vivienda": request.form.get('tipo_vivienda'),
+                    "barrio": request.form.get('barrio'),
                     "departamento": request.form.get('departamento'),
                     "estrato": request.form.get('estrato'),
-                    "tipo_vivienda": request.form.get('tipo_vivienda'),
-                    "tiempo_residencia": request.form.get('barrio')  # Usando barrio como tiempo_residencia por compatibilidad con PDF
+                    "ciudad_gestion": request.form.get('ciudad_gestion'),
                 },
                 "actividad_economica": {
                     "solicitante_id": applicant_id,
-                    "actividad": request.form.get('actividad_economica'),
-                    "empresa": request.form.get('empresa_labora'),
-                    "cargo": request.form.get('cargo_actual'),
-                    "tipo_contrato": request.form.get('tipo_contrato'),
+                    "actividad_economica": request.form.get('actividad_economica'),
+                    "empresa_labora": request.form.get('empresa_labora'),
                     "fecha_vinculacion": request.form.get('fecha_vinculacion'),
                     "direccion_empresa": request.form.get('direccion_empresa'),
-                    "telefono_empresa": request.form.get('telefono_empresa')
+                    "telefono_empresa": request.form.get('telefono_empresa'),
+                    "tipo_contrato": request.form.get('tipo_contrato'),
+                    "cargo_actual": request.form.get('cargo_actual')
                 },
                 "informacion_financiera": {
                     "solicitante_id": applicant_id,
@@ -263,38 +107,137 @@ class recordsModel():
                 },
                 "solicitud": {
                     "solicitante_id": applicant_id,
-                    "asesor_id": agent_id,
                     "banco": request.form.get('banco')
                 },
                 "banco": request.form.get('banco'),
-                "asesor_id": agent_id
             }
 
-            # En tu función principal
-            pdf_data = generar_pdf_desde_html(data)
-            if pdf_data:
-                # Crear nombre único para el PDF
-                unique_filename = f"registro_{uuid.uuid4().hex}.pdf"
-                file_path = f"documentos/{unique_filename}"
-                
-                # Subir a Supabase Storage
-                res = supabase.storage.from_("findii").upload(
-                    file_path,
-                    pdf_data,
-                    file_options={"content-type": "application/pdf"}
-                )
-                
-                if isinstance(res, dict) and "error" in res:
-                    print(f"Error al subir PDF: {res['error']}")
-                else:
-                    # Obtener URL pública
-                    pdf_url = supabase.storage.from_("findii").get_public_url(file_path)
-                    print("PDF guardado:", pdf_url)
+            # Crear diccionario con el id del solicitante
+            user_data = {
+                'id_solicitante': applicant_id
+            }
 
-                return jsonify({
-                    "mensaje": "Registro creado exitosamente",
-                }), 200
+            # Crear diccionario con los archivos
+            files_data = {
+                'archivos': request.files.getlist('archivos')
+            }
 
+            archivos_subidos = upload_files(files_data, user_data, supabase)
+
+            print("Obteniendo data del asesor")
+            # Obtener el asesor de la tabla de asesores
+            agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
+            data["solicitud"]["asesor_id"] = agents_info.data[0]['id']
+
+            # print(agent_id)
+            print("Llenando la UBICACION")
+            res = supabase.table('UBICACION').insert(data["ubicacion"]).execute()
+
+            print("Llenando ACTIVIDAD_ECONOMICA")
+            res = supabase.table('ACTIVIDAD_ECONOMICA').insert(data["actividad_economica"]).execute()
+
+            print("Llenando INFORMACION_FINANCIERA")
+            res = supabase.table('INFORMACION_FINANCIERA').insert(data["informacion_financiera"]).execute()
+
+            print("Llenando PRODUCTO_SOLICITADO")
+            try:
+                informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
+            except json.JSONDecodeError:
+                return jsonify({"error": "El campo informacion_producto debe ser un JSON válido"}), 400
+            # Crear registro de producto solicitado
+
+            data["producto"]["informacion_producto"] = informacion_producto
+
+            res = supabase.table('PRODUCTO_SOLICITADO').insert(data["producto"]).execute()
+
+            print("Llenando SOLICITUDES")
+            res = supabase.table('SOLICITUDES').insert(data["solicitud"]).execute()
+            
+            print("Llenando PRODUCTO_SOLICITADO")
+            # Obtener ID del producto creado
+            product_info = supabase.table('PRODUCTO_SOLICITADO').select('*').eq('solicitante_id', applicant_id).execute()
+            if product_info.data:
+                product_id = product_info.data[0]['id']
+                
+                # Obtener documentos ya subidos
+                docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', applicant_id).execute()
+                archivos_existentes = []
+
+                if docs.data:
+                    for doc in docs.data:
+                        archivos_existentes.append({
+                            "archivo_id": str(uuid.uuid4()),
+                            "nombre": doc.get('imagen', '').split('/')[-1] if '/' in doc.get('imagen', '') else 'documento.pdf',
+                            "url": doc.get('imagen'),
+                            "estado": "pendiente",
+                            "comentario": "",
+                            "modificado": False,
+                            "fecha_modificacion": datetime.now().isoformat(),
+                            "ultima_fecha_modificacion": datetime.now().isoformat()
+                        })
+
+                # Generar ID de radicado
+                tracking = trackingModel()
+                id_radicado = tracking.generar_id_radicado()
+
+                # Registrar el primer estado en la tabla de seguimiento usando el ID del producto correcto
+                seguimiento_inicial = {
+                    "id_producto": product_id,
+                    "id_asesor": data["solicitud"]["asesor_id"],
+                    "producto_solicitado": request.form.get('tipo_credito'),
+                    "cambio_por": request.form.get('asesor_usuario'),
+                    "fecha_cambio": datetime.now().isoformat(),
+                    "banco": request.form.get('banco'),
+                    "estado_global": "Radicado",
+                    "fecha_creacion": datetime.now().isoformat(),
+                    "solicitante_id": applicant_id,
+                    "id_radicado": id_radicado,
+                    "etapas": [
+                        {
+                            "etapa": "documentos",
+                            "archivos": archivos_existentes,
+                            "requisitos_pendientes": ["Documentos en revisión"],
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "Sus documentos han sido recibidos y están en proceso de revisión",
+                            "estado": "En revisión",
+                            "historial": [
+                                {"fecha": datetime.now().isoformat(), "estado": "En revisión", "usuario_id": data["solicitud"]["asesor_id"], "comentario": "Solicitud creada"}
+                            ]
+                        },
+                        {
+                            "etapa": "banco",
+                            "archivos": [],
+                            "viabilidad": "Pendiente",
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "",
+                            "estado": "Pendiente",
+                            "historial": []
+                        },
+                        {
+                            "etapa": "desembolso",
+                            "desembolsado": False,
+                            "estado": "Pendiente",
+                            "fecha_estimada": None,
+                            "fecha_actualizacion": datetime.now().isoformat(),
+                            "comentarios": "",
+                            "historial": []
+                        }
+                    ]
+                }
+
+                print("Llenando SEGUIMIENTO_SOLICITUDES")
+                res = supabase.table('SEGUIMIENTO_SOLICITUDES').insert(seguimiento_inicial).execute()
+                # print("Respuesta de la tabla de seguimiento")
+                # print(res)
+                
+
+                # # Actualizar producto con el ID de radicado
+                # supabase.table('PRODUCTO_SOLICITADO').update({
+                #     "id_radicado": id_radicado
+                # }).eq('id', product_id).execute()
+
+            return jsonify({"mensaje": f"Datos llenados correctamente"}), 200
+            
         except Exception as e:
             error_msg = str(e)
             print("Ocurrió un error al crear un registro:", error_msg)
