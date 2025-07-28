@@ -11,6 +11,7 @@ from models.utils.email.sent_email import config_email, email_body_and_send
 from models.utils.others.date_utils import format_date
 from models.seguimiento_solicitud import trackingModel
 from models.utils.files.files import upload_files
+from models.processors.records import *
 
 # TODO: Separar lógica de agregar datos a cada tabla de la BD
 # TODO: Agregar validaciones de datos a cada tabla
@@ -20,96 +21,27 @@ class recordsModel():
 
     def add_record(self):
         try:    
-            # Lista de campos requeridos
-            required_fields = {
-                "nombre_completo", "tipo_documento", "numero_documento", "fecha_nacimiento",
-                "numero_celular", "correo_electronico", "nivel_estudio", "profesion",
-                "estado_civil", "personas_a_cargo", "direccion_residencia", "tipo_vivienda",
-                "barrio", "departamento", "estrato", "ciudad_gestion", "actividad_economica",
-                "empresa_labora", "fecha_vinculacion", "direccion_empresa", "telefono_empresa",
-                "tipo_contrato", "cargo_actual", "ingresos", "valor_inmueble", "cuota_inicial",
-                "porcentaje_financiar", "total_egresos", "total_activos", "total_pasivos",
-                "tipo_credito", "plazo_meses", "segundo_titular", "observacion", "asesor_usuario",
-                "banco", "informacion_producto" 
-            }
-
-            # Obtener datos del form-data
-            if not request.form:
-                return jsonify({"error": "No se recibieron datos"}), 400
             
-            print("Form data:", request.form)
+            # Procesar datos usando RecordsData de processors/records.py
+            records_processor = RecordsDataProcessor(request)
 
-           # Verificar campos faltantes
-            missing_fields = required_fields - set(request.form.keys())
-            if missing_fields:
-                print("Faltan campos requeridos")
-                print(missing_fields)
-                return jsonify({
-                    "error": "Faltan campos requeridos",
-                    "campos_faltantes": list(missing_fields)
-                }), 400
-            
-            applicant = {
-                "nombre_completo": request.form.get('nombre_completo'),
-                "tipo_documento": request.form.get('tipo_documento'),
-                "numero_documento": request.form.get('numero_documento'),
-                "fecha_nacimiento": request.form.get('fecha_nacimiento'),
-                "numero_celular": request.form.get('numero_celular'),
-                "correo_electronico": request.form.get('correo_electronico'),
-                "nivel_estudio": request.form.get('nivel_estudio'),
-                "profesion": request.form.get('profesion'),  # Campo opcional
-                "estado_civil": request.form.get('estado_civil'),
-                "personas_a_cargo": request.form.get('personas_a_cargo')
-            }
+            applicant = records_processor.get_applicant_data()
 
-            
             print("Llenando SOLICITANTES")
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
             applicant_id = res.data[0]['solicitante_id']
-
+            
+            # Establecer ID del solicitante en el procesador
+            records_processor.set_applicant_id(applicant_id)
+            
+            # Obtener datos procesados
             data = {
-                "ubicacion": {
-                    "solicitante_id": applicant_id,
-                    "direccion_residencia": request.form.get('direccion_residencia'),
-                    "tipo_vivienda": request.form.get('tipo_vivienda'),
-                    "barrio": request.form.get('barrio'),
-                    "departamento": request.form.get('departamento'),
-                    "estrato": request.form.get('estrato'),
-                    "ciudad_gestion": request.form.get('ciudad_gestion'),
-                },
-                "actividad_economica": {
-                    "solicitante_id": applicant_id,
-                    "actividad_economica": request.form.get('actividad_economica'),
-                    "empresa_labora": request.form.get('empresa_labora'),
-                    "fecha_vinculacion": request.form.get('fecha_vinculacion'),
-                    "direccion_empresa": request.form.get('direccion_empresa'),
-                    "telefono_empresa": request.form.get('telefono_empresa'),
-                    "tipo_contrato": request.form.get('tipo_contrato'),
-                    "cargo_actual": request.form.get('cargo_actual')
-                },
-                "informacion_financiera": {
-                    "solicitante_id": applicant_id,
-                    "ingresos": request.form.get('ingresos'),
-                    "valor_inmueble": request.form.get('valor_inmueble'),
-                    "cuota_inicial": request.form.get('cuota_inicial'),
-                    "porcentaje_financiar": request.form.get('porcentaje_financiar'),
-                    "total_egresos": request.form.get('total_egresos'),
-                    "total_activos": request.form.get('total_activos'),
-                    "total_pasivos": request.form.get('total_pasivos')
-                },
-                "producto": {
-                    "solicitante_id": applicant_id,
-                    "tipo_credito": request.form.get('tipo_credito'),
-                    "plazo_meses": request.form.get('plazo_meses'),
-                    "segundo_titular": True if request.form.get('segundo_titular') == 's' else False,
-                    "observacion": request.form.get('observacion'),
-                    "estado": "Radicado"
-                },
-                "solicitud": {
-                    "solicitante_id": applicant_id,
-                    "banco": request.form.get('banco')
-                },
-                "banco": request.form.get('banco'),
+                "ubicacion": records_processor.get_location_data(),
+                "actividad_economica": records_processor.get_economic_activity_data(),
+                "informacion_financiera": records_processor.get_financial_data(),
+                "producto": records_processor.get_product_data(),
+                "solicitud": records_processor.get_request_data(),
+                "banco": records_processor.get_bank()
             }
 
             # Crear diccionario con el id del solicitante
@@ -129,7 +61,6 @@ class recordsModel():
             agents_info = supabase.table("TABLA_USUARIOS").select('*').eq('cedula', request.form.get('asesor_usuario')).execute()
             data["solicitud"]["asesor_id"] = agents_info.data[0]['id']
 
-            # print(agent_id)
             print("Llenando la UBICACION")
             res = supabase.table('UBICACION').insert(data["ubicacion"]).execute()
 
@@ -144,7 +75,6 @@ class recordsModel():
                 informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
             except json.JSONDecodeError:
                 return jsonify({"error": "El campo informacion_producto debe ser un JSON válido"}), 400
-            # Crear registro de producto solicitado
 
             data["producto"]["informacion_producto"] = informacion_producto
 
@@ -227,14 +157,6 @@ class recordsModel():
 
                 print("Llenando SEGUIMIENTO_SOLICITUDES")
                 res = supabase.table('SEGUIMIENTO_SOLICITUDES').insert(seguimiento_inicial).execute()
-                # print("Respuesta de la tabla de seguimiento")
-                # print(res)
-                
-
-                # # Actualizar producto con el ID de radicado
-                # supabase.table('PRODUCTO_SOLICITADO').update({
-                #     "id_radicado": id_radicado
-                # }).eq('id', product_id).execute()
 
             return jsonify({"mensaje": f"Datos llenados correctamente"}), 200
             
