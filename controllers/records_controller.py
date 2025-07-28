@@ -6,6 +6,27 @@ class recordsControlador():
 
     def post_add_record(self):  
         query = mod_records.add_record()
+        required_fields = {
+            "nombre_completo", "tipo_documento", "numero_documento", "fecha_nacimiento",
+            "numero_celular", "correo_electronico", "nivel_estudio", "profesion",
+            "estado_civil", "personas_a_cargo", "direccion_residencia", "tipo_vivienda",
+            "barrio", "departamento", "estrato", "ciudad_gestion", "actividad_economica",
+            "empresa_labora", "fecha_vinculacion", "direccion_empresa", "telefono_empresa",
+            "tipo_contrato", "cargo_actual", "ingresos", "valor_inmueble", "cuota_inicial",
+            "porcentaje_financiar", "total_egresos", "total_activos", "total_pasivos",
+            "tipo_credito", "plazo_meses", "segundo_titular", "observacion", "asesor_usuario",
+            "banco", "informacion_producto" 
+        }
+
+        missing_fields = required_fields - set(request.form.keys())
+        if missing_fields:
+            print("Faltan campos requeridos")
+            print(missing_fields)
+            return jsonify({
+                "error": "Faltan campos requeridos",
+                "campos_faltantes": list(missing_fields)
+            }), 400
+        
         return query
         
     def get_all_data(self):
