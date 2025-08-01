@@ -443,8 +443,7 @@ class trackingModel():
             seguimiento = supabase.table('SEGUIMIENTO_SOLICITUDES')\
                 .select('*')\
                 .eq('id_radicado', id_radicado)\
-                .execute()
-                
+                .execute()                
             if not seguimiento.data:
                 return jsonify({"error": "No se encontró el seguimiento solicitado"}), 404
                 
