@@ -425,9 +425,6 @@ class recordsModel():
             solicitante_id = request.json.get('solicitante_id')
             numero_documento = request.json.get('numero_documento')
 
-            print(f"Estado: {estado}")
-            print(f"Solicitante ID: {solicitante_id}")
-            print(f"Numero Documento: {numero_documento}")
 
             # Validar que se reciban todos los datos necesarios
             if not estado or not solicitante_id or not numero_documento:
@@ -447,10 +444,7 @@ class recordsModel():
 
             # Se asume que solo hay un registro por solicitante_id
             solicitante = respuesta_solicitantes.data[0]
-            print(solicitante)
-            print(solicitante.get("numero_documento"))
 
-            print(numero_documento)
             if solicitante.get("numero_documento") != numero_documento:
                 return jsonify({"error": "El número de documento no coincide"}), 400
 
