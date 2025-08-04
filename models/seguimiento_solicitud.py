@@ -4,6 +4,7 @@ from models.utils.tracking.validate_tracking_type import validate_etapa_type
 from models.utils.tracking.validate_tracking_data import validate_etapa_data
 from models.utils.tracking.etapas import get_etapa_by_radicado
 from models.utils.others.date_utils import iso_date
+from flask import request, jsonify
 
 import uuid
 import json
@@ -133,9 +134,10 @@ class trackingModel():
             comentarios = data.get('comentarios', '')
             usuario_id = data.get('usuario_id')
             
-            # Si no se proporciona un id_seguimiento, se retorna un error
+            
+            # Validar que se proporcione al menos un identificador (id_seguimiento o id_radicado)
             if not (id_seguimiento or id_radicado) or not etapa_nombre or not nuevo_estado:
-                return jsonify({"error": "Faltan datos requeridos"}), 400
+                return jsonify({"error": "Faltan datos requeridos: se necesita id_seguimiento o id_radicado, etapa y estado"}), 400
                 
             # Parte de la query para consultar, pero teniendo en cuenta si se da un id o id_radicado
             query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
@@ -156,17 +158,19 @@ class trackingModel():
             seguimiento_data = seguimiento.data[0]
             etapas = seguimiento_data['etapas']
             
-            # Se 
+            # Buscar y actualizar la etapa específica
             etapa_actualizada = False
             # En el input, se indica la etapa a actualizar, por lo que se busca en las etapas del seguimiento
-            for etapa in etapas:
+            for i, etapa in enumerate(etapas):
+                print(f"Etapa {i}: {etapa.get('etapa', 'sin nombre')} - Estado actual: {etapa.get('estado', 'sin estado')}")
                 if etapa['etapa'] == etapa_nombre:
+                    print(f"Etapa encontrada: {etapa}")
                     estado_anterior = etapa['estado']
                     etapa['estado'] = nuevo_estado
                     etapa['comentarios'] = comentarios
                     etapa['fecha_actualizacion'] = datetime.now().isoformat()
                     
-                    # Se no existe el historial, se crea uno incluyendo la fecha, estado, usuario_id y comentarios
+                    # Si no existe el historial, se crea uno incluyendo la fecha, estado, usuario_id y comentarios
                     if 'historial' not in etapa:
                         etapa['historial'] = []
                         
@@ -182,6 +186,7 @@ class trackingModel():
                         etapa['requisitos_pendientes'] = data['requisitos_pendientes']
                         
                     etapa_actualizada = True
+                    print(f"Etapa actualizada: {etapa}")
                     break
             
             if not etapa_actualizada:
@@ -196,21 +201,28 @@ class trackingModel():
             else:
                 estado_global = 'En proceso'
                 
-            # Guardar cambios
+            # Guardar cambios en la base de datos
             resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
                 .update({
                     "etapas": etapas,
                     "estado_global": estado_global,
-                    "fecha_ultima_actualizacion": datetime.now().isoformat()
+                    "fecha_cambio": datetime.now().isoformat()
                 })\
                 .eq('id', seguimiento_data['id'])\
                 .execute()
+            
+            # Verificar que la actualización fue exitosa
+            if not resultado.data:
+                return jsonify({"error": "Error al guardar los cambios en la base de datos"}), 500
+                
+            print(f"Etapa '{etapa_nombre}' actualizada exitosamente. Estado anterior: {estado_anterior}, Nuevo estado: {nuevo_estado}")
                 
             return jsonify({
                 "mensaje": "Etapa actualizada exitosamente",
                 "estado_anterior": estado_anterior,
                 "estado_nuevo": nuevo_estado,
-                "estado_global": estado_global
+                "estado_global": estado_global,
+                "etapa_actualizada": etapa_nombre
             }), 200
             
         except Exception as e:
