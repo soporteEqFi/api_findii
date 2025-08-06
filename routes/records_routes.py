@@ -46,7 +46,7 @@ def mostrar_fecha():
 def mostrar_intervalo():
     return con_records.filtro_intervalo()
 
-@records.route('/get-combined-data', methods=['GET'])
+@records.route('/get-combined-data', methods=['POST'])
 def get_combined_data_route():
     return con_records.get_combined_data()
 

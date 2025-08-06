@@ -165,7 +165,7 @@ class recordsModel():
             print("Ocurrió un error al crear un registro:", error_msg)
             return jsonify({"mensaje": f"Ocurrió un error al crear un registro: {error_msg}"}), 500
     
-    def get_all_data(self):
+    def get_all_data(self, empresa_id):
         max_retries = 3
         retry_delay = 4  # seconds
 
@@ -183,23 +183,60 @@ class recordsModel():
                     "documentos": "PRUEBA_IMAGEN"
                 }
 
+                # Si se proporciona empresa_id, obtener asesores de esa empresa
+                asesores_empresa = []
+                solicitantes_empresa = []
+                
+                if empresa_id:
+                    # Obtener asesores de la empresa
+                    asesores_response = supabase.table('TABLA_USUARIOS')\
+                        .select('id')\
+                        .eq('id_empresa', empresa_id)\
+                        .execute()
+                    asesores_empresa = [asesor['id'] for asesor in asesores_response.data]
+                    
+                    # Si hay asesores, obtener los solicitantes relacionados con sus solicitudes
+                    if asesores_empresa:
+                        solicitudes_empresa = supabase.table('SOLICITUDES')\
+                            .select('solicitante_id')\
+                            .in_('asesor_id', asesores_empresa)\
+                            .execute()
+                        solicitantes_empresa = [solicitud['solicitante_id'] for solicitud in solicitudes_empresa.data]
+
                 # Consultas a las tablas de Supabase en un solo paso con ordenamiento descendente
                 registros = {}
                 
                 # Para cada tabla, aplicar ordenamiento descendente según su clave primaria
                 for clave, tabla in tablas.items():
+                    query = supabase.table(tabla).select("*")
+                    
+                    # Filtrar por empresa si se proporciona empresa_id
+                    if empresa_id and asesores_empresa:
+                        if tabla == "SOLICITUDES":
+                            # Filtrar solicitudes por asesores de la empresa
+                            query = query.in_('asesor_id', asesores_empresa)
+                        elif tabla == "SOLICITANTES" and solicitantes_empresa:
+                            # Filtrar solicitantes que están relacionados con solicitudes de la empresa
+                            query = query.in_('solicitante_id', solicitantes_empresa)
+                        elif tabla in ["UBICACION", "ACTIVIDAD_ECONOMICA", "INFORMACION_FINANCIERA", "PRODUCTO_SOLICITADO"] and solicitantes_empresa:
+                            # Filtrar tablas relacionadas por solicitante_id
+                            query = query.in_('solicitante_id', solicitantes_empresa)
+                        elif tabla == "PRUEBA_IMAGEN" and solicitantes_empresa:
+                            # Filtrar documentos por id_solicitante
+                            query = query.in_('id_solicitante', solicitantes_empresa)
+                    
                     if tabla == "SOLICITANTES":
                         # Ordenar por solicitante_id descendente
-                        registros[clave] = supabase.table(tabla).select("*").order("solicitante_id", desc=True).execute().data
+                        registros[clave] = query.order("solicitante_id", desc=True).execute().data
                     elif tabla == "SOLICITUDES":
                         # Ordenar por id descendente
-                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
+                        registros[clave] = query.order("id", desc=True).execute().data
                     elif tabla == "PRUEBA_IMAGEN":
                         # Ordenar por id descendente
-                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
+                        registros[clave] = query.order("id", desc=True).execute().data
                     else:
                         # Para las demás tablas, ordenar por id descendente
-                        registros[clave] = supabase.table(tabla).select("*").order("id", desc=True).execute().data
+                        registros[clave] = query.order("id", desc=True).execute().data
 
                 if all(len(value) == 0 for value in registros.values()):
                     return jsonify({"mensaje": "No hay registros en estas tablas"}), 200
