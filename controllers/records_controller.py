@@ -1,4 +1,5 @@
 from models.records_model import *
+from flask import request
 
 mod_records = recordsModel()
 
@@ -34,7 +35,20 @@ class recordsControlador():
         return query 
     
     def get_combined_data(self):
-        query = mod_records.get_all_data()
+        # Obtener empresa_id del usuario desde el request
+        empresa_id = None
+        if hasattr(request, 'empresa_id'):
+            empresa_id = request.empresa_id
+        elif request.json and 'cedula' in request.json:
+            # Obtener empresa del usuario por cédula
+            from models.utils.auth.empresa_middleware import get_user_empresa_id
+            empresa_id = get_user_empresa_id(request.json['cedula'])
+
+        print(f"Request: {request.json}")
+        
+        print(f"Empresa ID: {empresa_id}")
+        
+        query = mod_records.get_all_data(empresa_id)
         return query
     
     def filtrar_tabla_combinada(self):
