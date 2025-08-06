@@ -160,16 +160,21 @@ class userModel():
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
                       
-    def get_all_users(self):
+    def get_all_users(self, empresa_id=None):
 
         try:
-            response = supabase.table("TABLA_USUARIOS").select("*").execute()
+            query = supabase.table("TABLA_USUARIOS").select("*")
+            
+            # Filtrar por empresa si se proporciona empresa_id
+            if empresa_id:
+                query = query.eq('id_empresa', empresa_id)
+            
+            response = query.execute()
 
             if (len(response.data) == 0):
                 return jsonify({"res" : "No hay registros en esta tabla"}), 200
 
             else:
-
                 return jsonify({
                     "users": response.data
                 }), 200

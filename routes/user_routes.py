@@ -31,7 +31,7 @@ def get_user_info(cedula):
 def update_user():
     return con_user.update_agent()
 
-@user.route('/get-all-user/', methods=['GET'])
+@user.route('/get-all-user/', methods=['POST'])
 @cross_origin()
 def all_user():
     return con_user.all_users()
