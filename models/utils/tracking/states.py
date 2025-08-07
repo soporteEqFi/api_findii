@@ -3,7 +3,7 @@ def get_state_avaiable():
         "pendiente": "pendiente",
         "en_proceso": "en proceso",
         "completado": "completado",
-        "rechazado": "rechazado",
+        "negado": "negado",
         "cancelado": "cancelado",
         "en_revision": "en revisión",
         "corregir": "corregir datos",

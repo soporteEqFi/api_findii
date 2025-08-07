@@ -196,8 +196,8 @@ class trackingModel():
             estados = [e['estado'] for e in etapas]
             if all(e == 'Completado' for e in estados):
                 estado_global = 'Completado'
-            elif any(e == 'Rechazado' for e in estados):
-                estado_global = 'Rechazado'
+            elif any(e == 'Negado' for e in estados):
+                estado_global = 'Negado'
             else:
                 estado_global = 'En proceso'
                 
