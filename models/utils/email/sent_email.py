@@ -31,39 +31,39 @@ def email_body_and_send(email_settings, data):
         
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
-        msg['To'] = data['solicitante']['email']
+        msg['To'] = data['solicitante']['correo_electronico']
         msg['Subject'] = "Confirmación de registro de solicitud"
 
         
         # Cuerpo del mensaje
         body = f"""
-        Estimado/a {data['solicitante']['nombre']} {data['solicitante']['apellido']},
+        Estimado/a {data['solicitante']['nombre_completo']},
 
         Su solicitud ha sido registrada exitosamente con los siguientes detalles:
 
-        Nombre completo: {data['solicitante']['nombre']} {data['solicitante']['apellido']}
+        Nombre completo: {data['solicitante']['nombre_completo']}
         Tipo de documento: {data['solicitante']['tipo_documento']}
         Número de documento: {data['solicitante']['numero_documento']}
         Fecha de nacimiento: {data['solicitante']['fecha_nacimiento']}
         Número celular: {data['solicitante']['numero_celular']}
-        Correo electrónico: {data['solicitante']['email']}
+        Correo electrónico: {data['solicitante']['correo_electronico']}
         Nivel de estudio: {data['solicitante']['nivel_estudio']}
         Profesión: {data['solicitante']['profesion']}
         Estado civil: {data['solicitante']['estado_civil']}
         Personas a cargo: {data['solicitante']['personas_a_cargo']}
-        Dirección residencia: {data['ubicacion']['direccion']}
+        Dirección residencia: {data['ubicacion']['direccion_residencia']}
         Tipo de vivienda: {data['ubicacion']['tipo_vivienda']}
-        Barrio: {data['ubicacion']['tiempo_residencia']}
+        Barrio: {data['ubicacion']['barrio']}
         Departamento: {data['ubicacion']['departamento']}
         Estrato: {data['ubicacion']['estrato']}
-        Ciudad gestión: {data['ubicacion']['ciudad']}
-        Actividad económica: {data['actividad_economica']['actividad']}
-        Empresa donde labora: {data['actividad_economica']['empresa']}
+        Ciudad gestión: {data['ubicacion']['ciudad_gestion']}
+        Actividad económica: {data['actividad_economica']['actividad_economica']}
+        Empresa donde labora: {data['actividad_economica']['empresa_labora']}
         Fecha vinculación: {data['actividad_economica']['fecha_vinculacion']}
         Dirección empresa: {data['actividad_economica']['direccion_empresa']}
         Teléfono empresa: {data['actividad_economica']['telefono_empresa']}
         Tipo de contrato: {data['actividad_economica']['tipo_contrato']}
-        Cargo actual: {data['actividad_economica']['cargo']}
+        Cargo actual: {data['actividad_economica']['cargo_actual']}
         Ingresos: {data['informacion_financiera']['ingresos']}
         Tipo de crédito: {data['producto']['tipo_credito']}
         Banco: {data['banco']}

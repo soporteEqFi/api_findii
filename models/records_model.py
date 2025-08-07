@@ -158,6 +158,34 @@ class recordsModel():
                 print("Llenando SEGUIMIENTO_SOLICITUDES")
                 res = supabase.table('SEGUIMIENTO_SOLICITUDES').insert(seguimiento_inicial).execute()
 
+            # Enviar email de confirmación
+            try:
+                print("Enviando email de confirmación...")
+                
+                # Preparar datos para el email
+                email_data = {
+                    "solicitante": applicant,
+                    "ubicacion": data["ubicacion"],
+                    "actividad_economica": data["actividad_economica"],
+                    "informacion_financiera": data["informacion_financiera"],
+                    "producto": data["producto"],
+                    "banco": data["banco"]
+                }
+                
+                # Configurar email y enviar
+                email_settings = config_email()
+                email_sent = email_body_and_send(email_settings, email_data)
+                
+                if email_sent:
+                    print("Email enviado exitosamente")
+                else:
+                    print("Error al enviar email, pero el registro se guardó correctamente")
+                    
+            except Exception as email_error:
+                print(f"Error al enviar email: {email_error}")
+                # No fallar el registro si el email falla
+                pass
+
             return jsonify({"mensaje": f"Datos llenados correctamente"}), 200
             
         except Exception as e:
