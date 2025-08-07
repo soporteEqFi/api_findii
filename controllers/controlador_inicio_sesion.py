@@ -5,5 +5,7 @@ mod_inicio_sesion = modeloIniciarSesion()
 class iniciarSesionControlador():
     
     def inicio_de_sesion(self):
-        query = mod_inicio_sesion.iniciar_sesion()
+        print("🔍 DEBUG: Ejecutando inicio_de_sesion en controlador")
+        # query = mod_inicio_sesion.iniciar_sesion()
+        query = mod_inicio_sesion.iniciar_sesion_sin_auth()
         return query

@@ -10,56 +10,58 @@ class userModel():
     def create_user(self):
         datos = request.json
         email = datos.get('email', '').strip()
-        password = datos.get('password', '').strip()
+        password = datos.get('password', '').strip() 
         name = datos.get('nombre', '').strip()
         rol = datos.get('rol', '').strip()
         identification = datos.get('cedula', '').strip()
         business = datos.get('empresa', '').strip()
 
-        # 1. Validar email
+        # Validar email
         if not validar_email(email):
             return jsonify({"msg": "El formato del email es inválido"}), 400
 
-        # 2. Verificar si el usuario ya existe en Supabase Auth
-        if usuario_existe(email):
-            return jsonify({"msg": "El usuario ya está registrado. Intenta iniciar sesión."}), 400
-
-        # 3. Crear usuario en Supabase Auth (SIN verificación por correo)
+        # Verificar si el usuario ya existe consultando la tabla
         try:
-            response = supabase.auth.sign_up({"email": email, "password": password, "email_confirmed_at": datetime.utcnow().isoformat()})
+            user_exists = supabase.table('TABLA_USUARIOS').select('email').eq('email', email).execute()
+            if user_exists.data:
+                return jsonify({"msg": "El usuario ya está registrado. Intenta iniciar sesión."}), 400
+        except Exception as e:
+            return jsonify({"msg": "Error al validar usuario existente: " + str(e)}), 500
 
-            # ✅ CORRECCIÓN: Verificar si hubo un error en la respuesta
-            if response is None or response.user is None:
-                return jsonify({"msg": "Error en Supabase Auth: No se pudo crear el usuario"}), 400
-            
-            # ✅ CORRECCIÓN: Obtener correctamente el ID del usuario
-            user_id = response.user.id
-            print(f"Usuario creado en Auth con ID: {user_id}")
+        # Validar que la empresa existe y obtener su ID
+        try:
+            empresa_response = supabase.table('EMPRESAS').select('id_empresa').eq('nombre', business).execute()
+            if not empresa_response.data:
+                return jsonify({"msg": "La empresa especificada no existe"}), 400
+            empresa_id = empresa_response.data[0]['id_empresa']
+        except Exception as e:
+            return jsonify({"msg": "Error al validar la empresa: " + str(e)}), 500
 
-            # 4. Insertar usuario en la tabla personalizada
+        # Insertar nuevo usuario en la tabla
+        try:
             api_response = supabase.from_('TABLA_USUARIOS').insert({
                 "email": email,
                 "nombre": name,
                 "rol": rol,
-                "password": password,
+                "password": password,  # Nota: Considerar hash de password
                 "cedula": identification,
                 "empresa": business,
+                "id_empresa": empresa_id,
                 "imagen_aliado": get_business_image()
             }).execute()
 
-            # ✅ Verificar si la inserción falló
             if hasattr(api_response, "error") and api_response.error:
                 print(f"Error al insertar en TABLA_USUARIOS: {api_response.error}")
                 return jsonify({"msg": "Error al guardar usuario en la base de datos: " + str(api_response.error)}), 500
 
             print(f"Usuario insertado en TABLA_USUARIOS: {api_response.data}")
+            user_id = api_response.data[0]['id']
 
         except Exception as e:
             return jsonify({"msg": "Error inesperado al crear usuario: " + str(e)}), 500
 
-        return jsonify({"msg": "Usuario creado exitosamente. VERIFICA TU CORREO PARA ACTIVAR TU CUENTA", "user_id": user_id}), 201
+        return jsonify({"msg": "Usuario creado exitosamente", "user_id": user_id}), 201
     
-
     def get_user_info(self, cedula):
         max_retries = 3
         retry_delay = 2  # seconds
@@ -126,6 +128,7 @@ class userModel():
                 else:
                     print("Ocurrió un error:", e)
                     return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
+                
     def update_user(self):
         try:
             data_dict ={
