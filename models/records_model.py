@@ -164,6 +164,7 @@ class recordsModel():
                 
                 # Preparar datos para el email
                 email_data = {
+                    "id_radicado": id_radicado,
                     "solicitante": applicant,
                     "ubicacion": data["ubicacion"],
                     "actividad_economica": data["actividad_economica"],

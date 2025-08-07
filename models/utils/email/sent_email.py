@@ -39,49 +39,70 @@ def email_body_and_send(email_settings, data):
         body = f"""
         Estimado/a {data['solicitante']['nombre_completo']},
 
-        Su solicitud ha sido registrada exitosamente con los siguientes detalles:
+        ¡Gracias por confiar en Findii! Su solicitud ha sido registrada exitosamente.
 
-        Nombre completo: {data['solicitante']['nombre_completo']}
-        Tipo de documento: {data['solicitante']['tipo_documento']}
-        Número de documento: {data['solicitante']['numero_documento']}
-        Fecha de nacimiento: {data['solicitante']['fecha_nacimiento']}
-        Número celular: {data['solicitante']['numero_celular']}
-        Correo electrónico: {data['solicitante']['correo_electronico']}
-        Nivel de estudio: {data['solicitante']['nivel_estudio']}
-        Profesión: {data['solicitante']['profesion']}
-        Estado civil: {data['solicitante']['estado_civil']}
-        Personas a cargo: {data['solicitante']['personas_a_cargo']}
-        Dirección residencia: {data['ubicacion']['direccion_residencia']}
-        Tipo de vivienda: {data['ubicacion']['tipo_vivienda']}
-        Barrio: {data['ubicacion']['barrio']}
-        Departamento: {data['ubicacion']['departamento']}
-        Estrato: {data['ubicacion']['estrato']}
-        Ciudad gestión: {data['ubicacion']['ciudad_gestion']}
-        Actividad económica: {data['actividad_economica']['actividad_economica']}
-        Empresa donde labora: {data['actividad_economica']['empresa_labora']}
-        Fecha vinculación: {data['actividad_economica']['fecha_vinculacion']}
-        Dirección empresa: {data['actividad_economica']['direccion_empresa']}
-        Teléfono empresa: {data['actividad_economica']['telefono_empresa']}
-        Tipo de contrato: {data['actividad_economica']['tipo_contrato']}
-        Cargo actual: {data['actividad_economica']['cargo_actual']}
-        Ingresos: {data['informacion_financiera']['ingresos']}
-        Tipo de crédito: {data['producto']['tipo_credito']}
-        Banco: {data['banco']}
-        Valor del inmueble: {data['informacion_financiera']['valor_inmueble']}
-        Plazo en meses: {data['producto']['plazo_meses']}
-        Cuota inicial: {data['informacion_financiera']['cuota_inicial']}
-        Porcentaje a financiar: {data['informacion_financiera']['porcentaje_financiar']}
-        Total de egresos: {data['informacion_financiera']['total_egresos']}
-        Total de activos: {data['informacion_financiera']['total_activos']}
-        Total de pasivos: {data['informacion_financiera']['total_pasivos']}
-        Segundo titular: {'Sí' if data['producto']['segundo_titular'] else 'No'}
-        Observaciones: {data['producto']['observacion']}
-        
+        Para hacer seguimiento a su solicitud, puede ingresar al siguiente enlace:
+        https://findii.co/seguimiento/{data['id_radicado']}
 
-        Nos pondremos en contacto con usted pronto para dar seguimiento a su solicitud.
+        A continuación encontrará el resumen de la información registrada:
 
-        Saludos cordiales,
-        Equipo de Findii
+        DATOS PERSONALES
+        ================
+        • Nombre: {data['solicitante']['nombre_completo']}
+        • Documento: {data['solicitante']['tipo_documento']} {data['solicitante']['numero_documento']}
+        • Fecha nacimiento: {data['solicitante']['fecha_nacimiento']}
+        • Celular: {data['solicitante']['numero_celular']}
+        • Email: {data['solicitante']['correo_electronico']}
+        • Nivel educativo: {data['solicitante']['nivel_estudio']}
+        • Profesión: {data['solicitante']['profesion']}
+        • Estado civil: {data['solicitante']['estado_civil']}
+        • Personas a cargo: {data['solicitante']['personas_a_cargo']}
+
+        UBICACIÓN
+        =========
+        • Dirección: {data['ubicacion']['direccion_residencia']}
+        • Tipo vivienda: {data['ubicacion']['tipo_vivienda']}
+        • Barrio: {data['ubicacion']['barrio']}
+        • Ciudad: {data['ubicacion']['ciudad_gestion']}
+        • Departamento: {data['ubicacion']['departamento']}
+        • Estrato: {data['ubicacion']['estrato']}
+
+        INFORMACIÓN LABORAL
+        ==================
+        • Actividad: {data['actividad_economica']['actividad_economica']}
+        • Empresa: {data['actividad_economica']['empresa_labora']}
+        • Fecha vinculación: {data['actividad_economica']['fecha_vinculacion']}
+        • Dirección empresa: {data['actividad_economica']['direccion_empresa']}
+        • Teléfono empresa: {data['actividad_economica']['telefono_empresa']}
+        • Tipo contrato: {data['actividad_economica']['tipo_contrato']}
+        • Cargo: {data['actividad_economica']['cargo_actual']}
+
+        INFORMACIÓN FINANCIERA
+        =====================
+        • Ingresos mensuales: ${data['informacion_financiera']['ingresos']}
+        • Total egresos: ${data['informacion_financiera']['total_egresos']}
+        • Total activos: ${data['informacion_financiera']['total_activos']}
+        • Total pasivos: ${data['informacion_financiera']['total_pasivos']}
+
+        PRODUCTO SOLICITADO
+        ==================
+        • Tipo de crédito: {data['producto']['tipo_credito']}
+        • Banco: {data['banco']}
+        • Valor inmueble: ${data['informacion_financiera']['valor_inmueble']}
+        • Cuota inicial: ${data['informacion_financiera']['cuota_inicial']}
+        • Porcentaje a financiar: {data['informacion_financiera']['porcentaje_financiar']}%
+        • Plazo: {data['producto']['plazo_meses']} meses
+        • Segundo titular: {'Sí' if data['producto']['segundo_titular'] else 'No'}
+        • Observaciones: {data['producto']['observacion']}
+
+        Uno de nuestros asesores se pondrá en contacto con usted muy pronto para dar seguimiento a su solicitud.
+
+        Si tiene alguna duda, puede responder directamente a este correo.
+
+        ¡Gracias por elegirnos!
+
+        Cordialmente,
+        Equipo Findii
         """
 
         msg.attach(MIMEText(body, 'plain'))
