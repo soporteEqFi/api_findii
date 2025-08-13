@@ -10,14 +10,14 @@ import uuid
 import json
 
 class trackingModel():
-    
+
     def generar_id_radicado(self):
         # Formato: SOL-AÑO-MES-SECUENCIAL (ej: SOL-2023-05-0001)
         ahora = datetime.now()
         prefijo = "SOL"
         año = ahora.strftime("%Y")
         mes = ahora.strftime("%m")
-        
+
         # Consultar el último secuencial para este mes
         ultimo = supabase.table('SEGUIMIENTO_SOLICITUDES')\
             .select('id_radicado')\
@@ -25,15 +25,15 @@ class trackingModel():
             .order('id_radicado', desc=True)\
             .limit(1)\
             .execute()
-        
+
         if ultimo.data:
             ultimo_num = int(ultimo.data[0]['id_radicado'].split('-')[-1])
             secuencial = str(ultimo_num + 1).zfill(4)
         else:
             secuencial = "0001"
-        
+
         return f"{prefijo}-{año}-{mes}-{secuencial}"
-    
+
     def crear_seguimiento_interno(self, datos):
         try:
             id_solicitante = datos.get('id_solicitante')
@@ -45,7 +45,7 @@ class trackingModel():
             id_radicado = datos.get('id_radicado')
             if not id_radicado:
                 id_radicado = self.generar_id_radicado()
-            
+
             # Validar datos requeridos
             if not id_solicitante or not id_producto or not id_asesor:
                 return jsonify({"error": "Faltan datos requeridos"}), 400
@@ -53,7 +53,7 @@ class trackingModel():
             # Obtener documentos ya subidos
             docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', id_solicitante).execute()
             archivos_existentes = []
-            
+
             if docs.data:
                 for doc in docs.data:
                     archivos_existentes.append({
@@ -66,7 +66,7 @@ class trackingModel():
                         "fecha_modificacion": datetime.now().isoformat(),
                         "ultima_fecha_modificacion": datetime.now().isoformat()
                     })
-            
+
             # Crear estructura inicial de etapas
             etapas_iniciales = [
                 {
@@ -99,7 +99,7 @@ class trackingModel():
                     "historial": []
                 }
             ]
-            
+
             # Insertar registro de seguimiento
             resultado = supabase.table('SEGUIMIENTO_SOLICITUDES').insert({
                 "id_radicado": id_radicado,
@@ -113,17 +113,17 @@ class trackingModel():
                 "fecha_ultima_actualizacion": datetime.now().isoformat(),
                 "etapas": etapas_iniciales
             }).execute()
-            
+
             return jsonify({
                 "mensaje": "Seguimiento creado exitosamente",
                 "id_radicado": id_radicado,
                 "id": resultado.data[0]['id'] if resultado.data else None
             }), 201
-            
+
         except Exception as e:
             print(f"Error al crear seguimiento: {e}")
             return jsonify({"error": f"Error al crear seguimiento: {str(e)}"}), 500
-        
+
     def actualizar_etapa(self):
         try:
             data = request.json
@@ -133,31 +133,31 @@ class trackingModel():
             nuevo_estado = data.get('estado')
             comentarios = data.get('comentarios', '')
             usuario_id = data.get('usuario_id')
-            
-            
+
+
             # Validar que se proporcione al menos un identificador (id_seguimiento o id_radicado)
             if not (id_seguimiento or id_radicado) or not etapa_nombre or not nuevo_estado:
                 return jsonify({"error": "Faltan datos requeridos: se necesita id_seguimiento o id_radicado, etapa y estado"}), 400
-                
+
             # Parte de la query para consultar, pero teniendo en cuenta si se da un id o id_radicado
             query = supabase.table('SEGUIMIENTO_SOLICITUDES').select('*')
-            
+
             if id_seguimiento:
                 query = query.eq('id', id_seguimiento)
             else:
                 query = query.eq('id_radicado', id_radicado)
-                
+
             # Se ejecuta la query
             seguimiento = query.execute()
-            
+
             # Si no se encuentra datos, se retorna un error
             if not seguimiento.data:
                 return jsonify({"error": "Seguimiento no encontrado"}), 404
-                
+
             # Se obtiene el seguimiento
             seguimiento_data = seguimiento.data[0]
             etapas = seguimiento_data['etapas']
-            
+
             # Buscar y actualizar la etapa específica
             etapa_actualizada = False
             # En el input, se indica la etapa a actualizar, por lo que se busca en las etapas del seguimiento
@@ -169,38 +169,48 @@ class trackingModel():
                     etapa['estado'] = nuevo_estado
                     etapa['comentarios'] = comentarios
                     etapa['fecha_actualizacion'] = datetime.now().isoformat()
-                    
+
                     # Si no existe el historial, se crea uno incluyendo la fecha, estado, usuario_id y comentarios
                     if 'historial' not in etapa:
                         etapa['historial'] = []
-                        
+
                     etapa['historial'].append({
                         "fecha": datetime.now().isoformat(),
                         "estado": nuevo_estado,
                         "usuario_id": usuario_id,
                         "comentario": comentarios
                     })
-                    
+
                     # Actualizar requisitos pendientes si se proporcionan
                     if 'requisitos_pendientes' in data:
                         etapa['requisitos_pendientes'] = data['requisitos_pendientes']
-                        
+
                     etapa_actualizada = True
                     print(f"Etapa actualizada: {etapa}")
                     break
-            
+
             if not etapa_actualizada:
                 return jsonify({"error": f"Etapa '{etapa_nombre}' no encontrada"}), 404
-                
+
             # Actualizar estado global si todas las etapas están completas o si alguna está rechazada
             estados = [e['estado'] for e in etapas]
-            if all(e == 'Completado' for e in estados):
-                estado_global = 'Completado'
+            if all(e == 'Pagado' for e in estados):
+                estado_global = 'Pagado'
             elif any(e == 'Negado' for e in estados):
                 estado_global = 'Negado'
+            elif any(e == 'Desistido' for e in estados):
+                estado_global = 'Desistido'
+            elif any(e == 'Aprobado' for e in estados):
+                estado_global = 'Aprobado'
+            elif any(e == 'Desembolsado' for e in estados):
+                estado_global = 'Desembolsado'
+            elif any(e == 'En estudio' for e in estados):
+                estado_global = 'En estudio'
+            elif any(e == 'Pendiente información adicional' for e in estados):
+                estado_global = 'Pendiente información adicional'
             else:
-                estado_global = 'En proceso'
-                
+                estado_global = 'Pendiente'
+
             # Guardar cambios en la base de datos
             resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
                 .update({
@@ -210,13 +220,13 @@ class trackingModel():
                 })\
                 .eq('id', seguimiento_data['id'])\
                 .execute()
-            
+
             # Verificar que la actualización fue exitosa
             if not resultado.data:
                 return jsonify({"error": "Error al guardar los cambios en la base de datos"}), 500
-                
+
             print(f"Etapa '{etapa_nombre}' actualizada exitosamente. Estado anterior: {estado_anterior}, Nuevo estado: {nuevo_estado}")
-                
+
             return jsonify({
                 "mensaje": "Etapa actualizada exitosamente",
                 "estado_anterior": estado_anterior,
@@ -224,11 +234,11 @@ class trackingModel():
                 "estado_global": estado_global,
                 "etapa_actualizada": etapa_nombre
             }), 200
-            
+
         except Exception as e:
             print(f"Error al actualizar etapa: {e}")
             return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
-    
+
     # TODO: Separar esta etapa en un archivo distinto para que sea mas flexible y fácil de entender.
     # *: Probada en etapa de documentos.
     # *: Se comprobó la subida de nuevos archivos (teniendo alguno existen)
@@ -247,7 +257,7 @@ class trackingModel():
 
             # # Actualizar la fecha de la etapa
             # etapa_a_modificar['fecha_actualizacion'] = iso_date()
-            
+
             # # Guardar cambios
             # resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
             #     .update({
@@ -256,15 +266,15 @@ class trackingModel():
             #     })\
             #     .eq('id', seguimiento_data['id'])\
             #     .execute()
-                
+
             return jsonify({
                 "mensaje": f"Etapa {etapa_nombre} actualizada exitosamente",
             }), 200
-            
+
         except Exception as e:
             print(f"Error al actualizar etapa: {e}")
             return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
-        
+
     def actualizar_documentos(self):
             """
             Esta función se encarga de actualizar los documentos de la etapa de documentos. Puede ser que se suban nuevos archivos
@@ -288,11 +298,11 @@ class trackingModel():
                 etapa_name = validate_etapa_type(etapa_nombre)
                 if not etapa_name:
                     return jsonify({"error": f"La etapa {etapa_nombre} no es válida"}), 400
-                
+
                 for etapa in etapas:
                     # print(etapa)
                     if etapa['etapa'] == etapa_name:
-                        etapa_selected = etapa        
+                        etapa_selected = etapa
                         break
                 # TODO: Hasta acá
 
@@ -310,7 +320,7 @@ class trackingModel():
 
                     # Booleanos para verificar si hay archivos para reemplazar o hay nuevos.
                     replace_files = request.form.get('hay_archivos_para_reemplazar', '').lower() in ['true', 'True']
-                    new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True'] 
+                    new_files = request.form.get('hay_archivos_nuevos', '').lower() in ['true', 'True']
 
                     # Si ocurre que se sube archivos nuevos y se modifican otros, acá se almacenan los datos de cada uno
                     # Si por ejemplo, llegaron 2 archivos nuevos, toda la info de cada uno se almacenará en un diccionario
@@ -321,16 +331,16 @@ class trackingModel():
                     # Si existen archivos nuevos, se suben y se actualiza el historial con un nuevo registro.
                     if new_files:
                         print("Hay archivos nuevos")
-                        # Si existe un archivo nuevo, se sube y se crea un registro de tipo diccionario 
+                        # Si existe un archivo nuevo, se sube y se crea un registro de tipo diccionario
                         # para tener la información relacionada.
                         dict_files_info = handle_new_files(request, etapa_selected, user_data, supabase)
                         dict_history_info = handle_history_update(request, etapa_selected)
-                        
-                        # En caso de que no existan archivos en la etapa, se crea una lista vacía. 
+
+                        # En caso de que no existan archivos en la etapa, se crea una lista vacía.
                         # (puede ser una etapa que no contenía archivos)
                         if 'archivos' not in etapa_selected:
                             etapa_selected['archivos'] = []
-                        
+
                         # Se agrega el nuevo registro del archivo a la etapa
                         etapa_selected['archivos'].extend(dict_files_info)
 
@@ -352,11 +362,11 @@ class trackingModel():
 
                     # Si existen archivos nuevos o reemplazados, se actualiza el historial
                     if dict_files_info and dict_history_info:
-                        
+
                         # Se valida que exista el historial, de lo contrario, se crea una lista vacía.
                         if 'historial' not in etapa_selected:
                             etapa_selected['historial'] = []
-                        
+
                         # Se añade el nuevo registro del historial (si ya existe, se añade al final como un nuevo registro)
                         etapa_selected['historial'].append(dict_history_info)
 
@@ -387,7 +397,7 @@ class trackingModel():
                     # # Actualizar viabilidad si se proporciona
                     # if 'viabilidad' in request.form:
                     #     etapa_selected['viabilidad'] = request.form.get('viabilidad')
-                    
+
                     # # Manejar archivos si se envían
                     # files = exist_files_in_request(request)
                     # if files:
@@ -402,7 +412,7 @@ class trackingModel():
                     # # Actualizar estado de desembolso
                     # if 'desembolsado' in request.form:
                     #     etapa_selected['desembolsado'] = request.form.get('desembolsado') == 'true'
-                    
+
                     # # Actualizar fecha estimada si se proporciona
                     # if 'fecha_estimada' in request.form:
                     #     etapa_selected['fecha_estimada'] = request.form.get('fecha_estimada')
@@ -411,11 +421,11 @@ class trackingModel():
                 # if 'estado' in request.form:
                 #     estado_anterior = etapa_selected.get('estado')
                 #     etapa_selected['estado'] = request.form.get('estado')
-                    
+
                 #     # Añadir al historial
                 #     if 'historial' not in etapa_selected:
                 #         etapa_selected['historial'] = []
-                        
+
                 #     etapa_selected['historial'].append({
                 #         "fecha": datetime.now().isoformat(),
                 #         "estado": request.form.get('estado'),
@@ -429,7 +439,7 @@ class trackingModel():
 
                 # # Actualizar la fecha de la etapa
                 # etapa_a_modificar['fecha_actualizacion'] = iso_date()
-                
+
                 # # Guardar cambios
                 # resultado = supabase.table('SEGUIMIENTO_SOLICITUDES')\
                 #     .update({
@@ -438,11 +448,11 @@ class trackingModel():
                 #     })\
                 #     .eq('id', seguimiento_data['id'])\
                 #     .execute()
-                    
+
                 return jsonify({
                     "mensaje": f"Etapa {etapa_nombre} actualizada exitosamente",
                 }), 200
-                
+
             except Exception as e:
                 print(f"Error al actualizar etapa: {e}")
                 return jsonify({"error": f"Error al actualizar etapa: {str(e)}"}), 500
@@ -451,24 +461,24 @@ class trackingModel():
         try:
             if not id_radicado:
                 return jsonify({"error": "Se requiere el ID de radicado"}), 400
-                
+
             seguimiento = supabase.table('SEGUIMIENTO_SOLICITUDES')\
                 .select('*')\
                 .eq('id_radicado', id_radicado)\
-                .execute()                
+                .execute()
             if not seguimiento.data:
                 return jsonify({"error": "No se encontró el seguimiento solicitado"}), 404
-                
+
             # Obtener datos del solicitante
             solicitud = seguimiento.data[0]
             solicitante_id = solicitud.get('solicitante_id')
-            
+
             # Obtener datos básicos del solicitante para mostrar
             solicitante = supabase.table('SOLICITANTES')\
                 .select('nombre_completo,numero_documento')\
                 .eq('solicitante_id', solicitante_id)\
                 .execute()
-                
+
             # Formateamos la respuesta para presentarla de manera amigable al usuario
             resultado = {
                 "id_radicado": id_radicado,
@@ -483,10 +493,9 @@ class trackingModel():
                 },
                 "etapas": solicitud.get('etapas', [])
             }
-            
+
             return jsonify(resultado), 200
-            
+
         except Exception as e:
             print(f"Error al consultar seguimiento público: {e}")
             return jsonify({"error": f"Error al consultar seguimiento: {str(e)}"}), 500
-    

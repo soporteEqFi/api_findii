@@ -20,8 +20,8 @@ from models.processors.records import *
 class recordsModel():
 
     def add_record(self):
-        try:    
-            
+        try:
+
             # Procesar datos usando RecordsData de processors/records.py
             records_processor = RecordsDataProcessor(request)
 
@@ -30,10 +30,10 @@ class recordsModel():
             print("Llenando SOLICITANTES")
             res = supabase.table('SOLICITANTES').insert(applicant).execute()
             applicant_id = res.data[0]['solicitante_id']
-            
+
             # Establecer ID del solicitante en el procesador
             records_processor.set_applicant_id(applicant_id)
-            
+
             # Obtener datos procesados
             data = {
                 "ubicacion": records_processor.get_location_data(),
@@ -71,7 +71,7 @@ class recordsModel():
             res = supabase.table('INFORMACION_FINANCIERA').insert(data["informacion_financiera"]).execute()
 
             print("Llenando PRODUCTO_SOLICITADO")
-            
+
             # Debug: Imprimir los datos del producto antes de la inserción
             print("Datos del producto a insertar:", data["producto"])
             print("Valor de info_segundo_titular del formulario:", request.form.get('info_segundo_titular'))
@@ -79,7 +79,7 @@ class recordsModel():
             print("Valor de segundo_titular en data['producto']:", data["producto"].get('segundo_titular'))
             print("Valor de info_segundo_titular en data['producto']:", data["producto"].get('info_segundo_titular'))
             print("Tipo de info_segundo_titular en data['producto']:", type(data["producto"].get('info_segundo_titular')))
-            
+
             try:
                 informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
             except json.JSONDecodeError:
@@ -91,13 +91,13 @@ class recordsModel():
 
             print("Llenando SOLICITUDES")
             res = supabase.table('SOLICITUDES').insert(data["solicitud"]).execute()
-            
+
             print("Llenando PRODUCTO_SOLICITADO")
             # Obtener ID del producto creado
             product_info = supabase.table('PRODUCTO_SOLICITADO').select('*').eq('solicitante_id', applicant_id).execute()
             if product_info.data:
                 product_id = product_info.data[0]['id']
-                
+
                 # Obtener documentos ya subidos
                 docs = supabase.table("PRUEBA_IMAGEN").select('*').eq('id_solicitante', applicant_id).execute()
                 archivos_existentes = []
@@ -127,7 +127,7 @@ class recordsModel():
                     "cambio_por": request.form.get('asesor_usuario'),
                     "fecha_cambio": datetime.now().isoformat(),
                     "banco": request.form.get('banco'),
-                    "estado_global": "Radicado",
+                    "estado_global": "Pendiente",
                     "fecha_creacion": datetime.now().isoformat(),
                     "solicitante_id": applicant_id,
                     "id_radicado": id_radicado,
@@ -138,9 +138,9 @@ class recordsModel():
                             "requisitos_pendientes": ["Documentos en revisión"],
                             "fecha_actualizacion": datetime.now().isoformat(),
                             "comentarios": "Sus documentos han sido recibidos y están en proceso de revisión",
-                            "estado": "En revisión",
+                            "estado": "Pendiente",
                             "historial": [
-                                {"fecha": datetime.now().isoformat(), "estado": "En revisión", "usuario_id": data["solicitud"]["asesor_id"], "comentario": "Solicitud creada"}
+                                {"fecha": datetime.now().isoformat(), "estado": "Pendiente", "usuario_id": data["solicitud"]["asesor_id"], "comentario": "Solicitud creada"}
                             ]
                         },
                         {
@@ -170,7 +170,7 @@ class recordsModel():
             # Enviar email de confirmación
             try:
                 print("Enviando email de confirmación...")
-                
+
                 # Preparar datos para el email
                 email_data = {
                     "id_radicado": id_radicado,
@@ -181,28 +181,28 @@ class recordsModel():
                     "producto": data["producto"],
                     "banco": data["banco"]
                 }
-                
+
                 # Configurar email y enviar
                 email_settings = config_email()
                 email_sent = email_body_and_send(email_settings, email_data)
-                
+
                 if email_sent:
                     print("Email enviado exitosamente")
                 else:
                     print("Error al enviar email, pero el registro se guardó correctamente")
-                    
+
             except Exception as email_error:
                 print(f"Error al enviar email: {email_error}")
                 # No fallar el registro si el email falla
                 pass
 
             return jsonify({"mensaje": f"Datos llenados correctamente"}), 200
-            
+
         except Exception as e:
             error_msg = str(e)
             print("Ocurrió un error al crear un registro:", error_msg)
             return jsonify({"mensaje": f"Ocurrió un error al crear un registro: {error_msg}"}), 500
-    
+
     def get_all_data(self, empresa_id):
         max_retries = 3
         retry_delay = 4  # seconds
@@ -224,7 +224,7 @@ class recordsModel():
                 # Si se proporciona empresa_id, obtener asesores de esa empresa
                 asesores_empresa = []
                 solicitantes_empresa = []
-                
+
                 if empresa_id:
                     # Obtener asesores de la empresa
                     asesores_response = supabase.table('TABLA_USUARIOS')\
@@ -232,7 +232,7 @@ class recordsModel():
                         .eq('id_empresa', empresa_id)\
                         .execute()
                     asesores_empresa = [asesor['id'] for asesor in asesores_response.data]
-                    
+
                     # Si hay asesores, obtener los solicitantes relacionados con sus solicitudes
                     if asesores_empresa:
                         solicitudes_empresa = supabase.table('SOLICITUDES')\
@@ -243,11 +243,11 @@ class recordsModel():
 
                 # Consultas a las tablas de Supabase en un solo paso con ordenamiento descendente
                 registros = {}
-                
+
                 # Para cada tabla, aplicar ordenamiento descendente según su clave primaria
                 for clave, tabla in tablas.items():
                     query = supabase.table(tabla).select("*")
-                    
+
                     # Filtrar por empresa si se proporciona empresa_id
                     if empresa_id and asesores_empresa:
                         if tabla == "SOLICITUDES":
@@ -262,7 +262,7 @@ class recordsModel():
                         elif tabla == "PRUEBA_IMAGEN" and solicitantes_empresa:
                             # Filtrar documentos por id_solicitante
                             query = query.in_('id_solicitante', solicitantes_empresa)
-                    
+
                     if tabla == "SOLICITANTES":
                         # Ordenar por solicitante_id descendente
                         registros[clave] = query.order("solicitante_id", desc=True).execute().data
@@ -287,9 +287,9 @@ class recordsModel():
                 product = registros.get("product", [])
                 solicitud = registros.get("solicitud", [])
                 documentos = registros.get("documentos", [])
-                
+
                 datos_combinados = []
-                
+
                 for solicitante in solicitantes:
                     actividad = next((a for a in activity if a.get("solicitante_id") == solicitante.get("solicitante_id")), {})
                     finanzas = next((f for f in financial if f.get("solicitante_id") == solicitante.get("solicitante_id")), {})
@@ -297,7 +297,7 @@ class recordsModel():
                     producto = next((p for p in product if p.get("solicitante_id") == solicitante.get("solicitante_id")), {})
                     solicitud_info = next((s for s in solicitud if s.get("solicitante_id") == solicitante.get("solicitante_id")), {})
                     documento = next((d for d in documentos if d.get("id_solicitante") == solicitante.get("solicitante_id")), {})
-                    
+
                     datos_combinados.append({
                         # Info solicitante
                         "id_solicitante": solicitante.get("solicitante_id", "N/A"),
@@ -312,7 +312,7 @@ class recordsModel():
                         "nivel_estudio": solicitante.get("nivel_estudio", "N/A"),
                         "estado_civil": solicitante.get("estado_civil", "N/A"),
                         "personas_a_cargo": solicitante.get("personas_a_cargo", "N/A"),
-                        
+
                         # Actividad económica
                         "actividad_economica": actividad.get("actividad_economica", "N/A"),
                         "cargo_actual": actividad.get("cargo_actual", "N/A"),
@@ -321,7 +321,7 @@ class recordsModel():
                         "telefono_empresa": actividad.get("telefono_empresa", "N/A"),
                         "tipo_de_contrato": actividad.get("tipo_contrato", "N/A"),
                         "fecha_vinculacion": actividad.get("fecha_vinculacion", "N/A"),
-                        
+
                         # Finanzas
                         "ingresos": finanzas.get("ingresos", "N/A"),
                         "egresos": finanzas.get("total_egresos", "N/A"),
@@ -330,7 +330,7 @@ class recordsModel():
                         "total_activos": finanzas.get("total_activos", "N/A"),
                         "total_pasivos": finanzas.get("total_pasivos", "N/A"),
                         "valor_inmueble": finanzas.get("valor_inmueble", "N/A"),
-                        
+
                         # Ubicación
                         "ciudad_gestion": ubicacion.get("ciudad_gestion", "N/A"),
                         "departamento": ubicacion.get("departamento", "N/A"),
@@ -338,7 +338,7 @@ class recordsModel():
                         "barrio": ubicacion.get("barrio", "N/A"),
                         "estrato": ubicacion.get("estrato", "N/A"),
                         "tipo_vivienda": ubicacion.get("tipo_vivienda", "N/A"),
-                        
+
                         # Producto
                         "tipo_credito": producto.get("tipo_credito", "N/A"),
                         "observacion": producto.get("observacion", "N/A"),
@@ -346,18 +346,18 @@ class recordsModel():
                         "segundo_titular": producto.get("segundo_titular", "N/A"),
                         "info_segundo_titular": producto.get("info_segundo_titular", "N/A"),
                         "estado": producto.get("estado", "N/A"),
-                        
+
                         # Documentos
                         "archivos": documento.get("imagen", "N/A"),
-                        
+
                         # Solicitud
                         "banco": solicitud_info.get("banco", "N/A"),
                         "created_at": solicitud_info.get("created_at", "N/A"),
                     })
-                
+
                 # Ordenar datos_combinados por id_solicitante de forma descendente
                 datos_combinados_ordenados = sorted(datos_combinados, key=lambda x: x.get("id_solicitante", 0), reverse=True)
-                
+
                 # Mantener los registros originales y agregar los datos combinados
                 return jsonify({
                     "registros": registros,
@@ -450,12 +450,12 @@ class recordsModel():
         try:
             # csv_filename= '/home/equitisoporte/api_findii/ventas_realizadas.csv'
             csv_filename = 'ventas_realizadas.csv'
-            
+
             # 1. Descarga de la tabla principal (por ejemplo, "SOLICITANTES")
             solicitantes_resp = supabase.table("SOLICITANTES").select("*").execute()
             if not solicitantes_resp.data:
                 return jsonify({"res": "No existen datos en SOLICITANTES"}), 200
-            
+
             # Creamos el DataFrame principal
             df_solicitantes = pd.DataFrame(solicitantes_resp.data)
 
@@ -467,13 +467,13 @@ class recordsModel():
                 "product": "PRODUCTO_SOLICITADO",
                 "solicitud": "SOLICITUDES"
             }
-            
+
             # 3. Para cada tabla relacionada, la descargamos y unimos con df_solicitantes
             for clave, nombre_tabla in tablas_relacionadas.items():
                 resp = supabase.table(nombre_tabla).select("*").execute()
                 if resp.data:
                     df_rel = pd.DataFrame(resp.data)
-                    
+
                     # Asegúrate de que 'solicitante_id' exista en ambas tablas
                     df_solicitantes = df_solicitantes.merge(
                         df_rel,
@@ -483,17 +483,17 @@ class recordsModel():
                     )
                 else:
                     print(f"No se encontraron datos en la tabla {nombre_tabla}")
-            
+
             # 4. Exportar el DataFrame unificado a CSV
             df_solicitantes.to_csv(csv_filename, index=False)
-            
+
             # 5. Retornar el CSV para su descarga
             return send_file(csv_filename, as_attachment=True), 200
-        
+
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+
     def editar_estado(self):
         try:
             # 1. Extraer los datos del request
@@ -511,7 +511,7 @@ class recordsModel():
                                             .select("numero_documento") \
                                             .eq("solicitante_id", solicitante_id) \
                                             .execute()
-            
+
             print(respuesta_solicitantes)
 
             # Si no se encontró información en SOLICITANTES, se retorna error
@@ -532,7 +532,7 @@ class recordsModel():
                                         .update(data_dict) \
                                         .eq("solicitante_id", solicitante_id) \
                                         .execute()
-            
+
             print(respuesta_update)
 
             # Si la actualización no retorna datos, asumimos que falló
@@ -546,7 +546,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": e}), 500
-   
+
     def mostrar_por_fecha(self):
         try:
             # 1. Extraer la fecha enviada en formato dd/mm/yyyy
@@ -600,7 +600,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"mensaje": "Ocurrió un error al procesar la solicitud."}), 500
-    
+
     def mostrar_por_intervalo(self):
         try:
             # 1. Extraer las fechas enviadas (en formato dd/mm/yyyy)
@@ -667,7 +667,7 @@ class recordsModel():
         except Exception as e:
             print("Ocurrió un error:", e)
             return jsonify({"error": "Ocurrió un error al procesar la solicitud"}), 500
-        
+
     def edit_record(self):
         try:
             data = request.get_json()
@@ -777,7 +777,7 @@ class recordsModel():
         except Exception as e:
             print("Error:", e)
             return jsonify({"error": str(e)}), 500
-    
+
     def delete_record(self):
         try:
             data = request.get_json()
@@ -786,9 +786,9 @@ class recordsModel():
 
             if not data or "solicitante_id" not in data:
                 return jsonify({"error": "Falta el ID del solicitante"}), 400
-                
+
             solicitante_id = data["solicitante_id"]
-            
+
             # Definir las tablas relacionadas en orden de eliminación (de hijas a padres)
             # Primero las tablas dependientes, luego las principales
             tablas_relacionadas = [
@@ -800,9 +800,9 @@ class recordsModel():
                 "SOLICITUDES",
                 "SOLICITANTES"        # Finalmente la tabla principal
             ]
-            
+
             resultados = {}
-            
+
             # Eliminar registros de cada tabla relacionada
             for tabla in tablas_relacionadas:
                 try:
@@ -817,7 +817,7 @@ class recordsModel():
                             .delete()\
                             .eq('solicitante_id', solicitante_id)\
                             .execute()
-                    
+
                     resultados[tabla] = {
                         "estado": "exitoso",
                         "registros_eliminados": len(res.data) if hasattr(res, 'data') else 0
@@ -827,7 +827,7 @@ class recordsModel():
                         "estado": "error",
                         "error": str(e)
                     }
-            
+
             # Verificar si se eliminó el solicitante principal
             if resultados.get("SOLICITANTES", {}).get("estado") == "exitoso":
                 print(resultados)
@@ -841,7 +841,7 @@ class recordsModel():
                     "resultados": resultados,
                     "error": "No se pudo eliminar el registro principal del solicitante"
                 }), 207
-                
+
         except Exception as e:
             print("Error al eliminar registro:", e)
             return jsonify({"error": f"Error al eliminar registro: {str(e)}"}), 500
@@ -851,11 +851,11 @@ class recordsModel():
             # Verificar si hay un ID de solicitante
             if 'solicitante_id' not in request.form:
                 return jsonify({"error": "Falta el ID del solicitante"}), 400
-            
+
             solicitante_id = request.form['solicitante_id']
 
             print(solicitante_id)
-            
+
             resultados = {
                 "archivos_eliminados": [],
                 "archivos_subidos": []
@@ -868,22 +868,22 @@ class recordsModel():
                     try:
                         # Extraer el nombre del archivo de la URL
                         file_path = file_url.split('findii/')[-1] if 'findii/' in file_url else file_url
-                        
+
                         # Eliminar el archivo del storage
                         supabase.storage.from_("findii").remove([file_path])
-                        
+
                         # Eliminar el registro de la base de datos
                         res = supabase.table('PRUEBA_IMAGEN')\
                             .delete()\
                             .eq('imagen', file_url)\
                             .eq('id_solicitante', solicitante_id)\
                             .execute()
-                            
+
                         resultados["archivos_eliminados"].append({
                             "url": file_url,
                             "estado": "eliminado"
                         })
-                        
+
                     except Exception as e:
                         print(f"Error eliminando archivo {file_url}: {e}")
                         resultados["archivos_eliminados"].append({
@@ -898,7 +898,7 @@ class recordsModel():
 
                 print("Archivos")
                 print(files)
-                
+
                 for file in files:
                     try:
                         # Crear nombre único para el archivo
