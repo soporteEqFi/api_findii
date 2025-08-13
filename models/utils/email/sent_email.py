@@ -23,6 +23,32 @@ def config_email():
 
     return email_settings
 
+def format_second_holder_info(info):
+    """Formatea la información del segundo titular para mostrarla de manera legible"""
+    if not info or info == 'N/A' or info == '':
+        return ""
+    
+    try:
+        # Si es un JSON, formatearlo de manera legible
+        if isinstance(info, dict):
+            formatted_info = []
+            for key, value in info.items():
+                if value and value != 'N/A' and value != '':
+                    # Convertir la clave a un formato más legible
+                    key_formatted = key.replace('_', ' ').title()
+                    formatted_info.append(f"{key_formatted}: {value}")
+            
+            if formatted_info:
+                return "\n        " + "\n        ".join([f"• {item}" for item in formatted_info])
+            else:
+                return ""
+        else:
+            # Si es un string, mostrarlo tal como está
+            return f"\n        • {info}"
+    except:
+        # Si hay algún error, mostrar la información tal como está
+        return f"\n        • {info}"
+
 def email_body_and_send(email_settings, data):
     try:
         print("Datos a usar para el correo")
@@ -92,7 +118,7 @@ def email_body_and_send(email_settings, data):
         • Cuota inicial: ${data['informacion_financiera']['cuota_inicial']}
         • Porcentaje a financiar: {data['informacion_financiera']['porcentaje_financiar']}%
         • Plazo: {data['producto']['plazo_meses']} meses
-        • Segundo titular: {'Sí' if data['producto']['segundo_titular'] == 'si' else 'No'}
+        • Segundo titular: {'Sí' if data['producto']['segundo_titular'] == 'si' else 'No'}{format_second_holder_info(data['producto'].get('info_segundo_titular')) if data['producto']['segundo_titular'] == 'si' else ""}
         • Observaciones: {data['producto']['observacion']}
 
         Uno de nuestros asesores se pondrá en contacto con usted muy pronto para dar seguimiento a su solicitud.

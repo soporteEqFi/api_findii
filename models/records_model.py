@@ -671,7 +671,8 @@ class recordsModel():
     def edit_record(self):
         try:
             data = request.get_json()
-            print(data)
+            print("DEBUG - Datos recibidos para actualización:")
+            print(f"  Estructura completa: {data}")
             if not data:
                 return jsonify({"error": "No se recibieron datos"}), 400
 
@@ -679,6 +680,17 @@ class recordsModel():
             print(solicitante_id)
             if not solicitante_id:
                 return jsonify({"error": "Se requiere el ID del solicitante"}), 400
+
+            # Debug: Verificar si hay información del segundo titular en los datos
+            if 'PRODUCTO_SOLICITADO' in data:
+                producto_data = data['PRODUCTO_SOLICITADO']
+                print(f"DEBUG - Datos de PRODUCTO_SOLICITADO recibidos:")
+                print(f"  Campos disponibles: {list(producto_data.keys())}")
+                if 'info_segundo_titular' in producto_data:
+                    print(f"  info_segundo_titular: {producto_data['info_segundo_titular']}")
+                    print(f"  Tipo de info_segundo_titular: {type(producto_data['info_segundo_titular'])}")
+                else:
+                    print(f"  info_segundo_titular NO está presente en los datos")
 
             # Definir los campos por tabla
             actualizaciones = {
@@ -732,6 +744,12 @@ class recordsModel():
 
                 for campo in config["campos_permitidos"]:
                     if campo in datos_tabla and datos_tabla[campo] is not None and datos_tabla[campo] != "" and datos_tabla[campo] != "undefined":
+                        # Debug: Imprimir información del campo que se está procesando
+                        if campo == "info_segundo_titular":
+                            print(f"DEBUG - Procesando campo {campo}:")
+                            print(f"  Valor recibido: {datos_tabla[campo]}")
+                            print(f"  Tipo de dato: {type(datos_tabla[campo])}")
+                        
                         # Procesamiento especial para algunos campos
                         if campo == "segundo_titular":
                             # Mantener el valor como string ya que la columna es de texto
@@ -746,8 +764,14 @@ class recordsModel():
                         else:
                             datos_actualizacion[campo] = datos_tabla[campo]
 
-                # print(f"Datos a actualizar en {tabla}:")
-                # print(datos_actualizacion)
+                # Debug: Imprimir datos que se van a actualizar
+                if datos_actualizacion:
+                    print(f"DEBUG - Datos a actualizar en {tabla}:")
+                    print(f"  Campos: {list(datos_actualizacion.keys())}")
+                    for campo, valor in datos_actualizacion.items():
+                        print(f"    {campo}: {valor} (tipo: {type(valor)})")
+                else:
+                    print(f"DEBUG - No hay datos para actualizar en {tabla}")
 
                 if datos_actualizacion:
                     try:
@@ -756,11 +780,15 @@ class recordsModel():
                             .eq('solicitante_id', solicitante_id)\
                             .execute()
 
+                        print(f"DEBUG - Actualización exitosa en {tabla}")
+                        print(f"  Resultado: {res.data if hasattr(res, 'data') else 'Sin datos de retorno'}")
                         resultados[tabla] = {
                             "estado": "exitoso",
                             "datos_actualizados": datos_actualizacion
                         }
                     except Exception as e:
+                        print(f"DEBUG - Error al actualizar {tabla}: {str(e)}")
+                        print(f"  Datos que se intentaron actualizar: {datos_actualizacion}")
                         resultados[tabla] = {
                             "estado": "error",
                             "error": str(e)
