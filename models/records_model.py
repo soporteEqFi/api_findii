@@ -71,6 +71,15 @@ class recordsModel():
             res = supabase.table('INFORMACION_FINANCIERA').insert(data["informacion_financiera"]).execute()
 
             print("Llenando PRODUCTO_SOLICITADO")
+            
+            # Debug: Imprimir los datos del producto antes de la inserción
+            print("Datos del producto a insertar:", data["producto"])
+            print("Valor de info_segundo_titular del formulario:", request.form.get('info_segundo_titular'))
+            print("Valor de segundo_titular del formulario:", request.form.get('segundo_titular'))
+            print("Valor de segundo_titular en data['producto']:", data["producto"].get('segundo_titular'))
+            print("Valor de info_segundo_titular en data['producto']:", data["producto"].get('info_segundo_titular'))
+            print("Tipo de info_segundo_titular en data['producto']:", type(data["producto"].get('info_segundo_titular')))
+            
             try:
                 informacion_producto = json.loads(request.form.get('informacion_producto', '{}'))
             except json.JSONDecodeError:
@@ -335,6 +344,7 @@ class recordsModel():
                         "observacion": producto.get("observacion", "N/A"),
                         "plazo_meses": producto.get("plazo_meses", "N/A"),
                         "segundo_titular": producto.get("segundo_titular", "N/A"),
+                        "info_segundo_titular": producto.get("info_segundo_titular", "N/A"),
                         "estado": producto.get("estado", "N/A"),
                         
                         # Documentos
@@ -393,7 +403,7 @@ class recordsModel():
 
                 "INFORMACION_FINANCIERA": ["id", "solicitante_id", "ingresos", "total_egresos", "valor_inmueble","cuota_inicial", "porcentaje_financiar","total_activos", "total_pasivos"],
 
-                "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "observacion"],
+                "PRODUCTO_SOLICITADO": ["id", "solicitante_id", "tipo_credito", "plazo_meses", "segundo_titular", "info_segundo_titular", "observacion"],
 
                 "SOLICITUDES": ["id", "solicitante_id", "banco", "fecha_solicitud", "estado"]
             }
@@ -702,7 +712,7 @@ class recordsModel():
                 "PRODUCTO_SOLICITADO": {
                     "campos_permitidos": {
                         "tipo_credito", "plazo_meses", "segundo_titular",
-                        "observacion", "estado", "informacion_producto"
+                        "info_segundo_titular", "observacion", "estado", "informacion_producto"
                     }
                 },
                 "SOLICITUDES": {
@@ -724,7 +734,8 @@ class recordsModel():
                     if campo in datos_tabla and datos_tabla[campo] is not None and datos_tabla[campo] != "" and datos_tabla[campo] != "undefined":
                         # Procesamiento especial para algunos campos
                         if campo == "segundo_titular":
-                            datos_actualizacion[campo] = datos_tabla[campo].lower() == "si"
+                            # Mantener el valor como string ya que la columna es de texto
+                            datos_actualizacion[campo] = datos_tabla[campo]
                         elif campo in ["fecha_nacimiento", "fecha_vinculacion"]:
                             try:
                                 fecha = datetime.strptime(datos_tabla[campo], '%Y-%m-%d')

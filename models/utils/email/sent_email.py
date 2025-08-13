@@ -92,7 +92,7 @@ def email_body_and_send(email_settings, data):
         • Cuota inicial: ${data['informacion_financiera']['cuota_inicial']}
         • Porcentaje a financiar: {data['informacion_financiera']['porcentaje_financiar']}%
         • Plazo: {data['producto']['plazo_meses']} meses
-        • Segundo titular: {'Sí' if data['producto']['segundo_titular'] else 'No'}
+        • Segundo titular: {'Sí' if data['producto']['segundo_titular'] == 'si' else 'No'}
         • Observaciones: {data['producto']['observacion']}
 
         Uno de nuestros asesores se pondrá en contacto con usted muy pronto para dar seguimiento a su solicitud.

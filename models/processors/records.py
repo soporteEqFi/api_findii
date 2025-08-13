@@ -64,11 +64,37 @@ class RecordsDataProcessor:
         
     def get_product_data(self):
         # Obtener datos del producto
+        info_segundo_titular_raw = self.request.form.get('info_segundo_titular')
+        segundo_titular_value = self.request.form.get('segundo_titular')
+        
+        print(f"DEBUG - info_segundo_titular capturado: {info_segundo_titular_raw}")
+        print(f"DEBUG - Tipo de dato info_segundo_titular: {type(info_segundo_titular_raw)}")
+        print(f"DEBUG - segundo_titular capturado: {segundo_titular_value}")
+        print(f"DEBUG - Tipo de dato segundo_titular: {type(segundo_titular_value)}")
+        
+        # Procesar info_segundo_titular para evitar doble serialización
+        info_segundo_titular = info_segundo_titular_raw
+        if info_segundo_titular_raw and isinstance(info_segundo_titular_raw, str):
+            try:
+                # Si ya es un JSON válido, parsearlo para limpiarlo
+                import json
+                parsed = json.loads(info_segundo_titular_raw)
+                info_segundo_titular = parsed
+                print(f"DEBUG - info_segundo_titular parseado correctamente: {info_segundo_titular}")
+            except json.JSONDecodeError:
+                # Si no es JSON válido, mantener el valor original
+                print(f"DEBUG - info_segundo_titular no es JSON válido, se mantiene como string")
+                info_segundo_titular = info_segundo_titular_raw
+        
+        # Mantener como string ya que la columna es de texto, no booleana
+        print(f"DEBUG - segundo_titular se mantiene como string: {segundo_titular_value}")
+        
         return {
             "solicitante_id": self.applicant_id,
             "tipo_credito": self.request.form.get('tipo_credito'),
             "plazo_meses": self.request.form.get('plazo_meses'),
-            "segundo_titular": True if self.request.form.get('segundo_titular') == 's' else False,
+            "segundo_titular": segundo_titular_value,
+            "info_segundo_titular": info_segundo_titular,
             "observacion": self.request.form.get('observacion'),
             "estado": "Radicado"
         }

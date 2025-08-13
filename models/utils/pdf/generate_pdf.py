@@ -61,7 +61,7 @@ def generar_pdf_desde_html(data):
             total_pasivos=informacion_financiera.get('total_pasivos', ''),
             tipo_credito=producto.get('tipo_credito', ''),
             plazo_meses=producto.get('plazo_meses', ''),
-            segundo_titular="Sí" if producto.get('segundo_titular') else "No",
+            segundo_titular="Sí" if producto.get('segundo_titular') == 'si' else "No",
             observacion=producto.get('observacion', ''),
             banco=data.get('banco', '')
         )
