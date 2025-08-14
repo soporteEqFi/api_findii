@@ -145,3 +145,4 @@ Si encuentras problemas:
 2. Verifica que la estructura de datos sea correcta
 3. Confirma que la base de datos tenga la columna `info_segundo_titular`
 4. Prueba con diferentes tipos de datos (JSON, string, vacío)
+

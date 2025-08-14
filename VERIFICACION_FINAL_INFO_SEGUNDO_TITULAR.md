@@ -205,3 +205,4 @@ python test_specific_fields_update.py
 - `test_specific_fields_update.py` - Script de prueba específico
 
 **El sistema está listo para funcionar correctamente con la actualización del JSON de info_segundo_titular.**
+

@@ -239,3 +239,4 @@ if __name__ == "__main__":
     print("   ✅ correo_electronico: claraorozco019@gmail.com")
     print("   ✅ nivel_estudio: primaria")
     print("   ✅ profesion: 5656")
+
