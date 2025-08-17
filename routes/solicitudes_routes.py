@@ -1,0 +1,40 @@
+from flask import Blueprint
+from flask_cors import cross_origin
+
+from controllers.solicitudes_controller import SolicitudesController
+
+
+solicitudes = Blueprint("solicitudes", __name__)
+con_solicitudes = SolicitudesController()
+
+
+@solicitudes.route("/", methods=["GET"])
+@cross_origin()
+def list_solicitudes():
+    return con_solicitudes.list()
+
+
+@solicitudes.route("/", methods=["POST"])
+@cross_origin()
+def create_solicitud():
+    return con_solicitudes.create()
+
+
+@solicitudes.route("/<int:id>", methods=["GET"])
+@cross_origin()
+def get_solicitud(id: int):
+    return con_solicitudes.get_one(id)
+
+
+@solicitudes.route("/<int:id>", methods=["PATCH"])
+@cross_origin()
+def update_solicitud(id: int):
+    return con_solicitudes.update(id)
+
+
+@solicitudes.route("/<int:id>", methods=["DELETE"])
+@cross_origin()
+def delete_solicitud(id: int):
+    return con_solicitudes.delete(id)
+
+
