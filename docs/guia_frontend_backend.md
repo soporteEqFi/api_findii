@@ -31,6 +31,40 @@ const url = `${API_BASE}/endpoint/?empresa_id=${empresaId}`
 
 ---
 
+## Catálogo json_field_definition (Endpoints)
+
+Estos endpoints exponen las definiciones configuradas en la tabla `json_field_definition` para que el frontend construya formularios dinámicos.
+
+- GET `/schema/{entidad}?empresa_id={id}`
+  - Recomendado. Devuelve esquema completo agrupado por entidad: campos fijos + dinámicos del JSON asociado a esa entidad.
+  - Ej.: `/schema/solicitante?empresa_id=1`.
+
+- GET `/json/schema/{entidad}/{json_column}?empresa_id={id}`
+  - Legacy/directo a `json_field_definition`. Devuelve solo los campos dinámicos de una columna JSON específica.
+  - Ej.: `/json/schema/solicitante/info_extra?empresa_id=1`.
+
+Respuesta típica (resumida):
+```json
+// /schema/ubicacion?empresa_id=1
+{
+  "ok": true,
+  "data": {
+    "entidad": "ubicacion",
+    "tabla": "ubicacion",
+    "json_column": "detalle_direccion",
+    "campos_fijos": [...],
+    "campos_dinamicos": [
+      {"key":"direccion_residencia","type":"string","required":true},
+      {"key":"tipo_vivienda","type":"string","list_values":["propia","familiar","arrendada"]}
+    ]
+  }
+}
+```
+
+Notas:
+- Debes enviar `empresa_id` en header `X-Empresa-Id` o como query param.
+- El endpoint `/schema/{entidad}` usa el mapeo interno entidad→json_column para agrupar automáticamente por entidad.
+
 ## Estrategia: Formularios Dinámicos
 
 ### 1. Frontend Consulta Esquema Completo (Fijos + Dinámicos)
