@@ -8,12 +8,13 @@ class SchemaCompletoModel:
                 "table": "solicitantes",
                 "json_column": "info_extra",
                 "campos_fijos": [
-                    {"key": "primer_nombre", "type": "string", "required": True, "description": "Primer nombre"},
-                    {"key": "segundo_nombre", "type": "string", "required": False, "description": "Segundo nombre"},
+                    {"key": "nombres", "type": "string", "required": True, "description": "Nombres"},
                     {"key": "primer_apellido", "type": "string", "required": True, "description": "Primer apellido"},
                     {"key": "segundo_apellido", "type": "string", "required": False, "description": "Segundo apellido"},
-                    {"key": "tipo_documento", "type": "string", "required": True, "description": "Tipo de documento"},
+                    {"key": "tipo_identificacion", "type": "string", "required": True, "description": "Tipo de identificación"},
                     {"key": "numero_documento", "type": "string", "required": True, "description": "Número de documento"},
+                    {"key": "fecha_nacimiento", "type": "string", "required": True, "description": "Fecha de nacimiento"},
+                    {"key": "genero", "type": "string", "required": True, "description": "Género"},
                     {"key": "correo", "type": "string", "required": True, "description": "Correo electrónico"}
                 ]
             },
@@ -21,9 +22,8 @@ class SchemaCompletoModel:
                 "table": "ubicacion",
                 "json_column": "detalle_direccion",
                 "campos_fijos": [
-                    {"key": "direccion", "type": "string", "required": True, "description": "Dirección principal"},
-                    {"key": "ciudad", "type": "string", "required": True, "description": "Ciudad"},
-                    {"key": "departamento", "type": "string", "required": True, "description": "Departamento"}
+                    {"key": "ciudad_residencia", "type": "string", "required": True, "description": "Ciudad"},
+                    {"key": "departamento_residencia", "type": "string", "required": True, "description": "Departamento"}
                 ]
             },
             "actividad_economica": {
@@ -31,6 +31,12 @@ class SchemaCompletoModel:
                 "json_column": "detalle_actividad",
                 "campos_fijos": [
                     {"key": "tipo_actividad", "type": "string", "required": True, "description": "Tipo de actividad económica"},
+                    {"key": "codigo_ciiu", "type": "string", "required": True, "description": "Código CIUU"},
+                    {"key": "departamento_empresa", "type": "string", "required": True, "description": "Departamento de la empresa"},
+                    {"key": "ciudad_empresa", "type": "string", "required": True, "description": "Ciudad de la empresa"},
+                    {"key": "telefono_empresa", "type": "string", "required": True, "description": "Teléfono de la empresa"},
+                    {"key": "correo_oficina", "type": "string", "required": True, "description": "Correo electrónico de la empresa"},
+                    {"key": "nit_empresa", "type": "string", "required": True, "description": "NIT de la empresa"},
                     {"key": "sector_economico", "type": "string", "required": True, "description": "Sector económico"}
                 ]
             },
@@ -38,10 +44,10 @@ class SchemaCompletoModel:
                 "table": "informacion_financiera",
                 "json_column": "detalle_financiera",
                 "campos_fijos": [
-                    {"key": "ingresos_mensuales", "type": "number", "required": True, "description": "Ingresos mensuales"},
-                    {"key": "egresos_mensuales", "type": "number", "required": True, "description": "Egresos mensuales"},
-                    {"key": "activos", "type": "number", "required": False, "description": "Total activos"},
-                    {"key": "pasivos", "type": "number", "required": False, "description": "Total pasivos"}
+                    {"key": "total_ingresos_mensuales", "type": "number", "required": True, "description": "Ingresos mensuales"},
+                    {"key": "total_egresos_mensuales", "type": "number", "required": True, "description": "Egresos mensuales"},
+                    {"key": "total_activos", "type": "number", "required": False, "description": "Total activos"},
+                    {"key": "total_pasivos", "type": "number", "required": False, "description": "Total pasivos"}
                 ]
             },
             "referencia": {
@@ -49,8 +55,6 @@ class SchemaCompletoModel:
                 "json_column": "detalle_referencia",
                 "campos_fijos": [
                     {"key": "tipo_referencia", "type": "string", "required": True, "description": "Tipo de referencia"},
-                    {"key": "nombre", "type": "string", "required": True, "description": "Nombre de la referencia"},
-                    {"key": "telefono", "type": "string", "required": True, "description": "Teléfono de contacto"}
                 ]
             },
             "solicitud": {
