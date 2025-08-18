@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from typing import Any, Dict, List, Optional
-
 from data.supabase_conn import supabase
-
 
 def _get_data(resp):
     if hasattr(resp, "data"):
@@ -11,22 +8,12 @@ def _get_data(resp):
     if isinstance(resp, dict) and "data" in resp:
         return resp["data"]
     return resp
-
-
 class UbicacionesModel:
     """CRUD para entidad ubicacion."""
 
     TABLE = "ubicacion"
 
-    def create(
-        self,
-        *,
-        empresa_id: int,
-        solicitante_id: int,
-        ciudad_residencia: str,
-        departamento_residencia: str,
-        detalle_direccion: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, ciudad_residencia: str, departamento_residencia: str, detalle_direccion: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
@@ -39,24 +26,11 @@ class UbicacionesModel:
         return data[0] if isinstance(data, list) and data else data
 
     def get_by_id(self, *, id: int, empresa_id: int) -> Optional[Dict[str, Any]]:
-        resp = (
-            supabase.table(self.TABLE)
-            .select("*")
-            .eq("id", id)
-            .eq("empresa_id", empresa_id)
-            .execute()
-        )
+        resp = supabase.table(self.TABLE).select("*").eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
 
-    def list(
-        self,
-        *,
-        empresa_id: int,
-        solicitante_id: Optional[int] = None,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    def list(self, *, empresa_id: int, solicitante_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
         if solicitante_id:
             q = q.eq("solicitante_id", solicitante_id)
@@ -69,23 +43,11 @@ class UbicacionesModel:
         id: int,
         empresa_id: int,
         updates: Dict[str, Any],    ) -> Optional[Dict[str, Any]]:
-        resp = (
-            supabase.table(self.TABLE)
-            .update(updates)
-            .eq("id", id)
-            .eq("empresa_id", empresa_id)
-            .execute()
-        )
+        resp = supabase.table(self.TABLE).update(updates).eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
 
     def delete(self, *, id: int, empresa_id: int) -> int:
-        resp = (
-            supabase.table(self.TABLE)
-            .delete()
-            .eq("id", id)
-            .eq("empresa_id", empresa_id)
-            .execute()
-        )
+        resp = supabase.table(self.TABLE).delete().eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
         return len(data) if isinstance(data, list) else 0

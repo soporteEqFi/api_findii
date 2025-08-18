@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from typing import Any, Dict, Optional
-
 from data.supabase_conn import supabase
-
 
 def _get_resp_data(resp):
     if hasattr(resp, "data"):
@@ -11,8 +8,6 @@ def _get_resp_data(resp):
     if isinstance(resp, dict) and "data" in resp:
         return resp["data"]
     return resp
-
-
 class JSONFieldsModel:
     """Modelo muy simple usando Supabase.
 
