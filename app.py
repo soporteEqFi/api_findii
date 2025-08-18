@@ -10,6 +10,8 @@ from routes.ubicaciones_routes import ubicaciones
 from routes.actividad_economica_routes import actividad_economica
 from routes.informacion_financiera_routes import informacion_financiera
 from routes.referencias_routes import referencias
+from routes.auth_routes import auth
+from routes.schema_completo_routes import schema_completo
 
 load_dotenv()
 
@@ -18,7 +20,9 @@ jwt = JWTManager(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 
+app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(json_fields, url_prefix="/json")
+app.register_blueprint(schema_completo, url_prefix="/schema")
 app.register_blueprint(solicitudes, url_prefix="/solicitudes")
 app.register_blueprint(solicitantes, url_prefix="/solicitantes")
 app.register_blueprint(ubicaciones, url_prefix="/ubicaciones")
