@@ -302,7 +302,7 @@ class SolicitantesController:
             # 2. Obtener ubicaciones
             print(f"\n2️⃣ OBTENIENDO UBICACIONES...")
             try:
-                ubicaciones = self.ubicaciones_model.get_by_solicitante_id(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                ubicaciones = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 print(f"   📍 Ubicaciones encontradas: {len(ubicaciones) if ubicaciones else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo ubicaciones: {e}")
@@ -311,7 +311,8 @@ class SolicitantesController:
             # 3. Obtener actividad económica
             print(f"\n3️⃣ OBTENIENDO ACTIVIDAD ECONÓMICA...")
             try:
-                actividad_economica = self.actividad_model.get_by_solicitante_id(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                actividad_economica_list = self.actividad_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                actividad_economica = actividad_economica_list[0] if actividad_economica_list else None
                 print(f"   💼 Actividad económica: {'✅ Encontrada' if actividad_economica else '❌ No encontrada'}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo actividad económica: {e}")
@@ -320,7 +321,8 @@ class SolicitantesController:
             # 4. Obtener información financiera
             print(f"\n4️⃣ OBTENIENDO INFORMACIÓN FINANCIERA...")
             try:
-                informacion_financiera = self.financiera_model.get_by_solicitante_id(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                financiera_list = self.financiera_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                informacion_financiera = financiera_list[0] if financiera_list else None
                 print(f"   💰 Información financiera: {'✅ Encontrada' if informacion_financiera else '❌ No encontrada'}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo información financiera: {e}")
@@ -329,7 +331,7 @@ class SolicitantesController:
             # 5. Obtener referencias
             print(f"\n5️⃣ OBTENIENDO REFERENCIAS...")
             try:
-                referencias = self.referencias_model.get_by_solicitante_id(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                referencias = self.referencias_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 print(f"   👥 Referencias encontradas: {len(referencias) if referencias else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo referencias: {e}")
@@ -338,7 +340,7 @@ class SolicitantesController:
             # 6. Obtener solicitudes
             print(f"\n6️⃣ OBTENIENDO SOLICITUDES...")
             try:
-                solicitudes = self.solicitudes_model.get_by_solicitante_id(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                solicitudes = self.solicitudes_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 print(f"   📄 Solicitudes encontradas: {len(solicitudes) if solicitudes else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo solicitudes: {e}")
