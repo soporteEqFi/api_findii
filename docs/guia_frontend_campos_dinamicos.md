@@ -631,8 +631,6 @@ export const camposDinamicosAPI = new CamposDinamicosAPI(
 
 ---
 
----
-
 ## 🎯 **Casos de Uso Prácticos**
 
 ### **Caso 1: Administrador configurando nuevos campos**
@@ -716,3 +714,203 @@ Esta guía te permitirá implementar completamente el manejo de campos dinámico
 - ✅ **Formularios dinámicos** que se adaptan automáticamente
 
 🚀
+
+## 🚀 Creación de Registro Completo (Recomendado)
+
+### Endpoint Principal
+```
+POST /solicitantes/crear-registro-completo
+```
+
+Este endpoint permite crear **todo el registro en una sola request**, evitando la complejidad de manejar IDs entre requests.
+
+### Estructura de Datos
+```javascript
+{
+  "solicitante": {
+    "nombres": "Juan Carlos",
+    "primer_apellido": "Pérez",
+    "segundo_apellido": "García",
+    "tipo_documento": "CC",
+    "numero_documento": "12345678",
+    "fecha_nacimiento": "1990-05-15",
+    "genero": "M",
+    "estado_civil": "Soltero",
+    "info_extra": {
+      "campo_dinamico_1": "valor1",
+      "campo_dinamico_2": "valor2"
+    }
+  },
+  "ubicaciones": [
+    {
+      "ciudad_residencia": "Bogotá",
+      "departamento_residencia": "Cundinamarca",
+      "detalle_direccion": "Calle 123 # 45-67",
+      "info_extra": {
+        "tiempo_residencia": "5 años"
+      }
+    }
+  ],
+  "actividad_economica": {
+    "tipo_actividad": "Empleado",
+    "empresa": "TechCorp",
+    "cargo": "Desarrollador",
+    "ingresos_mensuales": 5000000,
+    "info_extra": {
+      "antiguedad": "3 años"
+    }
+  },
+  "informacion_financiera": {
+    "ingresos_mensuales": 5000000,
+    "gastos_mensuales": 3000000,
+    "ahorros": 10000000,
+    "info_extra": {
+      "fuente_ingresos": "Salario"
+    }
+  },
+  "referencias": [
+    {
+      "nombre": "María López",
+      "telefono": "3001234567",
+      "tipo_relacion": "Familiar",
+      "info_extra": {
+        "tiempo_conocido": "10 años"
+      }
+    }
+  ],
+  "solicitudes": [
+    {
+      "tipo_credito": "Personal",
+      "monto_solicitado": 20000000,
+      "plazo_meses": 24,
+      "info_extra": {
+        "destino_credito": "Educación"
+      }
+    }
+  ]
+}
+```
+
+### Ejemplo de Uso (JavaScript)
+```javascript
+async function crearRegistroCompleto(datosCompletos) {
+  try {
+    const response = await fetch('/solicitantes/crear-registro-completo?empresa_id=1', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Empresa-Id': '1'
+      },
+      body: JSON.stringify(datosCompletos)
+    });
+
+    const resultado = await response.json();
+
+    if (resultado.ok) {
+      console.log('✅ Registro completo creado:', resultado.data);
+      console.log('📊 Resumen:', resultado.data.resumen);
+      return resultado.data;
+    } else {
+      console.error('❌ Error:', resultado.error);
+      throw new Error(resultado.error);
+    }
+  } catch (error) {
+    console.error('💥 Error en la request:', error);
+    throw error;
+  }
+}
+
+// Uso
+const datosCompletos = {
+  solicitante: {
+    nombres: "Juan Carlos",
+    primer_apellido: "Pérez",
+    // ... más campos
+  },
+  ubicaciones: [
+    {
+      ciudad_residencia: "Bogotá",
+      departamento_residencia: "Cundinamarca"
+    }
+  ],
+  // ... otras entidades
+};
+
+crearRegistroCompleto(datosCompletos)
+  .then(data => {
+    console.log('Registro creado con ID:', data.solicitante.id);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+```
+
+### Ventajas de este Enfoque
+1. **Una sola request** - No necesitas manejar IDs entre requests
+2. **Transaccional** - Si falla algo, nada se guarda
+3. **Más simple** - El frontend solo envía todos los datos de una vez
+4. **Mejor UX** - El usuario ve el resultado completo inmediatamente
+5. **Menos errores** - No hay problemas de sincronización
+
+### Respuesta del Servidor
+```javascript
+{
+  "ok": true,
+  "data": {
+    "solicitante": {
+      "id": 123,
+      "nombres": "Juan Carlos",
+      // ... todos los campos
+    },
+    "ubicaciones": [
+      {
+        "id": 456,
+        "solicitante_id": 123,
+        // ... todos los campos
+      }
+    ],
+    "actividad_economica": {
+      "id": 789,
+      "solicitante_id": 123,
+      // ... todos los campos
+    },
+    "informacion_financiera": {
+      "id": 101,
+      "solicitante_id": 123,
+      // ... todos los campos
+    },
+    "referencias": [
+      {
+        "id": 202,
+        "solicitante_id": 123,
+        // ... todos los campos
+      }
+    ],
+    "solicitudes": [
+      {
+        "id": 303,
+        "solicitante_id": 123,
+        // ... todos los campos
+      }
+    ],
+    "resumen": {
+      "solicitante_id": 123,
+      "total_ubicaciones": 1,
+      "tiene_actividad_economica": true,
+      "tiene_informacion_financiera": true,
+      "total_referencias": 1,
+      "total_solicitudes": 1
+    }
+  },
+  "message": "Registro completo creado exitosamente. Solicitante ID: 123"
+}
+```
+
+### Campos Opcionales
+- **Ubicaciones**: Si no envías `ubicaciones` o es un array vacío, no se crean ubicaciones
+- **Actividad económica**: Si no envías `actividad_economica` o es un objeto vacío, no se crea
+- **Información financiera**: Si no envías `informacion_financiera` o es un objeto vacío, no se crea
+- **Referencias**: Si no envías `referencias` o es un array vacío, no se crean referencias
+- **Solicitudes**: Si no envías `solicitudes` o es un array vacío, no se crean solicitudes
+
+**Solo el solicitante es obligatorio.**

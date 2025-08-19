@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from flask import request, jsonify
 from models.ubicaciones_model import UbicacionesModel
+from utils.debug_helpers import (
+    log_request_details, log_validation_results,
+    log_data_to_save, log_operation_result, log_response, log_error
+)
 
 
 class UbicacionesController:
@@ -18,27 +22,57 @@ class UbicacionesController:
             raise ValueError("empresa_id debe ser entero") from exc
 
     def create(self):
+        log_request_details("CREAR UBICACIÓN", "ubicacion")
+
         try:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
+            print(f"\n📋 EMPRESA ID: {empresa_id}")
+
             # Campos requeridos
             required_fields = ["solicitante_id", "ciudad_residencia", "departamento_residencia"]
-            for field in required_fields:
-                if not body.get(field):
-                    raise ValueError(f"Campo requerido: {field}")
 
-            data = self.model.create(
-                empresa_id=empresa_id,
-                solicitante_id=body["solicitante_id"],
-                ciudad_residencia=body["ciudad_residencia"],
-                departamento_residencia=body["departamento_residencia"],
-                detalle_direccion=body.get("detalle_direccion"),
-            )
-            return jsonify({"ok": True, "data": data}), 201
+            # Validar campos requeridos
+            print(f"\n🔍 VERIFICANDO SOLICITANTE_ID:")
+            print(f"   solicitante_id en body: {body.get('solicitante_id')}")
+            print(f"   Tipo: {type(body.get('solicitante_id'))}")
+
+            if not log_validation_results(required_fields, body):
+                print(f"\n❌ CAMPOS FALTANTES DETECTADOS:")
+                for field in required_fields:
+                    value = body.get(field)
+                    if not value:
+                        print(f"   ❌ {field}: {value}")
+                raise ValueError("Faltan campos requeridos")
+
+            print(f"\n✅ VALIDACIÓN EXITOSA - Todos los campos presentes")
+
+            # Preparar datos para guardar
+            datos_a_guardar = {
+                "empresa_id": empresa_id,
+                "solicitante_id": body["solicitante_id"],
+                "ciudad_residencia": body["ciudad_residencia"],
+                "departamento_residencia": body["departamento_residencia"],
+                "detalle_direccion": body.get("detalle_direccion"),
+            }
+
+            log_data_to_save(datos_a_guardar)
+
+            # Crear en BD
+            data = self.model.create(**datos_a_guardar)
+
+            log_operation_result(data, "UBICACIÓN CREADA")
+
+            response_data = {"ok": True, "data": data}
+            log_response(response_data)
+
+            return jsonify(response_data), 201
         except ValueError as ve:
+            log_error(ve, "ERROR DE VALIDACIÓN")
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:
+            log_error(ex, "ERROR INESPERADO")
             return jsonify({"ok": False, "error": str(ex)}), 500
 
     def get_one(self, id: int):

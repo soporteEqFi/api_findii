@@ -13,12 +13,18 @@ class ActividadEconomicaModel:
 
     TABLE = "actividad_economica"
 
-    def create(self, *, empresa_id: int, solicitante_id: int, tipo_actividad: str, sector_economico: str, detalle_actividad: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, tipo_actividad: str, sector_economico: str, codigo_ciiu: Optional[str] = None, departamento_empresa: Optional[str] = None, ciudad_empresa: Optional[str] = None, telefono_empresa: Optional[str] = None, correo_oficina: Optional[str] = None, nit: Optional[str] = None, nit_empresa: Optional[str] = None, detalle_actividad: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
             "tipo_actividad": tipo_actividad,
             "sector_economico": sector_economico,
+            "codigo_ciiu": codigo_ciiu,
+            "departamento_empresa": departamento_empresa,
+            "ciudad_empresa": ciudad_empresa,
+            "telefono_empresa": telefono_empresa,
+            "correo_oficina": correo_oficina,
+            "nit": nit or nit_empresa,
             "detalle_actividad": detalle_actividad or {},
         }
         resp = supabase.table(self.TABLE).insert(payload).execute()

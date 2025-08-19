@@ -56,22 +56,80 @@ def create_field_definitions(entity: str, json_field: str):
     """Crear/actualizar definiciones de campos dinámicos"""
     from flask import request, jsonify
 
+    print("\n" + "="*80)
     print(f"🔄 POST /json/definitions/{entity}/{json_field}")
+    print("="*80)
+
+    # IMPRIMIR TODO EL REQUEST
+    print(f"📋 URL COMPLETA: {request.url}")
+    print(f"📋 PATH: {request.path}")
+    print(f"📋 ARGS: {dict(request.args)}")
+    print(f"📋 METHOD: {request.method}")
+
+    # HEADERS
+    print(f"\n🔖 HEADERS RECIBIDOS:")
+    for header_name, header_value in request.headers:
+        print(f"   {header_name}: {header_value}")
+
+    # QUERY PARAMS
+    print(f"\n🔍 QUERY PARAMS:")
+    for key, value in request.args.items():
+        print(f"   {key} = {value}")
+
+    # BODY
+    print(f"\n📦 BODY RAW:")
+    try:
+        raw_data = request.get_data(as_text=True)
+        print(f"   Raw data: {raw_data}")
+    except Exception as e:
+        print(f"   Error leyendo raw data: {e}")
+
+    print(f"\n📦 BODY JSON:")
+    try:
+        body = request.get_json(silent=True) or {}
+        print(f"   Parsed JSON: {body}")
+        print(f"   Tipo: {type(body)}")
+
+        if isinstance(body, dict):
+            print(f"   Claves: {list(body.keys())}")
+            for key, value in body.items():
+                print(f"   {key}: {value} (tipo: {type(value)})")
+    except Exception as e:
+        print(f"   Error parseando JSON: {e}")
 
     try:
+        # EMPRESA ID
         empresa_id = request.headers.get("X-Empresa-Id") or request.args.get("empresa_id")
-        print(f"📋 Empresa ID recibido: {empresa_id}")
+        print(f"\n📋 EMPRESA ID:")
+        print(f"   De header X-Empresa-Id: {request.headers.get('X-Empresa-Id')}")
+        print(f"   De query param: {request.args.get('empresa_id')}")
+        print(f"   Empresa ID final: {empresa_id}")
 
         if not empresa_id:
             print("❌ Error: empresa_id no encontrado")
             return jsonify({"ok": False, "error": "empresa_id es requerido"}), 400
-        empresa_id = int(empresa_id)
 
+        empresa_id = int(empresa_id)
+        print(f"   Empresa ID convertido: {empresa_id}")
+
+        # DEFINITIONS
         body = request.get_json(silent=True) or {}
         definitions = body.get("definitions", [])
-        print(f"📝 Body recibido: {body}")
-        print(f"🏗️ Definiciones a procesar: {len(definitions)} campos")
 
+        print(f"\n🏗️ DEFINITIONS:")
+        print(f"   Body completo: {body}")
+        print(f"   Definitions extraídas: {definitions}")
+        print(f"   Tipo definitions: {type(definitions)}")
+        print(f"   Cantidad de definitions: {len(definitions) if isinstance(definitions, list) else 'No es lista'}")
+
+        if isinstance(definitions, list):
+            for idx, definition in enumerate(definitions):
+                print(f"   Definition [{idx}]: {definition}")
+                print(f"   Tipo: {type(definition)}")
+                if isinstance(definition, dict):
+                    print(f"   Claves: {list(definition.keys())}")
+
+        # VALIDACIONES
         if not isinstance(definitions, list):
             print("❌ Error: definitions no es una lista")
             return jsonify({"ok": False, "error": "definitions debe ser una lista"}), 400
@@ -81,17 +139,22 @@ def create_field_definitions(entity: str, json_field: str):
             return jsonify({"ok": False, "error": "definitions no puede estar vacía"}), 400
 
         # Validar que cada definición tenga los campos requeridos
+        print(f"\n🔍 VALIDANDO DEFINITIONS:")
         for idx, definition in enumerate(definitions):
-            print(f"🔍 Validando definición {idx}: {definition}")
+            print(f"   Validando definition {idx}: {definition}")
             if not isinstance(definition, dict):
-                print(f"❌ Error en definición {idx}: no es objeto")
+                print(f"   ❌ Error en definición {idx}: no es objeto")
                 return jsonify({"ok": False, "error": f"definitions[{idx}] debe ser un objeto"}), 400
             if "key" not in definition:
-                print(f"❌ Error en definición {idx}: falta 'key'")
+                print(f"   ❌ Error en definición {idx}: falta 'key'")
                 return jsonify({"ok": False, "error": f"definitions[{idx}] debe incluir 'key'"}), 400
-            print(f"✅ Definición {idx} válida: key='{definition['key']}'")
+            print(f"   ✅ Definition {idx} válida: key='{definition['key']}'")
 
-        print(f"💾 Guardando en BD: entity={entity}, json_column={json_field}, empresa_id={empresa_id}")
+        print(f"\n💾 GUARDANDO EN BD:")
+        print(f"   entity: {entity}")
+        print(f"   json_column: {json_field}")
+        print(f"   empresa_id: {empresa_id}")
+        print(f"   items: {definitions}")
 
         result = schema_model.upsert_definitions(
             empresa_id=empresa_id,
@@ -100,18 +163,29 @@ def create_field_definitions(entity: str, json_field: str):
             items=definitions
         )
 
-        print(f"✅ Guardado exitoso: {len(result)} registros creados/actualizados")
-        return jsonify({
+        print(f"\n✅ RESULTADO:")
+        print(f"   Registros procesados: {len(result)}")
+        print(f"   Resultado completo: {result}")
+
+        response_data = {
             "ok": True,
             "data": result,
             "message": f"Procesadas {len(definitions)} definiciones para {entity}.{json_field}"
-        })
+        }
+
+        print(f"\n📤 RESPUESTA A ENVIAR:")
+        print(f"   {response_data}")
+        print("="*80 + "\n")
+
+        return jsonify(response_data)
 
     except ValueError as ve:
-        print(f"❌ Error de validación: {ve}")
+        print(f"\n❌ ERROR DE VALIDACIÓN: {ve}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"ok": False, "error": str(ve)}), 400
     except Exception as ex:
-        print(f"💥 Error inesperado: {ex}")
+        print(f"\n💥 ERROR INESPERADO: {ex}")
         import traceback
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(ex)}), 500
