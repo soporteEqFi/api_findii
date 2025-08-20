@@ -39,14 +39,16 @@ class DashboardController:
                 print(f"   ❌ Usuario no encontrado en BD")
                 return None
 
-            # Extraer banco_nombre del info_extra del usuario
+            # Extraer banco_nombre y ciudad del info_extra del usuario
             info_extra = user_data.get("info_extra", {})
             banco_nombre = info_extra.get("banco_nombre")
+            ciudad = info_extra.get("ciudad")
 
             usuario_info = {
                 "id": user_data["id"],
                 "rol": user_data.get("rol", "empresa"),
-                "banco_nombre": banco_nombre  # Desde info_extra del usuario
+                "banco_nombre": banco_nombre,  # Desde info_extra del usuario
+                "ciudad": ciudad  # Desde info_extra del usuario
             }
 
             print(f"   ✅ Usuario autenticado: {usuario_info}")
@@ -88,6 +90,8 @@ class DashboardController:
                 if rol == "banco":
                     # Usuario banco solo ve solicitudes de su banco
                     banco_nombre = usuario_info.get("banco_nombre")
+                    ciudad = usuario_info.get("ciudad")
+
                     if banco_nombre:
                         solicitud_query = solicitud_query.eq("banco_nombre", banco_nombre)
                         print(f"   🏦 Aplicando filtro de banco: {banco_nombre}")
@@ -95,6 +99,10 @@ class DashboardController:
                         # Si no tiene banco asignado, no ve nada
                         print(f"   ⚠️ Usuario banco sin banco asignado")
                         return jsonify({"ok": True, "data": []})
+
+                    # Nota: El filtro de ciudad se aplicará después de obtener las solicitudes
+                    # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
+                    print(f"   🏙️ Ciudad del usuario: {ciudad} (se aplicará filtro posterior)")
                 elif rol == "admin":
                     # Admin ve todas las solicitudes
                     print(f"   👑 Admin: viendo todas las solicitudes")
@@ -139,6 +147,30 @@ class DashboardController:
                 refs = [r for r in referencias.data if r.get('solicitante_id') == sol_id]
                 soli = next((s for s in solicitud.data if s.get('solicitante_id') == sol_id), {})
                 ubi = next((u for u in ubicacion.data if u.get('solicitante_id') == sol_id), {})
+
+                                # Aplicar filtro de ciudad para usuarios banco
+                if usuario_info and usuario_info.get("rol") == "banco" and usuario_info.get("ciudad"):
+                    ciudad_usuario = usuario_info.get("ciudad")
+
+                    # Buscar ciudad en el JSON detalle_credito de la solicitud
+                    ciudad_solicitante = None
+                    if soli:
+                        detalle_credito = soli.get('detalle_credito', {})
+                        if isinstance(detalle_credito, str):
+                            import json
+                            try:
+                                detalle_credito = json.loads(detalle_credito)
+                            except:
+                                detalle_credito = {}
+
+                        # Buscar ciudad en la raíz del JSON
+                        ciudad_solicitante = detalle_credito.get('ciudad')
+
+                    if ciudad_solicitante and ciudad_solicitante != ciudad_usuario:
+                        print(f"   🏙️ Saltando solicitante {sol_id} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")
+                        continue
+                    else:
+                        print(f"   🏙️ Ciudad coincidente: {ciudad_solicitante}")
 
                 # Agregar a la respuesta
                 print(f"\n🔗 COMBINANDO DATOS PARA SOLICITANTE {sol_id}:")
