@@ -44,3 +44,15 @@ def actualizar_estado_solicitud():
     return con_solicitudes.actualizar_estado()
 
 
+@solicitudes.route("/asignar-banco", methods=["PATCH"])
+@cross_origin()
+def asignar_banco_solicitud():
+    return con_solicitudes.asignar_banco()
+
+
+@solicitudes.route("/bancos-disponibles", methods=["GET"])
+@cross_origin()
+def obtener_bancos_disponibles():
+    return con_solicitudes.obtener_bancos_disponibles()
+
+

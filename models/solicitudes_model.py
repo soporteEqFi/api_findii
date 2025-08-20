@@ -13,16 +13,18 @@ class SolicitudesModel:
 
     TABLE = "solicitudes"
 
-    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
             "created_by_user_id": created_by_user_id,
-            "estado": estado or "abierta",
+            "estado": estado or "Pendiente",
             "detalle_credito": detalle_credito or {},
         }
         if assigned_to_user_id is not None:
             payload["assigned_to_user_id"] = assigned_to_user_id
+        if banco_nombre is not None:
+            payload["banco_nombre"] = banco_nombre
 
         resp = supabase.table(self.TABLE).insert(payload).execute()
         data = _get_data(resp)
@@ -33,12 +35,14 @@ class SolicitudesModel:
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
 
-    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
         if estado:
             q = q.eq("estado", estado)
         if solicitante_id:
             q = q.eq("solicitante_id", solicitante_id)
+        if banco_nombre:
+            q = q.eq("banco_nombre", banco_nombre)
         q = q.range(offset, offset + max(limit - 1, 0))
         resp = q.execute()
         data = _get_data(resp)

@@ -233,8 +233,26 @@ class SolicitantesController:
                 print(f"\n6️⃣ CREANDO SOLICITUDES...")
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     print(f"   Solicitud {idx + 1}: {solicitud_data}")
+
+                    # Extraer banco desde detalle_credito (campo dinámico)
+                    detalle_credito = solicitud_data.get("detalle_credito", {})
+                    banco_nombre = None
+
+                    # Buscar banco en diferentes ubicaciones posibles dentro de detalle_credito
+                    if "banco" in detalle_credito:
+                        banco_nombre = detalle_credito["banco"]
+                    elif "tipo_credito_testeo" in detalle_credito:
+                        tipo_credito = detalle_credito["tipo_credito_testeo"]
+                        if "nombre_banco" in tipo_credito:
+                            banco_nombre = tipo_credito["nombre_banco"]
+
+                    print(f"   🏦 Banco extraído: {banco_nombre}")
+
+                    # Preparar datos para el modelo
                     solicitud_data["empresa_id"] = empresa_id
                     solicitud_data["solicitante_id"] = solicitante_id
+                    if banco_nombre:
+                        solicitud_data["banco_nombre"] = banco_nombre
 
                     solicitud_creada = self.solicitudes_model.create(**solicitud_data)
                     solicitudes_creadas.append(solicitud_creada)
