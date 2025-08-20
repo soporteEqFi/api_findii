@@ -103,4 +103,63 @@ class SolicitudesController:
         except Exception as ex:  # noqa: BLE001
             return jsonify({"ok": False, "error": str(ex)}), 500
 
+    def actualizar_estado(self):
+        """Actualizar solo el estado de una solicitud"""
+        try:
+            empresa_id = self._empresa_id()
+            body = request.get_json(silent=True) or {}
+            print(body)
+
+            # Validar campos requeridos
+            if not body.get("id"):
+                return jsonify({"ok": False, "error": "ID de la solicitud es requerido"}), 400
+
+            if not body.get("estado"):
+                return jsonify({"ok": False, "error": "Nuevo estado es requerido"}), 400
+
+            solicitud_id = int(body["id"])
+            nuevo_estado = body["estado"]
+
+            print(f"\n🔄 ACTUALIZANDO ESTADO DE SOLICITUD:")
+            print(f"   📋 Empresa ID: {empresa_id}")
+            print(f"   🆔 Solicitud ID: {solicitud_id}")
+            print(f"   📊 Nuevo estado: {nuevo_estado}")
+
+            # Verificar si la solicitud existe antes de actualizar
+            print(f"\n🔍 VERIFICANDO EXISTENCIA DE SOLICITUD...")
+            solicitud_existente = self.model.get_by_id(id=solicitud_id, empresa_id=empresa_id)
+            if not solicitud_existente:
+                print(f"   ❌ Solicitud {solicitud_id} no encontrada en empresa {empresa_id}")
+                return jsonify({"ok": False, "error": f"Solicitud {solicitud_id} no encontrada"}), 404
+
+            print(f"   ✅ Solicitud encontrada: {solicitud_existente.get('estado', 'N/A')}")
+
+            # Actualizar solo el estado
+            print(f"\n📝 ACTUALIZANDO ESTADO...")
+            data = self.model.update(
+                id=solicitud_id,
+                empresa_id=empresa_id,
+                base_updates={"estado": nuevo_estado},
+                detalle_credito_merge=None
+            )
+
+            if not data:
+                print(f"   ❌ Error al actualizar la solicitud")
+                return jsonify({"ok": False, "error": "Error al actualizar la solicitud"}), 500
+
+            print(f"   ✅ Estado actualizado exitosamente")
+
+            response_data = {
+                "ok": True,
+                "data": data,
+                "message": f"Estado de solicitud {solicitud_id} actualizado a '{nuevo_estado}'"
+            }
+
+            return jsonify(response_data)
+
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
 

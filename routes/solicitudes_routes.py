@@ -38,3 +38,9 @@ def delete_solicitud(id: int):
     return con_solicitudes.delete(id)
 
 
+@solicitudes.route("/actualizar-estado", methods=["PATCH"])
+@cross_origin()
+def actualizar_estado_solicitud():
+    return con_solicitudes.actualizar_estado()
+
+
