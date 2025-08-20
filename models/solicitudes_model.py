@@ -89,4 +89,73 @@ class SolicitudesModel:
             return len(data)
         return 0
 
+    def list_con_filtros_rol(self, *, empresa_id: int, usuario_info: dict = None, estado: Optional[str] = None, solicitante_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Listar solicitudes aplicando filtros de permisos por rol"""
+        q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
+
+        # Aplicar filtros básicos
+        if estado:
+            q = q.eq("estado", estado)
+        if solicitante_id:
+            q = q.eq("solicitante_id", solicitante_id)
+
+        # Aplicar filtros de permisos por rol
+        if usuario_info:
+            rol = usuario_info.get("rol")
+
+            if rol == "admin":
+                # Admin ve todas las solicitudes de la empresa
+                pass
+            elif rol == "banco":
+                # Usuario banco solo ve solicitudes de su banco
+                banco_nombre = usuario_info.get("banco_nombre")
+                if banco_nombre:
+                    q = q.eq("banco_nombre", banco_nombre)
+                else:
+                    # Si no tiene banco asignado, no ve nada
+                    return []
+            elif rol == "empresa":
+                # Usuario empresa ve todas las solicitudes de su empresa
+                pass
+            else:
+                # Rol desconocido, no ve nada
+                return []
+
+        # Aplicar paginación
+        q = q.range(offset, offset + max(limit - 1, 0))
+
+        resp = q.execute()
+        data = _get_data(resp)
+        return data or []
+
+    def get_by_id_con_filtros_rol(self, *, id: int, empresa_id: int, usuario_info: dict = None) -> Optional[Dict[str, Any]]:
+        """Obtener una solicitud específica aplicando filtros de permisos por rol"""
+        q = supabase.table(self.TABLE).select("*").eq("id", id).eq("empresa_id", empresa_id)
+
+        # Aplicar filtros de permisos por rol
+        if usuario_info:
+            rol = usuario_info.get("rol")
+
+            if rol == "admin":
+                # Admin ve todas las solicitudes de la empresa
+                pass
+            elif rol == "banco":
+                # Usuario banco solo ve solicitudes de su banco
+                banco_nombre = usuario_info.get("banco_nombre")
+                if banco_nombre:
+                    q = q.eq("banco_nombre", banco_nombre)
+                else:
+                    # Si no tiene banco asignado, no ve nada
+                    return None
+            elif rol == "empresa":
+                # Usuario empresa ve todas las solicitudes de su empresa
+                pass
+            else:
+                # Rol desconocido, no ve nada
+                return None
+
+        resp = q.execute()
+        data = _get_data(resp)
+        return data[0] if isinstance(data, list) and data else None
+
 

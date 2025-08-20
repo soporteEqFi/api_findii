@@ -248,11 +248,18 @@ class SolicitantesController:
 
                     print(f"   🏦 Banco extraído: {banco_nombre}")
 
+                    # SINCRONIZAR el banco en todos los lugares donde debe aparecer
+                    if banco_nombre:
+                        detalle_credito["banco"] = banco_nombre
+                        if "tipo_credito_testeo" in detalle_credito:
+                            detalle_credito["tipo_credito_testeo"]["nombre_banco"] = banco_nombre
+
                     # Preparar datos para el modelo
                     solicitud_data["empresa_id"] = empresa_id
                     solicitud_data["solicitante_id"] = solicitante_id
                     if banco_nombre:
                         solicitud_data["banco_nombre"] = banco_nombre
+                    solicitud_data["detalle_credito"] = detalle_credito  # Con banco sincronizado
 
                     solicitud_creada = self.solicitudes_model.create(**solicitud_data)
                     solicitudes_creadas.append(solicitud_creada)

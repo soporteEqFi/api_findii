@@ -19,6 +19,64 @@ class SolicitudesController:
         except Exception as exc:  # noqa: B902
             raise ValueError("empresa_id debe ser entero") from exc
 
+    def _obtener_usuario_autenticado(self):
+        """Obtener información del usuario autenticado desde la base de datos"""
+        try:
+            # Obtener el token del header Authorization
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return None
+
+            # Por ahora, usaremos un header personalizado para el user_id
+            # En una implementación real, decodificarías el JWT aquí
+            user_id = request.headers.get("X-User-Id")
+            if not user_id:
+                return None
+
+            # Consultar la base de datos para obtener información completa del usuario
+            from data.supabase_conn import supabase
+
+            user_response = supabase.table("usuarios").select("id, rol, info_extra").eq("id", int(user_id)).execute()
+            user_data = user_response.data[0] if user_response.data else None
+
+            if not user_data:
+                return None
+
+            # Extraer banco_nombre del info_extra del usuario
+            info_extra = user_data.get("info_extra", {})
+            banco_nombre = info_extra.get("banco_nombre")
+
+            return {
+                "id": user_data["id"],
+                "rol": user_data.get("rol", "empresa"),
+                "banco_nombre": banco_nombre  # Desde info_extra del usuario
+            }
+        except Exception as e:
+            print(f"Error obteniendo usuario autenticado: {e}")
+            return None
+
+    def _aplicar_filtros_por_rol(self, query, usuario_info):
+        """Aplicar filtros de permisos basados en el rol del usuario"""
+        if not usuario_info:
+            return query
+
+        rol = usuario_info.get("rol")
+
+        if rol == "admin":
+            # Admin ve todas las solicitudes de la empresa
+            return query
+        elif rol == "banco":
+            # Usuario banco solo ve solicitudes de su banco
+            banco_nombre = usuario_info.get("banco_nombre")
+            if banco_nombre:
+                return query.eq("banco_nombre", banco_nombre)
+            else:
+                # Si no tiene banco asignado, no ve nada
+                return query.eq("id", -1)  # Query imposible
+        else:
+            # Rol desconocido, no ve nada
+            return query.eq("id", -1)  # Query imposible
+
     def obtener_bancos_disponibles(self):
         """Obtener lista de bancos desde campos dinámicos"""
         try:
@@ -77,9 +135,17 @@ class SolicitudesController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            # Extraer banco desde detalle_credito.banco (campo dinámico)
+            # Extraer banco desde detalle_credito (campo dinámico)
             detalle_credito = body.get("detalle_credito", {})
-            banco_nombre = detalle_credito.get("banco")
+            banco_nombre = None
+
+            # Buscar banco en diferentes ubicaciones posibles dentro de detalle_credito
+            if "banco" in detalle_credito:
+                banco_nombre = detalle_credito["banco"]
+            elif "tipo_credito_testeo" in detalle_credito:
+                tipo_credito = detalle_credito["tipo_credito_testeo"]
+                if "nombre_banco" in tipo_credito:
+                    banco_nombre = tipo_credito["nombre_banco"]
 
             if not banco_nombre:
                 return jsonify({"ok": False, "error": "banco es requerido en detalle_credito"}), 400
@@ -91,9 +157,14 @@ class SolicitudesController:
                 print(f"   ⚠️ Banco '{banco_nombre}' no está en la lista de bancos disponibles")
                 print(f"   📋 Bancos válidos: {bancos_disponibles}")
 
+            # SINCRONIZAR el banco en todos los lugares donde debe aparecer
+            detalle_credito["banco"] = banco_nombre
+            if "tipo_credito_testeo" in detalle_credito:
+                detalle_credito["tipo_credito_testeo"]["nombre_banco"] = banco_nombre
+
             print(f"\n📝 CREANDO SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🏦 Banco extraído de detalle_credito: {banco_nombre}")
+            print(f"   🏦 Banco extraído y sincronizado: {banco_nombre}")
 
             data = self.model.create(
                 empresa_id=empresa_id,
@@ -102,7 +173,7 @@ class SolicitudesController:
                 assigned_to_user_id=body.get("assigned_to_user_id"),
                 banco_nombre=banco_nombre,  # Asignar a la columna banco_nombre
                 estado=body.get("estado"),
-                detalle_credito=detalle_credito,  # Guardar todo el detalle_credito incluyendo banco
+                detalle_credito=detalle_credito,  # Guardar con banco sincronizado
             )
 
             print(f"   ✅ Solicitud creada con ID: {data.get('id')}")
@@ -140,9 +211,18 @@ class SolicitudesController:
     def get_one(self, id: int):
         try:
             empresa_id = self._empresa_id()
-            data = self.model.get_by_id(id=id, empresa_id=empresa_id)
+
+            # Obtener información del usuario autenticado
+            usuario_info = self._obtener_usuario_autenticado()
+
+            data = self.model.get_by_id_con_filtros_rol(
+                id=id,
+                empresa_id=empresa_id,
+                usuario_info=usuario_info
+            )
+
             if not data:
-                return jsonify({"ok": False, "error": "No encontrado"}), 404
+                return jsonify({"ok": False, "error": "No encontrado o sin permisos"}), 404
             return jsonify({"ok": True, "data": data})
         except ValueError as ve:
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -158,16 +238,18 @@ class SolicitudesController:
             limit = int(request.args.get("limit", 50))
             offset = int(request.args.get("offset", 0))
 
-            # TODO: Implementar lógica de permisos basada en usuario autenticado
-            # Por ahora, obtener todas las solicitudes de la empresa
-            # En el futuro: filtrar por rol del usuario (admin/banco/empresa)
+            # Obtener información del usuario autenticado
+            usuario_info = self._obtener_usuario_autenticado()
 
             print(f"\n📋 LISTANDO SOLICITUDES:")
             print(f"   📋 Empresa ID: {empresa_id}")
+            print(f"   👤 Usuario: {usuario_info}")
             print(f"   🔍 Filtros: estado={estado}, solicitante_id={solicitante_id}")
 
-            data = self.model.list(
+            # Aplicar filtros de permisos por rol
+            data = self.model.list_con_filtros_rol(
                 empresa_id=empresa_id,
+                usuario_info=usuario_info,
                 estado=estado,
                 solicitante_id=solicitante_id,
                 limit=limit,
