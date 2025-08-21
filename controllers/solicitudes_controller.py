@@ -42,14 +42,16 @@ class SolicitudesController:
             if not user_data:
                 return None
 
-            # Extraer banco_nombre del info_extra del usuario
+            # Extraer banco_nombre y ciudad del info_extra del usuario
             info_extra = user_data.get("info_extra", {})
             banco_nombre = info_extra.get("banco_nombre")
+            ciudad = info_extra.get("ciudad")
 
             return {
                 "id": user_data["id"],
                 "rol": user_data.get("rol", "empresa"),
-                "banco_nombre": banco_nombre  # Desde info_extra del usuario
+                "banco_nombre": banco_nombre,  # Desde info_extra del usuario
+                "ciudad": ciudad  # Desde info_extra del usuario
             }
         except Exception as e:
             print(f"Error obteniendo usuario autenticado: {e}")
@@ -68,11 +70,19 @@ class SolicitudesController:
         elif rol == "banco":
             # Usuario banco solo ve solicitudes de su banco
             banco_nombre = usuario_info.get("banco_nombre")
+            ciudad = usuario_info.get("ciudad")
+
             if banco_nombre:
-                return query.eq("banco_nombre", banco_nombre)
+                query = query.eq("banco_nombre", banco_nombre)
             else:
                 # Si no tiene banco asignado, no ve nada
                 return query.eq("id", -1)  # Query imposible
+
+            # Nota: El filtro de ciudad se manejará a nivel de aplicación
+            # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
+            print(f"   🏙️ Ciudad del usuario: {ciudad} (se aplicará filtro posterior)")
+
+            return query
         else:
             # Rol desconocido, no ve nada
             return query.eq("id", -1)  # Query imposible
@@ -139,13 +149,8 @@ class SolicitudesController:
             detalle_credito = body.get("detalle_credito", {})
             banco_nombre = None
 
-            # Buscar banco en diferentes ubicaciones posibles dentro de detalle_credito
-            if "banco" in detalle_credito:
-                banco_nombre = detalle_credito["banco"]
-            elif "tipo_credito_testeo" in detalle_credito:
-                tipo_credito = detalle_credito["tipo_credito_testeo"]
-                if "nombre_banco" in tipo_credito:
-                    banco_nombre = tipo_credito["nombre_banco"]
+            # Buscar banco en la raíz del JSON detalle_credito
+            banco_nombre = detalle_credito.get("banco")
 
             if not banco_nombre:
                 return jsonify({"ok": False, "error": "banco es requerido en detalle_credito"}), 400
@@ -157,10 +162,8 @@ class SolicitudesController:
                 print(f"   ⚠️ Banco '{banco_nombre}' no está en la lista de bancos disponibles")
                 print(f"   📋 Bancos válidos: {bancos_disponibles}")
 
-            # SINCRONIZAR el banco en todos los lugares donde debe aparecer
+            # Asegurar que el banco esté en la raíz del JSON
             detalle_credito["banco"] = banco_nombre
-            if "tipo_credito_testeo" in detalle_credito:
-                detalle_credito["tipo_credito_testeo"]["nombre_banco"] = banco_nombre
 
             print(f"\n📝 CREANDO SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")
@@ -255,6 +258,34 @@ class SolicitudesController:
                 limit=limit,
                 offset=offset,
             )
+
+                        # Aplicar filtro de ciudad para usuarios banco
+            if usuario_info and usuario_info.get("rol") == "banco" and usuario_info.get("ciudad"):
+                ciudad_usuario = usuario_info.get("ciudad")
+                print(f"   🏙️ Aplicando filtro de ciudad: {ciudad_usuario}")
+
+                # Filtrar solicitudes por ciudad desde el JSON detalle_credito
+                solicitudes_filtradas = []
+                for solicitud in data:
+                    detalle_credito = solicitud.get('detalle_credito', {})
+                    if isinstance(detalle_credito, str):
+                        import json
+                        try:
+                            detalle_credito = json.loads(detalle_credito)
+                        except:
+                            detalle_credito = {}
+
+                                        # Buscar ciudad en la raíz del JSON
+                    ciudad_solicitante = detalle_credito.get('ciudad')
+
+                    if ciudad_solicitante == ciudad_usuario:
+                        solicitudes_filtradas.append(solicitud)
+                        print(f"   🏙️ Incluyendo solicitud {solicitud.get('id')} (ciudad: {ciudad_solicitante})")
+                    else:
+                        print(f"   🏙️ Saltando solicitud {solicitud.get('id')} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")
+
+                data = solicitudes_filtradas
+                print(f"   📄 Solicitudes después del filtro de ciudad: {len(data)}")
 
             print(f"   📄 Solicitudes encontradas: {len(data)}")
             return jsonify({"ok": True, "data": data})

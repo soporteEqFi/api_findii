@@ -109,11 +109,16 @@ class SolicitudesModel:
             elif rol == "banco":
                 # Usuario banco solo ve solicitudes de su banco
                 banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+
                 if banco_nombre:
                     q = q.eq("banco_nombre", banco_nombre)
                 else:
                     # Si no tiene banco asignado, no ve nada
                     return []
+
+                # Nota: El filtro de ciudad se manejará a nivel de aplicación
+                # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
@@ -142,11 +147,16 @@ class SolicitudesModel:
             elif rol == "banco":
                 # Usuario banco solo ve solicitudes de su banco
                 banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+
                 if banco_nombre:
                     q = q.eq("banco_nombre", banco_nombre)
                 else:
                     # Si no tiene banco asignado, no ve nada
                     return None
+
+                # Nota: El filtro de ciudad se manejará a nivel de aplicación
+                # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass

@@ -316,21 +316,14 @@ class SolicitantesController:
                     detalle_credito = solicitud_data.get("detalle_credito", {})
                     banco_nombre = None
 
-                    # Buscar banco en diferentes ubicaciones posibles dentro de detalle_credito
-                    if "banco" in detalle_credito:
-                        banco_nombre = detalle_credito["banco"]
-                    elif "tipo_credito_testeo" in detalle_credito:
-                        tipo_credito = detalle_credito["tipo_credito_testeo"]
-                        if "nombre_banco" in tipo_credito:
-                            banco_nombre = tipo_credito["nombre_banco"]
+                    # Buscar banco en la raíz del JSON detalle_credito
+                    banco_nombre = detalle_credito.get("banco")
 
                     print(f"   🏦 Banco extraído: {banco_nombre}")
 
-                    # SINCRONIZAR el banco en todos los lugares donde debe aparecer
+                    # Asegurar que el banco esté en la raíz del JSON
                     if banco_nombre:
                         detalle_credito["banco"] = banco_nombre
-                        if "tipo_credito_testeo" in detalle_credito:
-                            detalle_credito["tipo_credito_testeo"]["nombre_banco"] = banco_nombre
 
                     # Preparar datos para el modelo
                     solicitud_data["empresa_id"] = empresa_id
