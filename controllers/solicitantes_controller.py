@@ -11,6 +11,12 @@ from utils.debug_helpers import (
     log_request_details, log_validation_results,
     log_data_to_save, log_operation_result, log_response, log_error
 )
+import json
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from data.supabase_conn import supabase
+from models.documentos_model import DocumentosModel
 
 
 class SolicitantesController:
@@ -21,6 +27,7 @@ class SolicitantesController:
         self.financiera_model = InformacionFinancieraModel()
         self.referencias_model = ReferenciasModel()
         self.solicitudes_model = SolicitudesModel()
+        self.documentos_model = DocumentosModel()
 
     def _empresa_id(self) -> int:
         empresa_id = request.headers.get("X-Empresa-Id") or request.args.get("empresa_id")
@@ -137,7 +144,31 @@ class SolicitantesController:
 
         try:
             empresa_id = self._empresa_id()
-            body = request.get_json(silent=True) or {}
+
+            # Soportar JSON puro y multipart/form-data con 'payload' + archivos
+            content_type = request.content_type or ""
+            if "multipart/form-data" in content_type:
+                print(f"   📨 Content-Type recibido: {content_type}")
+                try:
+                    print(f"   📝 Form keys: {list(request.form.keys())}")
+                    print(f"   📁 Files keys: {list(request.files.keys())}")
+                except Exception as _e:
+                    print(f"   ⚠️ No se pudieron listar keys de form/files: {_e}")
+                raw_payload = request.form.get("payload")
+                body = json.loads(raw_payload) if raw_payload else {}
+                # Recolectar posibles campos de archivos enviados
+                files_list = []
+                for key in [
+                    "documentos", "documentos[]", "files", "files[]", "file"
+                ]:
+                    if key in request.files:
+                        # getlist también funciona para una sola entrada
+                        files_list.extend(request.files.getlist(key))
+                print(f"   📎 Archivos recibidos (multipart): {len(files_list)}")
+            else:
+                print(f"   📨 Content-Type recibido: {content_type} (sin multipart, no hay archivos)")
+                body = request.get_json(silent=True) or {}
+                files_list = []
 
             print(f"\n📋 EMPRESA ID: {empresa_id}")
             print(f"\n📦 DATOS RECIBIDOS:")
@@ -170,6 +201,53 @@ class SolicitantesController:
             solicitante_creado = self.model.create(**datos_solicitante)
             solicitante_id = solicitante_creado["id"]
             print(f"   ✅ Solicitante creado con ID: {solicitante_id}")
+
+            # 1.b SUBIR DOCUMENTOS (si vinieron en multipart)
+            documentos_creados = []
+            if files_list:
+                print(f"\n1️⃣b SUBIENDO DOCUMENTOS ({len(files_list)})...")
+                storage = supabase.storage.from_("document")
+                for idx, file in enumerate(files_list):
+                    try:
+                        original_name = secure_filename(file.filename or f"documento_{idx+1}")
+                        ext = os.path.splitext(original_name)[1]
+                        unique_name = f"{uuid.uuid4().hex}{ext}" if ext else uuid.uuid4().hex
+                        storage_path = f"solicitantes/{solicitante_id}/{unique_name}"
+
+                        content_type = getattr(file, "mimetype", None) or "application/octet-stream"
+                        file_bytes = file.read()
+                        storage.upload(
+                            storage_path,
+                            file_bytes,
+                            file_options={
+                                "content-type": content_type,
+                                "upsert": "true",
+                            },
+                        )
+
+                        public_url_resp = storage.get_public_url(storage_path)
+                        public_url = None
+                        if isinstance(public_url_resp, dict):
+                            public_url = public_url_resp.get("publicUrl") or (
+                                public_url_resp.get("data", {}) if isinstance(public_url_resp.get("data"), dict) else {}
+                            ).get("publicUrl")
+                        elif hasattr(public_url_resp, "data"):
+                            data_dict = getattr(public_url_resp, "data", {})
+                            if isinstance(data_dict, dict):
+                                public_url = data_dict.get("publicUrl")
+                        if not public_url:
+                            public_url = str(public_url_resp)
+
+                        doc_saved = self.documentos_model.create(
+                            nombre=original_name,
+                            documento_url=public_url,
+                            solicitante_id=solicitante_id,
+                        )
+                        documentos_creados.append(doc_saved)
+                        print(f"   ✅ Documento subido: {original_name}")
+                    except Exception as e:
+                        print(f"   ❌ Error subiendo documento {idx+1}: {e}")
+                print(f"   📊 Total documentos subidos y guardados: {len(documentos_creados)}")
 
             # 2. CREAR UBICACIONES
             ubicaciones_creadas = []
@@ -278,6 +356,7 @@ class SolicitantesController:
                     "informacion_financiera": financiera_creada,
                     "referencias": referencias_creadas,
                     "solicitudes": solicitudes_creadas,
+                    "documentos": documentos_creados,
                     "resumen": {
                         "solicitante_id": solicitante_id,
                         "total_ubicaciones": len(ubicaciones_creadas),
@@ -371,7 +450,16 @@ class SolicitantesController:
                 print(f"   ❌ Error obteniendo solicitudes: {e}")
                 solicitudes = []
 
-            # 7. Combinar toda la información
+            # 7. Obtener documentos
+            print(f"\n7️⃣ OBTENIENDO DOCUMENTOS...")
+            try:
+                documentos = self.documentos_model.list(solicitante_id=solicitante_id)
+                print(f"   📎 Documentos encontrados: {len(documentos) if documentos else 0}")
+            except Exception as e:
+                print(f"   ❌ Error obteniendo documentos: {e}")
+                documentos = []
+
+            # 8. Combinar toda la información
             print(f"\n🔗 COMBINANDO INFORMACIÓN...")
             datos_completos = {
                 "solicitante": solicitante,
@@ -380,12 +468,14 @@ class SolicitantesController:
                 "informacion_financiera": informacion_financiera,
                 "referencias": referencias or [],
                 "solicitudes": solicitudes or [],
+                "documentos": documentos or [],
                 "resumen": {
                     "total_ubicaciones": len(ubicaciones) if ubicaciones else 0,
                     "tiene_actividad_economica": bool(actividad_economica),
                     "tiene_informacion_financiera": bool(informacion_financiera),
                     "total_referencias": len(referencias) if referencias else 0,
-                    "total_solicitudes": len(solicitudes) if solicitudes else 0
+                    "total_solicitudes": len(solicitudes) if solicitudes else 0,
+                    "total_documentos": len(documentos) if documentos else 0
                 }
             }
 

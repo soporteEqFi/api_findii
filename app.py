@@ -13,6 +13,7 @@ from routes.referencias_routes import referencias
 from routes.auth_routes import auth
 from routes.schema_completo_routes import schema_completo
 from routes.dashboard_routes import dashboard_bp as dashboard
+from routes.documentos_routes import documentos
 
 load_dotenv()
 
@@ -31,6 +32,7 @@ app.register_blueprint(actividad_economica, url_prefix="/actividad_economica")
 app.register_blueprint(informacion_financiera, url_prefix="/informacion_financiera")
 app.register_blueprint(referencias, url_prefix="/referencias")
 app.register_blueprint(dashboard, url_prefix="/dashboard")
+app.register_blueprint(documentos, url_prefix="/documentos")
 
 def pagina_no_encontrada(error):
     return "<h1>Pagina no encontrada ...<h1>"
