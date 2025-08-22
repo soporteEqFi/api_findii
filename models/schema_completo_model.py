@@ -29,16 +29,7 @@ class SchemaCompletoModel:
             "actividad_economica": {
                 "table": "actividad_economica",
                 "json_column": "detalle_actividad",
-                "campos_fijos": [
-                    {"key": "tipo_actividad", "type": "string", "required": True, "description": "Tipo de actividad económica"},
-                    {"key": "codigo_ciiu", "type": "string", "required": True, "description": "Código CIUU"},
-                    {"key": "departamento_empresa", "type": "string", "required": True, "description": "Departamento de la empresa"},
-                    {"key": "ciudad_empresa", "type": "string", "required": True, "description": "Ciudad de la empresa"},
-                    {"key": "telefono_empresa", "type": "string", "required": True, "description": "Teléfono de la empresa"},
-                    {"key": "correo_oficina", "type": "string", "required": True, "description": "Correo electrónico de la empresa"},
-                    {"key": "nit_empresa", "type": "string", "required": True, "description": "NIT de la empresa"},
-                    {"key": "sector_economico", "type": "string", "required": True, "description": "Sector económico"}
-                ]
+                "campos_fijos": []
             },
             "informacion_financiera": {
                 "table": "informacion_financiera",

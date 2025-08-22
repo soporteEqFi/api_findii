@@ -23,7 +23,7 @@ class ActividadEconomicaController:
             body = request.get_json(silent=True) or {}
 
             # Campos requeridos
-            required_fields = ["solicitante_id", "tipo_actividad", "sector_economico"]
+            required_fields = ["solicitante_id"]
             for field in required_fields:
                 if not body.get(field):
                     raise ValueError(f"Campo requerido: {field}")
@@ -31,8 +31,6 @@ class ActividadEconomicaController:
             data = self.model.create(
                 empresa_id=empresa_id,
                 solicitante_id=body["solicitante_id"],
-                tipo_actividad=body["tipo_actividad"],
-                sector_economico=body["sector_economico"],
                 detalle_actividad=body.get("detalle_actividad"),
             )
             return jsonify({"ok": True, "data": data}), 201
