@@ -15,7 +15,7 @@ class JSONSchemaModel:
     TABLE = "json_field_definition"
 
     def get_schema(self, *, empresa_id: int, entity: str, json_column: str) -> List[Dict[str, Any]]:
-        resp = supabase.table(self.TABLE).select("id, empresa_id, entity, json_column, key, type, required, list_values, description, default_value, created_at").eq("empresa_id", empresa_id).eq("entity", entity).eq("json_column", json_column).execute()
+        resp = supabase.table(self.TABLE).select("id, empresa_id, entity, json_column, key, type, required, list_values, description, default_value, conditional_on, created_at").eq("empresa_id", empresa_id).eq("entity", entity).eq("json_column", json_column).execute()
         data = _get_resp_data(resp)
         return data or []
 
@@ -43,6 +43,7 @@ class JSONSchemaModel:
                 "list_values": it.get("list_values"),
                 "description": it.get("description"),
                 "default_value": it.get("default_value"),
+                "conditional_on": it.get("conditional_on"),
             }
             print(f"✅ Item normalizado: {normalized_item}")
             payload.append(normalized_item)

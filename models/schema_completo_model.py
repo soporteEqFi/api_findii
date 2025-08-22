@@ -95,7 +95,8 @@ class SchemaCompletoModel:
                     "required": campo.get("required", False),
                     "description": campo.get("description", ""),
                     "default_value": campo.get("default_value"),
-                    "list_values": campo.get("list_values")
+                    "list_values": campo.get("list_values"),
+                    "conditional_on": campo.get("conditional_on")
                 }
                 campos_dinamicos_formateados.append(campo_formateado)
 

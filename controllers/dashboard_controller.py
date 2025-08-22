@@ -6,13 +6,8 @@ class DashboardController:
     def _obtener_usuario_autenticado():
         """Obtener información del usuario autenticado desde la base de datos"""
         try:
-            print(f"\n🔍 DIAGNÓSTICO DE AUTENTICACIÓN:")
-            print(f"   Headers recibidos: {dict(request.headers)}")
-            print(f"   Query params: {dict(request.args)}")
-
             # Obtener el token del header Authorization
             auth_header = request.headers.get("Authorization")
-            print(f"   Authorization header: {auth_header}")
 
             if not auth_header or not auth_header.startswith("Bearer "):
                 print(f"   ❌ Authorization header inválido o faltante")
@@ -20,9 +15,6 @@ class DashboardController:
 
             # Obtener user_id del header o query parameter
             user_id = request.headers.get("X-User-Id") or request.args.get("user_id")
-            print(f"   User ID (header): {request.headers.get('X-User-Id')}")
-            print(f"   User ID (query): {request.args.get('user_id')}")
-            print(f"   User ID final: {user_id}")
 
             if not user_id:
                 print(f"   ❌ User ID faltante (header X-User-Id o query user_id)")
@@ -51,7 +43,6 @@ class DashboardController:
                 "ciudad": ciudad  # Desde info_extra del usuario
             }
 
-            print(f"   ✅ Usuario autenticado: {usuario_info}")
             return usuario_info
 
         except Exception as e:
@@ -131,14 +122,11 @@ class DashboardController:
                 for s in solicitud.data:
                     solicitantes_con_solicitudes.add(s.get('solicitante_id'))
 
-            print(f"   🎯 Solicitantes con solicitudes filtradas: {solicitantes_con_solicitudes}")
-
             for sol in solicitante_data.data:
                 sol_id = sol['id']
 
                 # Solo incluir solicitantes que tienen solicitudes filtradas
                 if sol_id not in solicitantes_con_solicitudes:
-                    print(f"   ⏭️ Saltando solicitante {sol_id} (sin solicitudes filtradas)")
                     continue
 
                 # Encontrar datos relacionados
@@ -171,10 +159,6 @@ class DashboardController:
                         continue
                     else:
                         print(f"   🏙️ Ciudad coincidente: {ciudad_solicitante}")
-
-                # Agregar a la respuesta
-                print(f"\n🔗 COMBINANDO DATOS PARA SOLICITANTE {sol_id}:")
-                print(f"   📄 Solicitud: {'✅ ID ' + str(soli.get('id')) + ' - Estado: ' + str(soli.get('estado')) + ' - Banco: ' + str(soli.get('banco_nombre')) if soli else '❌ No encontrada'}")
 
                 response_data.append({
                     "solicitante": sol,
