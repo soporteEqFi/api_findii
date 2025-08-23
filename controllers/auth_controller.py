@@ -63,6 +63,8 @@ class AuthController:
                 expires_delta=expires
             )
 
+            print(f"Usuario: {usuario}")
+
             return jsonify({
                 "ok": True,
                 "access_token": access_token,
@@ -71,7 +73,8 @@ class AuthController:
                     "nombre": usuario["nombre"],
                     "email": usuario["email"],
                     "rol": usuario["rol"],
-                    "cedula": usuario["cedula"]
+                    "cedula": usuario["cedula"],
+                    "info_extra": usuario["info_extra"]
                 },
                 "message": "Login exitoso"
             }), 200
@@ -106,7 +109,8 @@ class AuthController:
                     "nombre": usuario["nombre"],
                     "email": usuario["email"],
                     "rol": usuario["rol"],
-                    "cedula": usuario["cedula"]
+                    "cedula": usuario["cedula"],
+                    "info_extra": usuario["info_extra"]
                 },
                 "message": "Token válido"
             }), 200
@@ -175,7 +179,8 @@ class AuthController:
                     "nombre": usuario["nombre"],
                     "email": usuario["email"],
                     "rol": usuario["rol"],
-                    "cedula": usuario["cedula"]
+                    "cedula": usuario["cedula"],
+                    "info_extra": usuario["info_extra"]
                 },
                 "message": "Token renovado exitosamente"
             }), 200

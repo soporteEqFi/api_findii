@@ -21,7 +21,7 @@ class AuthModel:
 
         resp = (
             supabase.table(self.usuarios_table)
-            .select("id, nombre, cedula, correo, contraseña, rol, created_at")
+            .select("id, nombre, cedula, correo, contraseña, rol, info_extra, created_at")
             .eq("correo", correo)
             .execute()
         )
@@ -49,7 +49,8 @@ class AuthModel:
             "cedula": usuario["cedula"],
             "rol": rol_info.get("nombre", usuario.get("rol")),
             "rol_id": usuario.get("rol"),
-            "created_at": usuario.get("created_at")
+            "created_at": usuario.get("created_at"),
+            "info_extra": usuario.get("info_extra")
         }
 
     def _verify_password(self, plain_password: str, hashed_password: str) -> bool:
@@ -83,7 +84,7 @@ class AuthModel:
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
         """Obtiene usuario por ID (para validar tokens)."""
-        resp = supabase.table(self.usuarios_table).select("id, nombre, cedula, correo, rol, created_at").eq("id", user_id).execute()
+        resp = supabase.table(self.usuarios_table).select("id, nombre, cedula, correo, rol, info_extra, created_at").eq("id", user_id).execute()
 
         data = _get_data(resp)
         if not data or len(data) == 0:
@@ -99,7 +100,8 @@ class AuthModel:
             "cedula": usuario["cedula"],
             "rol": rol_info.get("nombre", usuario.get("rol")),
             "rol_id": usuario.get("rol"),
-            "created_at": usuario.get("created_at")
+            "created_at": usuario.get("created_at"),
+            "info_extra": usuario.get("info_extra")
         }
 
     def hash_password(self, password: str) -> str:
