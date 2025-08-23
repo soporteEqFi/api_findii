@@ -68,7 +68,7 @@ class SolicitudesController:
             # Admin ve todas las solicitudes de la empresa
             return query
         elif rol == "banco":
-            # Usuario banco solo ve solicitudes de su banco
+            # Usuario banco solo ve solicitudes de su banco y ciudad
             banco_nombre = usuario_info.get("banco_nombre")
             ciudad = usuario_info.get("ciudad")
 
@@ -78,9 +78,12 @@ class SolicitudesController:
                 # Si no tiene banco asignado, no ve nada
                 return query.eq("id", -1)  # Query imposible
 
-            # Nota: El filtro de ciudad se manejará a nivel de aplicación
-            # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
-            print(f"   🏙️ Ciudad del usuario: {ciudad} (se aplicará filtro posterior)")
+            # Aplicar filtro de ciudad si está disponible
+            if ciudad:
+                query = query.eq("ciudad", ciudad)
+                print(f"   🏙️ Aplicando filtro de ciudad: {ciudad}")
+            else:
+                print(f"   ⚠️ Usuario banco no tiene ciudad asignada")
 
             return query
         else:
@@ -131,21 +134,70 @@ class SolicitudesController:
         except Exception as ex:  # noqa: BLE001
             return jsonify({"ok": False, "error": str(ex)}), 500
 
+    def obtener_ciudades_disponibles(self):
+        """Obtener lista de ciudades desde campos dinámicos"""
+        try:
+            empresa_id = self._empresa_id()
+
+            # Buscar específicamente en solicitudes.detalle_credito con clave "ciudad"
+            ciudades_encontradas = []
+
+            try:
+                definiciones = self.schema_model.get_schema(
+                    empresa_id=empresa_id,
+                    entity="solicitud",
+                    json_column="detalle_credito"
+                )
+
+                for definicion in definiciones:
+                    if definicion.get("key") == "ciudad":
+                        if definicion.get("list_values"):
+                            ciudades_encontradas.extend(definicion["list_values"])
+                    elif "ciudad" in definicion.get("key", "").lower():
+                        print(f"   📝 Campo relacionado con ciudad: {definicion['key']}")
+
+            except Exception as e:
+                print(f"   ⚠️ Error buscando en solicitud.detalle_credito: {e}")
+
+            # Eliminar duplicados y ordenar
+            ciudades_unicas = sorted(list(set(ciudades_encontradas)))
+
+            print(f"   📋 Ciudades encontradas: {ciudades_unicas}")
+
+            return jsonify({
+                "ok": True,
+                "data": {
+                    "ciudades": ciudades_unicas,
+                    "total": len(ciudades_unicas)
+                },
+                "message": f"Se encontraron {len(ciudades_unicas)} ciudades disponibles"
+            })
+
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
     # CRUD
     def create(self):
         try:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            # Extraer banco desde detalle_credito (campo dinámico)
+            # Extraer banco y ciudad desde detalle_credito (campos dinámicos)
             detalle_credito = body.get("detalle_credito", {})
             banco_nombre = None
+            ciudad = None
 
             # Buscar banco en la raíz del JSON detalle_credito
             banco_nombre = detalle_credito.get("banco")
+            ciudad = detalle_credito.get("ciudad")
 
             if not banco_nombre:
                 return jsonify({"ok": False, "error": "banco es requerido en detalle_credito"}), 400
+
+            if not ciudad:
+                return jsonify({"ok": False, "error": "ciudad es requerida en detalle_credito"}), 400
 
             # Validar que el banco existe en los campos dinámicos (opcional)
             bancos_disponibles = self._obtener_bancos_validos(empresa_id)
@@ -154,12 +206,21 @@ class SolicitudesController:
                 print(f"   ⚠️ Banco '{banco_nombre}' no está en la lista de bancos disponibles")
                 print(f"   📋 Bancos válidos: {bancos_disponibles}")
 
-            # Asegurar que el banco esté en la raíz del JSON
+            # Validar que la ciudad existe en los campos dinámicos (opcional)
+            ciudades_disponibles = self._obtener_ciudades_validas(empresa_id)
+
+            if ciudades_disponibles and ciudad not in ciudades_disponibles:
+                print(f"   ⚠️ Ciudad '{ciudad}' no está en la lista de ciudades disponibles")
+                print(f"   📋 Ciudades válidas: {ciudades_disponibles}")
+
+            # Asegurar que el banco y ciudad estén en la raíz del JSON
             detalle_credito["banco"] = banco_nombre
+            detalle_credito["ciudad"] = ciudad
 
             print(f"\n📝 CREANDO SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")
             print(f"   🏦 Banco extraído y sincronizado: {banco_nombre}")
+            print(f"   🏙️ Ciudad extraída y sincronizada: {ciudad}")
 
             data = self.model.create(
                 empresa_id=empresa_id,
@@ -167,8 +228,9 @@ class SolicitudesController:
                 created_by_user_id=body.get("created_by_user_id"),
                 assigned_to_user_id=body.get("assigned_to_user_id"),
                 banco_nombre=banco_nombre,  # Asignar a la columna banco_nombre
+                ciudad=ciudad,  # Asignar a la columna ciudad
                 estado=body.get("estado"),
-                detalle_credito=detalle_credito,  # Guardar con banco sincronizado
+                detalle_credito=detalle_credito,  # Guardar con banco y ciudad sincronizados
             )
 
             print(f"   ✅ Solicitud creada con ID: {data.get('id')}")
@@ -199,6 +261,31 @@ class SolicitudesController:
                 pass
 
             return sorted(list(set(bancos_encontrados)))
+
+        except Exception:
+            return []
+
+    def _obtener_ciudades_validas(self, empresa_id: int) -> list:
+        """Método interno para obtener ciudades válidas desde campos dinámicos"""
+        try:
+            ciudades_encontradas = []
+
+            try:
+                definiciones = self.schema_model.get_schema(
+                    empresa_id=empresa_id,
+                    entity="solicitud",
+                    json_column="detalle_credito"
+                )
+
+                for definicion in definiciones:
+                    if definicion.get("key") == "ciudad":
+                        if definicion.get("list_values"):
+                            ciudades_encontradas.extend(definicion["list_values"])
+
+            except Exception:
+                pass
+
+            return sorted(list(set(ciudades_encontradas)))
 
         except Exception:
             return []
@@ -241,7 +328,7 @@ class SolicitudesController:
             print(f"   👤 Usuario: {usuario_info}")
             print(f"   🔍 Filtros: estado={estado}, solicitante_id={solicitante_id}")
 
-            # Aplicar filtros de permisos por rol
+            # Aplicar filtros de permisos por rol (incluye filtro de ciudad automáticamente)
             data = self.model.list_con_filtros_rol(
                 empresa_id=empresa_id,
                 usuario_info=usuario_info,
@@ -250,34 +337,6 @@ class SolicitudesController:
                 limit=limit,
                 offset=offset,
             )
-
-                        # Aplicar filtro de ciudad para usuarios banco
-            if usuario_info and usuario_info.get("rol") == "banco" and usuario_info.get("ciudad"):
-                ciudad_usuario = usuario_info.get("ciudad")
-                print(f"   🏙️ Aplicando filtro de ciudad: {ciudad_usuario}")
-
-                # Filtrar solicitudes por ciudad desde el JSON detalle_credito
-                solicitudes_filtradas = []
-                for solicitud in data:
-                    detalle_credito = solicitud.get('detalle_credito', {})
-                    if isinstance(detalle_credito, str):
-                        import json
-                        try:
-                            detalle_credito = json.loads(detalle_credito)
-                        except:
-                            detalle_credito = {}
-
-                                        # Buscar ciudad en la raíz del JSON
-                    ciudad_solicitante = detalle_credito.get('ciudad')
-
-                    if ciudad_solicitante == ciudad_usuario:
-                        solicitudes_filtradas.append(solicitud)
-                        print(f"   🏙️ Incluyendo solicitud {solicitud.get('id')} (ciudad: {ciudad_solicitante})")
-                    else:
-                        print(f"   🏙️ Saltando solicitud {solicitud.get('id')} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")
-
-                data = solicitudes_filtradas
-                print(f"   📄 Solicitudes después del filtro de ciudad: {len(data)}")
 
             print(f"   📄 Solicitudes encontradas: {len(data)}")
             return jsonify({"ok": True, "data": data})
@@ -295,6 +354,7 @@ class SolicitudesController:
                 "estado",
                 "assigned_to_user_id",
                 "banco_nombre",
+                "ciudad",
             ]:
                 if field in body:
                     base_updates[field] = body[field]

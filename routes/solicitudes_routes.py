@@ -56,3 +56,9 @@ def obtener_bancos_disponibles():
     return con_solicitudes.obtener_bancos_disponibles()
 
 
+@solicitudes.route("/ciudades-disponibles", methods=["GET"])
+@cross_origin()
+def obtener_ciudades_disponibles():
+    return con_solicitudes.obtener_ciudades_disponibles()
+
+

@@ -13,7 +13,7 @@ class SolicitudesModel:
 
     TABLE = "solicitudes"
 
-    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
@@ -25,6 +25,8 @@ class SolicitudesModel:
             payload["assigned_to_user_id"] = assigned_to_user_id
         if banco_nombre is not None:
             payload["banco_nombre"] = banco_nombre
+        if ciudad is not None:
+            payload["ciudad"] = ciudad
 
         resp = supabase.table(self.TABLE).insert(payload).execute()
         data = _get_data(resp)
@@ -35,7 +37,7 @@ class SolicitudesModel:
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
 
-    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
         if estado:
             q = q.eq("estado", estado)
@@ -43,6 +45,8 @@ class SolicitudesModel:
             q = q.eq("solicitante_id", solicitante_id)
         if banco_nombre:
             q = q.eq("banco_nombre", banco_nombre)
+        if ciudad:
+            q = q.eq("ciudad", ciudad)
         q = q.range(offset, offset + max(limit - 1, 0))
         resp = q.execute()
         data = _get_data(resp)
@@ -130,7 +134,7 @@ class SolicitudesModel:
                 # Admin ve todas las solicitudes de la empresa
                 pass
             elif rol == "banco":
-                # Usuario banco solo ve solicitudes de su banco
+                # Usuario banco solo ve solicitudes de su banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
 
@@ -140,8 +144,9 @@ class SolicitudesModel:
                     # Si no tiene banco asignado, no ve nada
                     return []
 
-                # Nota: El filtro de ciudad se manejará a nivel de aplicación
-                # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
+                # Aplicar filtro de ciudad si está disponible
+                if ciudad:
+                    q = q.eq("ciudad", ciudad)
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
@@ -168,7 +173,7 @@ class SolicitudesModel:
                 # Admin ve todas las solicitudes de la empresa
                 pass
             elif rol == "banco":
-                # Usuario banco solo ve solicitudes de su banco
+                # Usuario banco solo ve solicitudes de su banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
 
@@ -178,8 +183,9 @@ class SolicitudesModel:
                     # Si no tiene banco asignado, no ve nada
                     return None
 
-                # Nota: El filtro de ciudad se manejará a nivel de aplicación
-                # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
+                # Aplicar filtro de ciudad si está disponible
+                if ciudad:
+                    q = q.eq("ciudad", ciudad)
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
