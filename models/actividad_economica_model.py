@@ -68,3 +68,9 @@ class ActividadEconomicaModel:
                 print(f"✅ Registro eliminado exitosamente")
 
         return deleted_count
+
+    def delete_by_solicitante(self, *, solicitante_id: int, empresa_id: int) -> int:
+        """Eliminar toda la actividad económica de un solicitante"""
+        resp = supabase.table(self.TABLE).delete().eq("solicitante_id", solicitante_id).eq("empresa_id", empresa_id).execute()
+        data = _get_data(resp)
+        return len(data) if isinstance(data, list) else 0

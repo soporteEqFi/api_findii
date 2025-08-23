@@ -48,3 +48,9 @@ class InformacionFinancieraModel:
         resp = supabase.table(self.TABLE).delete().eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
         return len(data) if isinstance(data, list) else 0
+
+    def delete_by_solicitante(self, *, solicitante_id: int, empresa_id: int) -> int:
+        """Eliminar toda la información financiera de un solicitante"""
+        resp = supabase.table(self.TABLE).delete().eq("solicitante_id", solicitante_id).eq("empresa_id", empresa_id).execute()
+        data = _get_data(resp)
+        return len(data) if isinstance(data, list) else 0

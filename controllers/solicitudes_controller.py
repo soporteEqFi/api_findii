@@ -319,6 +319,7 @@ class SolicitudesController:
             return jsonify({"ok": False, "error": str(ex)}), 500
 
     def delete(self, id: int):
+        """Eliminar solicitud y todos los registros relacionados del solicitante"""
         try:
             empresa_id = self._empresa_id()
             print(f"🗑️ DELETE request para solicitud: id={id}, empresa_id={empresa_id}")
@@ -333,29 +334,85 @@ class SolicitudesController:
                     "deleted": 0
                 }), 404
 
+            solicitante_id = solicitud_existente.get('solicitante_id')
             print(f"✅ Solicitud encontrada: estado={solicitud_existente.get('estado')}, banco={solicitud_existente.get('banco_nombre')}")
+            print(f"📋 Eliminando solicitante_id: {solicitante_id}")
 
-            # Intentar eliminar
-            deleted_count = self.model.delete(id=id, empresa_id=empresa_id)
+            # Importar modelos para eliminar registros relacionados
+            from models.documentos_model import DocumentosModel
+            from models.referencias_model import ReferenciasModel
+            from models.informacion_financiera_model import InformacionFinancieraModel
+            from models.actividad_economica_model import ActividadEconomicaModel
+            from models.ubicaciones_model import UbicacionesModel
+            from models.solicitantes_model import SolicitantesModel
 
-            if deleted_count > 0:
-                print(f"✅ Solicitud {id} eliminada exitosamente")
+            # Contadores para el reporte
+            eliminados = {
+                "solicitud": 0,
+                "documentos": 0,
+                "referencias": 0,
+                "informacion_financiera": 0,
+                "actividad_economica": 0,
+                "ubicaciones": 0,
+                "solicitante": 0
+            }
+
+            try:
+                # 1. Eliminar documentos
+                documentos_model = DocumentosModel()
+                eliminados["documentos"] = documentos_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                print(f"   📄 Documentos eliminados: {eliminados['documentos']}")
+
+                # 2. Eliminar referencias
+                referencias_model = ReferenciasModel()
+                eliminados["referencias"] = referencias_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                print(f"   👥 Referencias eliminadas: {eliminados['referencias']}")
+
+                # 3. Eliminar información financiera
+                info_financiera_model = InformacionFinancieraModel()
+                eliminados["informacion_financiera"] = info_financiera_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                print(f"   💰 Información financiera eliminada: {eliminados['informacion_financiera']}")
+
+                # 4. Eliminar actividad económica
+                actividad_model = ActividadEconomicaModel()
+                eliminados["actividad_economica"] = actividad_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                print(f"   🏢 Actividad económica eliminada: {eliminados['actividad_economica']}")
+
+                # 5. Eliminar ubicaciones
+                ubicaciones_model = UbicacionesModel()
+                eliminados["ubicaciones"] = ubicaciones_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
+                print(f"   📍 Ubicaciones eliminadas: {eliminados['ubicaciones']}")
+
+                # 6. Eliminar la solicitud
+                eliminados["solicitud"] = self.model.delete(id=id, empresa_id=empresa_id)
+                print(f"   📋 Solicitud eliminada: {eliminados['solicitud']}")
+
+                # 7. Eliminar el solicitante
+                solicitantes_model = SolicitantesModel()
+                eliminados["solicitante"] = solicitantes_model.delete(id=solicitante_id, empresa_id=empresa_id)
+                print(f"   👤 Solicitante eliminado: {eliminados['solicitante']}")
+
+                total_eliminados = sum(eliminados.values())
+                print(f"✅ Eliminación completa: {total_eliminados} registros eliminados")
+
                 return jsonify({
                     "ok": True,
-                    "deleted": deleted_count,
-                    "message": f"Solicitud {id} eliminada exitosamente",
+                    "deleted": total_eliminados,
+                    "message": f"Registro completo eliminado exitosamente",
+                    "detalle_eliminacion": eliminados,
                     "solicitud_eliminada": {
                         "id": id,
                         "estado": solicitud_existente.get('estado'),
                         "banco": solicitud_existente.get('banco_nombre'),
-                        "solicitante_id": solicitud_existente.get('solicitante_id')
+                        "solicitante_id": solicitante_id
                     }
                 })
-            else:
-                print(f"❌ No se pudo eliminar la solicitud {id}")
+
+            except Exception as e:
+                print(f"❌ Error durante eliminación en cascada: {e}")
                 return jsonify({
                     "ok": False,
-                    "error": f"No se pudo eliminar la solicitud {id}. Verifique permisos.",
+                    "error": f"Error durante eliminación: {str(e)}",
                     "deleted": 0
                 }), 500
 

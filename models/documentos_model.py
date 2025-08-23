@@ -48,3 +48,9 @@ class DocumentosModel:
         resp = supabase.table(self.TABLE).update(updates).eq("id", id).execute()
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
+
+    def delete_by_solicitante(self, *, solicitante_id: int, empresa_id: int) -> int:
+        """Eliminar todos los documentos de un solicitante"""
+        resp = supabase.table(self.TABLE).delete().eq("solicitante_id", solicitante_id).execute()
+        data = _get_data(resp)
+        return len(data) if isinstance(data, list) else 0

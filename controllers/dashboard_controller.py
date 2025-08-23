@@ -55,9 +55,6 @@ class DashboardController:
             # Obtener información del usuario autenticado
             usuario_info = DashboardController._obtener_usuario_autenticado()
 
-            print(f"\n📊 OBTENIENDO DATOS PARA EMPRESA {empresa_id}")
-            print(f"   👤 Usuario: {usuario_info}")
-
             # Obtener datos del solicitante
             solicitante_data = supabase.table('solicitantes').select('*').eq('empresa_id', empresa_id).execute()
 
