@@ -92,14 +92,10 @@ class SolicitudesController:
         try:
             empresa_id = self._empresa_id()
 
-            print(f"\n🏦 OBTENIENDO BANCOS DISPONIBLES:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-
             # Buscar específicamente en solicitudes.detalle_credito con clave "banco"
             bancos_encontrados = []
 
             try:
-                print(f"   🔍 Buscando en solicitud.detalle_credito...")
                 definiciones = self.schema_model.get_schema(
                     empresa_id=empresa_id,
                     entity="solicitud",
@@ -108,12 +104,8 @@ class SolicitudesController:
 
                 for definicion in definiciones:
                     if definicion.get("key") == "banco":
-                        print(f"   ✅ Encontrado campo de banco: {definicion['key']}")
                         if definicion.get("list_values"):
                             bancos_encontrados.extend(definicion["list_values"])
-                            print(f"   📋 Bancos encontrados: {definicion['list_values']}")
-                        else:
-                            print(f"   ⚠️ Campo 'banco' encontrado pero sin list_values")
                     elif "banco" in definicion.get("key", "").lower():
                         print(f"   📝 Campo relacionado con banco: {definicion['key']}")
 

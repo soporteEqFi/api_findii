@@ -87,8 +87,23 @@ class ActividadEconomicaController:
     def delete(self, id: int):
         try:
             empresa_id = self._empresa_id()
-            deleted = self.model.delete(id=id, empresa_id=empresa_id)
-            return jsonify({"ok": True, "deleted": deleted})
+            print(f"🗑️ DELETE request para actividad_economica: id={id}, empresa_id={empresa_id}")
+
+            deleted_count = self.model.delete(id=id, empresa_id=empresa_id)
+
+            if deleted_count > 0:
+                return jsonify({
+                    "ok": True,
+                    "deleted": deleted_count,
+                    "message": f"Registro eliminado exitosamente"
+                })
+            else:
+                return jsonify({
+                    "ok": False,
+                    "error": "No se pudo eliminar el registro. Verifique que existe y tiene permisos.",
+                    "deleted": 0
+                }), 404
+
         except ValueError as ve:
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:

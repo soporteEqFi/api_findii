@@ -386,74 +386,55 @@ class SolicitantesController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"🔍 SOLICITANTE ID: {solicitante_id}")
 
             # 1. Obtener datos del solicitante principal
-            print(f"\n1️⃣ OBTENIENDO SOLICITANTE...")
             solicitante = self.model.get_by_id(id=solicitante_id, empresa_id=empresa_id)
             if not solicitante:
                 return jsonify({"ok": False, "error": "Solicitante no encontrado"}), 404
-            print(f"   ✅ Solicitante encontrado: {solicitante.get('nombres', 'N/A')} {solicitante.get('primer_apellido', 'N/A')}")
 
             # 2. Obtener ubicaciones
-            print(f"\n2️⃣ OBTENIENDO UBICACIONES...")
             try:
                 ubicaciones = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
-                print(f"   📍 Ubicaciones encontradas: {len(ubicaciones) if ubicaciones else 0}")
             except Exception as e:
-                print(f"   ❌ Error obteniendo ubicaciones: {e}")
                 ubicaciones = []
 
             # 3. Obtener actividad económica
-            print(f"\n3️⃣ OBTENIENDO ACTIVIDAD ECONÓMICA...")
             try:
                 actividad_economica_list = self.actividad_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 actividad_economica = actividad_economica_list[0] if actividad_economica_list else None
-                print(f"   💼 Actividad económica: {'✅ Encontrada' if actividad_economica else '❌ No encontrada'}")
             except Exception as e:
-                print(f"   ❌ Error obteniendo actividad económica: {e}")
                 actividad_economica = None
 
             # 4. Obtener información financiera
-            print(f"\n4️⃣ OBTENIENDO INFORMACIÓN FINANCIERA...")
             try:
                 financiera_list = self.financiera_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 informacion_financiera = financiera_list[0] if financiera_list else None
-                print(f"   💰 Información financiera: {'✅ Encontrada' if informacion_financiera else '❌ No encontrada'}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo información financiera: {e}")
                 informacion_financiera = None
 
             # 5. Obtener referencias
-            print(f"\n5️⃣ OBTENIENDO REFERENCIAS...")
             try:
                 referencias = self.referencias_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
-                print(f"   👥 Referencias encontradas: {len(referencias) if referencias else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo referencias: {e}")
                 referencias = []
 
             # 6. Obtener solicitudes
-            print(f"\n6️⃣ OBTENIENDO SOLICITUDES...")
             try:
                 solicitudes = self.solicitudes_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
-                print(f"   📄 Solicitudes encontradas: {len(solicitudes) if solicitudes else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo solicitudes: {e}")
                 solicitudes = []
 
             # 7. Obtener documentos
-            print(f"\n7️⃣ OBTENIENDO DOCUMENTOS...")
             try:
                 documentos = self.documentos_model.list(solicitante_id=solicitante_id)
-                print(f"   📎 Documentos encontrados: {len(documentos) if documentos else 0}")
             except Exception as e:
                 print(f"   ❌ Error obteniendo documentos: {e}")
                 documentos = []
 
             # 8. Combinar toda la información
-            print(f"\n🔗 COMBINANDO INFORMACIÓN...")
             datos_completos = {
                 "solicitante": solicitante,
                 "ubicaciones": ubicaciones or [],
@@ -471,14 +452,6 @@ class SolicitantesController:
                     "total_documentos": len(documentos) if documentos else 0
                 }
             }
-
-            print(f"\n📊 RESUMEN DE DATOS:")
-            print(f"   👤 Solicitante: {solicitante.get('nombres', 'N/A')}")
-            print(f"   📍 Ubicaciones: {datos_completos['resumen']['total_ubicaciones']}")
-            print(f"   💼 Actividad económica: {datos_completos['resumen']['tiene_actividad_economica']}")
-            print(f"   💰 Info financiera: {datos_completos['resumen']['tiene_informacion_financiera']}")
-            print(f"   👥 Referencias: {datos_completos['resumen']['total_referencias']}")
-            print(f"   📄 Solicitudes: {datos_completos['resumen']['total_solicitudes']}")
 
             response_data = {"ok": True, "data": datos_completos}
             log_response(response_data)
