@@ -52,7 +52,9 @@ class SchemaCompletoModel:
                 "table": "solicitudes",
                 "json_column": "detalle_credito",
                 "campos_fijos": [
-                    {"key": "estado", "type": "string", "required": True, "description": "Estado de la solicitud"}
+                    {"key": "estado", "type": "string", "required": True, "description": "Estado de la solicitud"},
+                    {"key": "banco_nombre", "type": "string", "required": False, "description": "Nombre del banco"},
+                    {"key": "ciudad", "type": "string", "required": False, "description": "Ciudad"}
                 ]
             }
         }
