@@ -89,4 +89,29 @@ class JSONSchemaModel:
             return len(data)
         return 0
 
+    def update_definition(self, *, definition_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Actualizar una definición específica por ID (UUID)"""
+        print(f"🔄 update_definition llamado con:")
+        print(f"   definition_id: {definition_id}")
+        print(f"   updates: {updates}")
+
+        try:
+            resp = supabase.table(self.TABLE).update(updates).eq("id", definition_id).execute()
+            print(f"📡 Respuesta de Supabase: {resp}")
+
+            data = _get_resp_data(resp)
+            print(f"📊 Datos extraídos: {data}")
+
+            if data and isinstance(data, list) and len(data) > 0:
+                return data[0]
+            else:
+                raise ValueError(f"No se encontró la definición con ID {definition_id}")
+
+        except Exception as e:
+            print(f"💥 Error en Supabase update: {e}")
+            print(f"💥 Tipo de error: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
+
 

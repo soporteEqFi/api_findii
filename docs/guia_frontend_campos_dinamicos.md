@@ -55,6 +55,23 @@ Body:
 }
 ```
 
+#### Actualizar conditional_on de una definición específica:
+```
+Method: PATCH
+URL: http://localhost:5000/json/definitions/123
+
+Headers:
+Content-Type: application/json
+
+Body:
+{
+  "conditional_on": {
+    "field": "tipo_actividad_economica",
+    "value": "empresario"
+  }
+}
+```
+
 #### Ver campos configurados:
 ```
 Method: GET
@@ -205,16 +222,57 @@ await reemplazarDefinicionesCampos('solicitante', 'info_extra', [
 ### Eliminar Definición Específica
 ```javascript
 // DELETE /json/definitions/{entidad}/{json_field}/{key}?empresa_id={id}
-async function eliminarDefinicionCampo(entidad, campoJson, clave) {
-  const response = await fetch(`${API_BASE}/json/definitions/${entidad}/${campoJson}/${clave}?empresa_id=${empresaId}`, {
+async function eliminarDefinicionCampo(entidad, campoJson, key) {
+  const response = await fetch(`${API_BASE}/json/definitions/${entidad}/${campoJson}/${key}?empresa_id=${empresaId}`, {
     method: 'DELETE'
   })
   return await response.json()
 }
 
-// Ejemplo
+// Ejemplo: eliminar campo específico
 await eliminarDefinicionCampo('solicitante', 'info_extra', 'profesion')
 ```
+
+### Actualizar Definición Específica por ID
+```javascript
+// PATCH /json/definitions/{definition_id}
+async function actualizarDefinicionCampo(definitionId, updates) {
+  const response = await fetch(`${API_BASE}/json/definitions/${definitionId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(updates)
+  })
+  return await response.json()
+}
+
+// Ejemplo: actualizar conditional_on
+await actualizarDefinicionCampo(123, {
+  conditional_on: {
+    field: "tipo_actividad_economica",
+    value: "empresario"
+  }
+})
+
+// Ejemplo: actualizar múltiples campos
+await actualizarDefinicionCampo(123, {
+  conditional_on: {
+    field: "tipo_actividad_economica",
+    value: "empresario"
+  },
+  required: true,
+  description: "Nueva descripción del campo"
+})
+```
+
+**Campos permitidos para actualización:**
+- `conditional_on`: Condición para mostrar el campo
+- `type`: Tipo de dato (string, number, boolean, etc.)
+- `required`: Si el campo es obligatorio
+- `list_values`: Lista de valores permitidos
+- `description`: Descripción del campo
+- `default_value`: Valor por defecto
 
 ### Eliminar Todas las Definiciones
 ```javascript

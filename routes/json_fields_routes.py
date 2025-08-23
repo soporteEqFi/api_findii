@@ -1,8 +1,21 @@
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from flask_cors import cross_origin
+import functools
 
 from controllers.json_fields_controller import JSONFieldsController
 from models.json_schema_model import JSONSchemaModel
+
+def handle_errors(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            print(f"💥 ERROR en {f.__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"ok": False, "error": str(e)}), 500
+    return decorated_function
 
 
 json_fields = Blueprint("json_fields", __name__)
@@ -35,15 +48,17 @@ def delete_json_field(entity: str, record_id: int, json_field: str):
 
 @json_fields.route("/schema/<entity>/<json_field>", methods=["GET"])
 @cross_origin()
+@handle_errors
 def get_json_schema(entity: str, json_field: str):
     from flask import request, jsonify
 
     empresa_id = request.headers.get("X-Empresa-Id") or request.args.get("empresa_id")
     if not empresa_id:
         return jsonify({"ok": False, "error": "empresa_id es requerido"}), 400
+
     try:
         empresa_id = int(empresa_id)
-    except Exception:
+    except ValueError:
         return jsonify({"ok": False, "error": "empresa_id debe ser entero"}), 400
 
     defs = schema_model.get_schema(empresa_id=empresa_id, entity=entity, json_column=json_field)
@@ -305,6 +320,141 @@ def delete_all_field_definitions(entity: str, json_field: str):
     except ValueError as ve:
         return jsonify({"ok": False, "error": str(ve)}), 400
     except Exception as ex:
+        return jsonify({"ok": False, "error": str(ex)}), 500
+
+
+@json_fields.route("/definitions/<definition_id>", methods=["PATCH"])
+@cross_origin()
+@handle_errors
+def update_field_definition(definition_id: str):
+    """Actualizar una definición específica de campo dinámico por ID"""
+    from flask import request, jsonify
+
+    # Validar que definition_id sea un UUID válido
+    import re
+    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+    if not uuid_pattern.match(definition_id):
+        print(f"❌ ERROR: definition_id debe ser un UUID válido, recibido: {definition_id}")
+        return jsonify({
+            "ok": False,
+            "error": f"definition_id debe ser un UUID válido, recibido: {definition_id}"
+        }), 400
+
+    print("\n" + "="*80)
+    print(f"🔄 PATCH /json/definitions/{definition_id}")
+    print("="*80)
+
+    # IMPRIMIR TODO EL REQUEST
+    print(f"📋 URL COMPLETA: {request.url}")
+    print(f"📋 PATH: {request.path}")
+    print(f"📋 ARGS: {dict(request.args)}")
+    print(f"📋 METHOD: {request.method}")
+
+    # HEADERS
+    print(f"\n🔖 HEADERS RECIBIDOS:")
+    for header_name, header_value in request.headers:
+        print(f"   {header_name}: {header_value}")
+
+    # BODY
+    print(f"\n📦 BODY RAW:")
+    try:
+        raw_data = request.get_data(as_text=True)
+        print(f"   Raw data: {raw_data}")
+    except Exception as e:
+        print(f"   Error leyendo raw data: {e}")
+
+    print(f"\n📦 BODY JSON:")
+    try:
+        body = request.get_json(silent=True) or {}
+        print(f"   Parsed JSON: {body}")
+        print(f"   Tipo: {type(body)}")
+
+        if isinstance(body, dict):
+            print(f"   Claves: {list(body.keys())}")
+            for key, value in body.items():
+                print(f"   {key}: {value} (tipo: {type(value)})")
+    except Exception as e:
+        print(f"   Error parseando JSON: {e}")
+
+    try:
+        # EMPRESA ID (opcional para validación)
+        empresa_id = request.headers.get("X-Empresa-Id") or request.args.get("empresa_id")
+        if empresa_id:
+            empresa_id = int(empresa_id)
+            print(f"\n📋 EMPRESA ID: {empresa_id}")
+
+        # BODY
+        body = request.get_json(silent=True) or {}
+        print(f"\n📦 BODY RECIBIDO: {body}")
+
+        # VALIDACIONES
+        if not isinstance(body, dict):
+            print("❌ Error: body debe ser un objeto")
+            return jsonify({"ok": False, "error": "body debe ser un objeto"}), 400
+
+        if not body:
+            print("❌ Error: body está vacío")
+            return jsonify({"ok": False, "error": "body no puede estar vacío"}), 400
+
+        # Validar campos permitidos para actualización
+        campos_permitidos = {
+            "conditional_on", "type", "required", "list_values",
+            "description", "default_value"
+        }
+
+        campos_invalidos = set(body.keys()) - campos_permitidos
+        if campos_invalidos:
+            print(f"❌ Error: campos no permitidos: {campos_invalidos}")
+            return jsonify({
+                "ok": False,
+                "error": f"Campos no permitidos para actualización: {list(campos_invalidos)}"
+            }), 400
+
+        print(f"\n✅ CAMPOS VÁLIDOS PARA ACTUALIZAR:")
+        for campo, valor in body.items():
+            print(f"   {campo}: {valor}")
+            # Print especial para conditional_on
+            if campo == "conditional_on":
+                print(f"   🎯 CONDITIONAL_ON ACTUALIZADO: {valor}")
+
+        print(f"\n💾 ACTUALIZANDO EN BD:")
+        print(f"   definition_id: {definition_id}")
+        print(f"   updates: {body}")
+
+        result = schema_model.update_definition(
+            definition_id=definition_id,
+            updates=body
+        )
+
+        print(f"\n✅ RESULTADO:")
+        print(f"   Definición actualizada: {result}")
+
+        # Print especial si se actualizó conditional_on
+        if "conditional_on" in body:
+            print(f"   🎯 CONDITIONAL_ON ACTUALIZADO EXITOSAMENTE para definición {definition_id}")
+            print(f"   📋 Nuevo valor: {body['conditional_on']}")
+
+        response_data = {
+            "ok": True,
+            "data": result,
+            "message": f"Definición {definition_id} actualizada correctamente"
+        }
+
+        print(f"\n📤 RESPUESTA A ENVIAR:")
+        print(f"   {response_data}")
+        print("="*80 + "\n")
+
+        return jsonify(response_data)
+
+    except ValueError as ve:
+        print(f"\n❌ ERROR DE VALIDACIÓN: {ve}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(ve)}), 400
+    except Exception as ex:
+        print(f"\n💥 ERROR INESPERADO: {ex}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"ok": False, "error": str(ex)}), 500
 
 

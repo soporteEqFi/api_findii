@@ -22,6 +22,33 @@ jwt = JWTManager(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 
+# Middleware para logging de requests
+@app.before_request
+def log_request_info():
+    from flask import request
+    print(f"\n🔍 REQUEST RECIBIDA:")
+    print(f"   Method: {request.method}")
+    print(f"   URL: {request.url}")
+    print(f"   Path: {request.path}")
+    print(f"   Args: {dict(request.args)}")
+    print(f"   Headers: {dict(request.headers)}")
+    if request.method in ['POST', 'PUT', 'PATCH']:
+        try:
+            body = request.get_json(silent=True)
+            print(f"   Body: {body}")
+        except:
+            print(f"   Body: {request.get_data(as_text=True)}")
+
+@app.after_request
+def log_response_info(response):
+    print(f"📤 RESPONSE ENVIADA:")
+    print(f"   Status: {response.status_code}")
+    print(f"   Headers: {dict(response.headers)}")
+    if response.status_code >= 400:
+        print(f"   ❌ ERROR {response.status_code} - {response.get_data(as_text=True)}")
+    print("="*50)
+    return response
+
 app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(json_fields, url_prefix="/json")
 app.register_blueprint(schema_completo, url_prefix="/schema")
@@ -35,8 +62,22 @@ app.register_blueprint(dashboard, url_prefix="/dashboard")
 app.register_blueprint(documentos, url_prefix="/documentos")
 
 def pagina_no_encontrada(error):
-    return "<h1>Pagina no encontrada ...<h1>"
+    print(f"❌ 404 - PÁGINA NO ENCONTRADA: {error}")
+    print(f"   URL: {error.code if hasattr(error, 'code') else 'N/A'}")
+    return {"ok": False, "error": "Página no encontrada"}, 404
+
+def error_interno(error):
+    print(f"💥 ERROR INTERNO NO MANEJADO: {error}")
+    import traceback
+    traceback.print_exc()
+    return {"ok": False, "error": "Error interno del servidor"}, 500
+
+def error_bad_request(error):
+    print(f"❌ ERROR BAD REQUEST: {error}")
+    return {"ok": False, "error": "Solicitud incorrecta"}, 400
 
 if __name__ == "__main__":
     app.register_error_handler(404, pagina_no_encontrada)
+    app.register_error_handler(500, error_interno)
+    app.register_error_handler(400, error_bad_request)
     app.run(host="0.0.0.0", port=5000, debug=True)
