@@ -83,11 +83,34 @@ class SolicitudesModel:
         return data[0] if isinstance(data, list) and data else None
 
     def delete(self, *, id: int, empresa_id: int) -> int:
+        # Primero verificar que el registro existe
+        existing_record = self.get_by_id(id=id, empresa_id=empresa_id)
+        if not existing_record:
+            print(f"❌ Solicitud no encontrada para eliminar: id={id}, empresa_id={empresa_id}")
+            return 0
+
+        print(f"🗑️ Intentando eliminar solicitud: id={id}, empresa_id={empresa_id}")
+        print(f"   📋 Datos de la solicitud: estado={existing_record.get('estado')}, banco={existing_record.get('banco_nombre')}")
+
+        # Intentar eliminar
         resp = supabase.table(self.TABLE).delete().eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
-        if isinstance(data, list):
-            return len(data)
-        return 0
+
+        deleted_count = len(data) if isinstance(data, list) else 0
+        print(f"📊 Respuesta de eliminación de solicitud: {resp}")
+        print(f"📊 Datos eliminados: {data}")
+        print(f"📊 Cantidad eliminada: {deleted_count}")
+
+        # Verificar que realmente se eliminó
+        if deleted_count > 0:
+            # Verificar que ya no existe
+            still_exists = self.get_by_id(id=id, empresa_id=empresa_id)
+            if still_exists:
+                print(f"⚠️ Solicitud aún existe después de eliminar: {still_exists}")
+            else:
+                print(f"✅ Solicitud eliminada exitosamente")
+
+        return deleted_count
 
     def list_con_filtros_rol(self, *, empresa_id: int, usuario_info: dict = None, estado: Optional[str] = None, solicitante_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """Listar solicitudes aplicando filtros de permisos por rol"""

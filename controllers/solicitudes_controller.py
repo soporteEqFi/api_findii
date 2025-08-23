@@ -321,11 +321,49 @@ class SolicitudesController:
     def delete(self, id: int):
         try:
             empresa_id = self._empresa_id()
-            deleted = self.model.delete(id=id, empresa_id=empresa_id)
-            return jsonify({"ok": True, "deleted": deleted})
+            print(f"🗑️ DELETE request para solicitud: id={id}, empresa_id={empresa_id}")
+
+            # Verificar que la solicitud existe antes de eliminar
+            solicitud_existente = self.model.get_by_id(id=id, empresa_id=empresa_id)
+            if not solicitud_existente:
+                print(f"❌ Solicitud {id} no encontrada en empresa {empresa_id}")
+                return jsonify({
+                    "ok": False,
+                    "error": f"Solicitud {id} no encontrada",
+                    "deleted": 0
+                }), 404
+
+            print(f"✅ Solicitud encontrada: estado={solicitud_existente.get('estado')}, banco={solicitud_existente.get('banco_nombre')}")
+
+            # Intentar eliminar
+            deleted_count = self.model.delete(id=id, empresa_id=empresa_id)
+
+            if deleted_count > 0:
+                print(f"✅ Solicitud {id} eliminada exitosamente")
+                return jsonify({
+                    "ok": True,
+                    "deleted": deleted_count,
+                    "message": f"Solicitud {id} eliminada exitosamente",
+                    "solicitud_eliminada": {
+                        "id": id,
+                        "estado": solicitud_existente.get('estado'),
+                        "banco": solicitud_existente.get('banco_nombre'),
+                        "solicitante_id": solicitud_existente.get('solicitante_id')
+                    }
+                })
+            else:
+                print(f"❌ No se pudo eliminar la solicitud {id}")
+                return jsonify({
+                    "ok": False,
+                    "error": f"No se pudo eliminar la solicitud {id}. Verifique permisos.",
+                    "deleted": 0
+                }), 500
+
         except ValueError as ve:
+            print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:  # noqa: BLE001
+            print(f"💥 Error eliminando solicitud {id}: {ex}")
             return jsonify({"ok": False, "error": str(ex)}), 500
 
     def actualizar_estado(self):
