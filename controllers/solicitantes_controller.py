@@ -254,7 +254,27 @@ class SolicitantesController:
             if datos_ubicaciones:
                 print(f"\n2️⃣ CREANDO UBICACIONES...")
                 for idx, ubicacion_data in enumerate(datos_ubicaciones):
-                    print(f"   Ubicación {idx + 1}: {ubicacion_data}")
+                    print(f"   Ubicación {idx + 1} original: {ubicacion_data}")
+
+                    # Procesar campos dinámicos para ubicaciones
+                    detalle_direccion = ubicacion_data.get("detalle_direccion", {})
+
+                    # Mover campos que están en la raíz pero deben ir en detalle_direccion
+                    campos_para_mover = [
+                        "direccion", "direccion_residencia", "tipo_direccion", "barrio", "estrato",
+                        "telefono", "celular", "correo_personal", "recibir_correspondencia",
+                        "tipo_vivienda", "paga_arriendo", "valor_mensual_arriendo", "arrendador",
+                        "id_autenticacion"
+                    ]
+                    for campo in campos_para_mover:
+                        if campo in ubicacion_data:
+                            detalle_direccion[campo] = ubicacion_data.pop(campo)
+                            print(f"   🔄 Movido '{campo}' a detalle_direccion")
+
+                    # Actualizar ubicacion_data con detalle_direccion procesado
+                    ubicacion_data["detalle_direccion"] = detalle_direccion
+
+                    print(f"   Ubicación {idx + 1} procesada: {ubicacion_data}")
                     ubicacion_data["empresa_id"] = empresa_id
                     ubicacion_data["solicitante_id"] = solicitante_id
 
@@ -268,7 +288,22 @@ class SolicitantesController:
             actividad_creada = None
             if datos_actividad:
                 print(f"\n3️⃣ CREANDO ACTIVIDAD ECONÓMICA...")
-                print(f"   Datos: {datos_actividad}")
+                print(f"   Datos originales: {datos_actividad}")
+
+                # Procesar campos dinámicos para actividad económica
+                detalle_actividad = datos_actividad.get("detalle_actividad", {})
+
+                # Mover campos que están en la raíz pero deben ir en detalle_actividad
+                campos_para_mover = ["tipo_actividad", "tipo_actividad_economica"]
+                for campo in campos_para_mover:
+                    if campo in datos_actividad:
+                        detalle_actividad[campo] = datos_actividad.pop(campo)
+                        print(f"   🔄 Movido '{campo}' a detalle_actividad")
+
+                # Actualizar datos_actividad con detalle_actividad procesado
+                datos_actividad["detalle_actividad"] = detalle_actividad
+
+                print(f"   Datos procesados: {datos_actividad}")
                 datos_actividad["empresa_id"] = empresa_id
                 datos_actividad["solicitante_id"] = solicitante_id
 
@@ -281,7 +316,27 @@ class SolicitantesController:
             financiera_creada = None
             if datos_financiera:
                 print(f"\n4️⃣ CREANDO INFORMACIÓN FINANCIERA...")
-                print(f"   Datos: {datos_financiera}")
+                print(f"   Datos originales: {datos_financiera}")
+
+                # Procesar campos dinámicos para información financiera
+                detalle_financiera = datos_financiera.get("detalle_financiera", {})
+
+                # Mover campos que están en la raíz pero deben ir en detalle_financiera
+                campos_para_mover = [
+                    "ingreso_basico_mensual", "ingreso_variable_mensual", "otros_ingresos_mensuales",
+                    "gastos_financieros_mensuales", "gastos_personales_mensuales", "ingresos_fijos_pension",
+                    "ingresos_por_ventas", "ingresos_varios", "honorarios", "arriendos",
+                    "ingresos_actividad_independiente", "detalle_otros_ingresos", "declara_renta"
+                ]
+                for campo in campos_para_mover:
+                    if campo in datos_financiera:
+                        detalle_financiera[campo] = datos_financiera.pop(campo)
+                        print(f"   🔄 Movido '{campo}' a detalle_financiera")
+
+                # Actualizar datos_financiera con detalle_financiera procesado
+                datos_financiera["detalle_financiera"] = detalle_financiera
+
+                print(f"   Datos procesados: {datos_financiera}")
                 datos_financiera["empresa_id"] = empresa_id
                 datos_financiera["solicitante_id"] = solicitante_id
 
@@ -295,7 +350,25 @@ class SolicitantesController:
             if datos_referencias:
                 print(f"\n5️⃣ CREANDO REFERENCIAS...")
                 for idx, referencia_data in enumerate(datos_referencias):
-                    print(f"   Referencia {idx + 1}: {referencia_data}")
+                    print(f"   Referencia {idx + 1} original: {referencia_data}")
+
+                    # Procesar campos dinámicos para referencias
+                    detalle_referencia = referencia_data.get("detalle_referencia", {})
+
+                    # Mover campos que están en la raíz pero deben ir en detalle_referencia
+                    campos_para_mover = [
+                        "nombre_completo", "telefono", "celular_referencia", "relacion_referencia",
+                        "nombre", "ciudad", "departamento", "direccion"
+                    ]
+                    for campo in campos_para_mover:
+                        if campo in referencia_data:
+                            detalle_referencia[campo] = referencia_data.pop(campo)
+                            print(f"   🔄 Movido '{campo}' a detalle_referencia")
+
+                    # Actualizar referencia_data con detalle_referencia procesado
+                    referencia_data["detalle_referencia"] = detalle_referencia
+
+                    print(f"   Referencia {idx + 1} procesada: {referencia_data}")
                     referencia_data["empresa_id"] = empresa_id
                     referencia_data["solicitante_id"] = solicitante_id
 
