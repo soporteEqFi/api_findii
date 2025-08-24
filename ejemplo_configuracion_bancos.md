@@ -1,167 +1,165 @@
-# 🏦 Configuración de Campos Dinámicos para Bancos
+# Ejemplo de Configuración con Order Index
 
-## 📋 **Paso 1: Configurar Campo Dinámico de Bancos**
+Este documento muestra ejemplos de cómo usar el campo `order_index` para controlar el orden de aparición de campos en arrays y objetos.
 
-### Configurar en `solicitud.detalle_credito` con clave "banco"
+## Arrays con Enum
 
-```bash
-# POST /json/definitions/solicitud/detalle_credito?empresa_id=1
-curl -X POST "http://localhost:5000/json/definitions/solicitud/detalle_credito?empresa_id=1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "definitions": [
-      {
-        "key": "banco",
-        "type": "string",
-        "required": true,
-        "description": "Banco donde se solicita el crédito",
-        "list_values": [
-          "Banco de Bogotá",
-          "Banco Popular",
-          "Bancolombia",
-          "BBVA Colombia",
-          "Banco AV Villas",
-          "Banco Caja Social",
-          "Banco Colpatria",
-          "Banco Davivienda",
-          "Banco Falabella",
-          "Banco Pichincha",
-          "Banco Santander",
-          "Scotiabank Colpatria",
-          "Banco Agrario",
-          "Banco de Occidente",
-          "Banco Itaú"
-        ]
-      }
-    ]
-  }'
-```
-
-## 📋 **Paso 2: Obtener Bancos Disponibles**
-
-```bash
-# GET /solicitudes/bancos-disponibles?empresa_id=1
-curl -X GET "http://localhost:5000/solicitudes/bancos-disponibles?empresa_id=1" \
-  -H "Content-Type: application/json"
-```
-
-**Respuesta esperada:**
 ```json
 {
-  "ok": true,
-  "data": {
-    "bancos": [
-      "Banco Agrario",
-      "Banco AV Villas",
-      "Banco Caja Social",
-      "Banco Colpatria",
-      "Banco de Bogotá",
-      "Banco de Occidente",
-      "Banco Davivienda",
-      "Banco Falabella",
-      "Banco Itaú",
-      "Banco Pichincha",
-      "Banco Popular",
-      "Banco Santander",
-      "Bancolombia",
-      "BBVA Colombia",
-      "Scotiabank Colpatria"
-    ],
-    "total": 15
+  "key": "tipo_empleo",
+  "type": "string",
+  "required": true,
+  "description": "Tipo de empleo",
+  "list_values": {
+    "enum": ["empleado", "independiente", "pensionado", "empresario"],
+    "order_index": 1
   },
-  "message": "Se encontraron 15 bancos disponibles"
+  "order_index": 2
 }
 ```
 
-## 📋 **Paso 3: Crear Solicitud con Banco Válido**
+## Arrays de Objetos
 
-```bash
-# POST /solicitudes/?empresa_id=1
-curl -X POST "http://localhost:5000/solicitudes/?empresa_id=1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "solicitante_id": 123,
-    "created_by_user_id": 1,
-    "estado": "pendiente",
-    "detalle_credito": {
-      "banco": "Bancolombia",
-      "monto_solicitado": 50000000,
-      "plazo_meses": 60,
-      "destino_credito": "vivienda"
+```json
+{
+  "key": "negocios",
+  "type": "array",
+  "required": false,
+  "description": "Lista de negocios del solicitante",
+  "list_values": {
+    "array_type": "object",
+    "object_structure": [
+      {
+        "key": "nombre_negocio",
+        "type": "string",
+        "required": true,
+        "description": "Nombre del negocio",
+        "order_index": 1
+      },
+      {
+        "key": "tipo_negocio",
+        "type": "string",
+        "required": true,
+        "description": "Tipo de negocio",
+        "order_index": 2
+      },
+      {
+        "key": "ingresos_mensuales",
+        "type": "number",
+        "required": false,
+        "description": "Ingresos mensuales del negocio",
+        "order_index": 3
+      }
+    ]
+  },
+  "order_index": 5
+}
+```
+
+## Objetos Simples
+
+```json
+{
+  "key": "datos_contacto",
+  "type": "object",
+  "required": false,
+  "description": "Información de contacto",
+  "list_values": [
+    {
+      "key": "telefono_principal",
+      "type": "string",
+      "required": true,
+      "description": "Teléfono principal",
+      "order_index": 1
+    },
+    {
+      "key": "telefono_secundario",
+      "type": "string",
+      "required": false,
+      "description": "Teléfono secundario",
+      "order_index": 2
+    },
+    {
+      "key": "correo_electronico",
+      "type": "string",
+      "required": true,
+      "description": "Correo electrónico",
+      "order_index": 3
     }
-  }'
+  ],
+  "order_index": 3
+}
 ```
 
-**Nota importante:** El banco se envía dentro de `detalle_credito.banco` (campo dinámico) y el backend automáticamente lo extrae y lo asigna a la columna `banco_nombre` de la tabla `SOLICITUDES`.
+## Campos Simples con Order Index
 
-## 🎯 **Ventajas de este Enfoque**
-
-### ✅ **Consistencia**
-- Los bancos se definen una sola vez en `solicitud.detalle_credito.banco`
-- Se reutilizan automáticamente en todas las solicitudes
-
-### ✅ **Flexibilidad**
-- Fácil agregar/quitar bancos sin cambiar código
-- Diferentes listas por empresa si es necesario
-
-### ✅ **Validación Automática**
-- El backend valida que el banco existe en la lista
-- Previene errores de tipeo o bancos inexistentes
-
-### ✅ **Frontend Dinámico**
-- El frontend puede obtener la lista de bancos y crear dropdowns automáticamente
-- No necesita hardcodear la lista de bancos
-
-## 🔧 **Uso en Frontend**
-
-```javascript
-// 1. Obtener bancos disponibles
-const obtenerBancos = async () => {
-  const response = await fetch('/solicitudes/bancos-disponibles?empresa_id=1')
-  const { data } = await response.json()
-  return data.bancos
+```json
+{
+  "key": "estado_civil",
+  "type": "string",
+  "required": true,
+  "description": "Estado civil",
+  "list_values": ["soltero", "casado", "viudo", "divorciado", "union_libre"],
+  "order_index": 1
 }
-
-// 2. Crear dropdown dinámico
-const crearDropdownBancos = (bancos) => {
-  const select = document.createElement('select')
-  select.name = 'banco_nombre'
-
-  bancos.forEach(banco => {
-    const option = document.createElement('option')
-    option.value = banco
-    option.textContent = banco
-    select.appendChild(option)
-  })
-
-  return select
-}
-
-// 3. Usar en formulario
-const bancos = await obtenerBancos()
-const dropdownBancos = crearDropdownBancos(bancos)
-document.getElementById('formulario').appendChild(dropdownBancos)
 ```
 
-## 🚀 **Flujo Completo**
+## Notas Importantes
 
-1. **Admin configura** bancos en `solicitud.detalle_credito.banco`
-2. **Frontend consulta** `/solicitudes/bancos-disponibles`
-3. **Frontend genera** dropdown con bancos disponibles
-4. **Usuario selecciona** banco del dropdown
-5. **Frontend envía** solicitud con `detalle_credito.banco`
-6. **Backend extrae** el banco de `detalle_credito.banco` y lo asigna a `banco_nombre`
-7. **Backend valida** que el banco existe en la lista de campos dinámicos
-8. **Backend guarda** la solicitud con el banco asignado en ambas ubicaciones:
-   - Columna `banco_nombre` (para consultas rápidas)
-   - Campo dinámico `detalle_credito.banco` (para consistencia)
+1. **Order Index en Campos**: El `order_index` en el campo principal controla el orden de aparición del campo completo.
 
-## 📍 **Ubicación Específica**
+2. **Order Index en Arrays Enum**: El `order_index` en `list_values` controla el orden de los elementos del enum.
 
-Los bancos se almacenan en:
-- **Entidad:** `solicitud`
-- **Campo JSON:** `detalle_credito`
-- **Clave:** `banco`
-- **Tipo:** `string` con `list_values`
+3. **Order Index en Objetos**: Cada campo dentro de un objeto puede tener su propio `order_index` para controlar el orden de los campos dentro del objeto.
 
-¡Listo! Ahora tienes un sistema completo y dinámico para manejar bancos usando los campos dinámicos. 🎉
+4. **Valores por Defecto**: Si no se especifica `order_index`, se usa 999 como valor por defecto (aparece al final).
+
+5. **Ordenamiento**: Los campos se ordenan de menor a mayor `order_index` (1, 2, 3, ...).
+
+## Ejemplo de Respuesta del Schema
+
+```json
+{
+  "entidad": "solicitante",
+  "tabla": "solicitantes",
+  "json_column": "info_extra",
+  "campos_fijos": [...],
+  "campos_dinamicos": [
+    {
+      "key": "estado_civil",
+      "type": "string",
+      "required": true,
+      "description": "Estado civil",
+      "list_values": {
+        "enum": ["soltero", "casado", "viudo", "divorciado", "union_libre"],
+        "order_index": 1
+      },
+      "order_index": 1
+    },
+    {
+      "key": "datos_contacto",
+      "type": "object",
+      "required": false,
+      "description": "Información de contacto",
+      "list_values": [
+        {
+          "key": "telefono_principal",
+          "type": "string",
+          "required": true,
+          "description": "Teléfono principal",
+          "order_index": 1
+        },
+        {
+          "key": "correo_electronico",
+          "type": "string",
+          "required": true,
+          "description": "Correo electrónico",
+          "order_index": 2
+        }
+      ],
+      "order_index": 2
+    }
+  ],
+  "total_campos": 10
+}
+```

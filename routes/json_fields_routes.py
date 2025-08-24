@@ -399,7 +399,7 @@ def update_field_definition(definition_id: str):
         # Validar campos permitidos para actualización
         campos_permitidos = {
             "conditional_on", "type", "required", "list_values",
-            "description", "default_value"
+            "description", "default_value", "order_index"  # Agregar order_index
         }
 
         campos_invalidos = set(body.keys()) - campos_permitidos
