@@ -1,0 +1,152 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.TIPOS_CREDITOS (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  empresa_id integer,
+  name text,
+  display_name text,
+  description text,
+  fields jsonb,
+  is_activate boolean,
+  updated_at timestamp without time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT TIPOS_CREDITOS_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.actividad_economica (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  solicitante_id bigint,
+  detalle_actividad jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  empresa_id bigint,
+  CONSTRAINT actividad_economica_pkey PRIMARY KEY (id),
+  CONSTRAINT ACTIVIDAD_ECONOMICA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT ACTIVIDAD_ECONOMICA_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+);
+CREATE TABLE public.configuraciones (
+  id integer NOT NULL DEFAULT nextval('configuraciones_id_seq'::regclass),
+  empresa_id integer NOT NULL,
+  categoria character varying NOT NULL,
+  configuracion jsonb NOT NULL,
+  descripcion text,
+  activo boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT configuraciones_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.documentos (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  solicitante_id bigint,
+  nombre text,
+  documento_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT documentos_pkey PRIMARY KEY (id),
+  CONSTRAINT DOCUMENTOS_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+);
+CREATE TABLE public.empresas (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  nombre text,
+  imagen text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT empresas_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.informacion_financiera (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  solicitante_id bigint,
+  total_ingresos_mensuales numeric,
+  total_egresos_mensuales numeric,
+  total_activos numeric,
+  total_pasivos numeric,
+  detalle_financiera jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  empresa_id bigint,
+  CONSTRAINT informacion_financiera_pkey PRIMARY KEY (id),
+  CONSTRAINT INFORMACION_FINANCIERA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT INFORMACION_FINANCIERA_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+);
+CREATE TABLE public.json_field_definition (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id bigint,
+  entity text,
+  json_column text,
+  key text,
+  type text,
+  required boolean,
+  description text,
+  default_value text,
+  list_values jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  conditional_on jsonb,
+  order_index smallint,
+  CONSTRAINT json_field_definition_pkey PRIMARY KEY (id),
+  CONSTRAINT json_field_definition_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.referencias (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  solicitante_id bigint,
+  tipo_referencia text,
+  detalle_referencia jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  empresa_id bigint,
+  CONSTRAINT referencias_pkey PRIMARY KEY (id),
+  CONSTRAINT REFERENCIAS_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT REFERENCIAS_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+);
+CREATE TABLE public.solicitantes (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  nombres text,
+  primer_apellido text,
+  segundo_apellido text,
+  tipo_identificacion character varying,
+  numero_documento text,
+  fecha_nacimiento date,
+  genero character varying,
+  correo character varying,
+  info_extra jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  empresa_id bigint,
+  CONSTRAINT solicitantes_pkey PRIMARY KEY (id),
+  CONSTRAINT SOLICITANTES_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.solicitudes (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  empresa_id bigint,
+  solicitante_id bigint,
+  created_by_user_id bigint,
+  estado text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  assigned_to_user_id bigint,
+  updated_at timestamp with time zone DEFAULT now(),
+  detalle_credito jsonb,
+  banco_nombre character varying,
+  ciudad_solicitud text,
+  CONSTRAINT solicitudes_pkey PRIMARY KEY (id),
+  CONSTRAINT SOLICITUDES_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT SOLICITUDES_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
+  CONSTRAINT SOLICITUDES_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.usuarios(id),
+  CONSTRAINT SOLICITUDES_assigned_to_user_id_fkey FOREIGN KEY (assigned_to_user_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.ubicacion (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  solicitante_id bigint,
+  ciudad_residencia text,
+  departamento_residencia text,
+  detalle_direccion jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  empresa_id bigint,
+  CONSTRAINT ubicacion_pkey PRIMARY KEY (id),
+  CONSTRAINT UBICACION_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT UBICACION_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+);
+CREATE TABLE public.usuarios (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  nombre text,
+  cedula text,
+  correo text,
+  contraseña text,
+  rol text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  info_extra jsonb,
+  CONSTRAINT usuarios_pkey PRIMARY KEY (id)
+);

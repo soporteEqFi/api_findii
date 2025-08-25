@@ -137,19 +137,11 @@ class DashboardController:
                 if usuario_info and usuario_info.get("rol") == "banco" and usuario_info.get("ciudad"):
                     ciudad_usuario = usuario_info.get("ciudad")
 
-                    # Buscar ciudad en el JSON detalle_credito de la solicitud
+                    # Buscar ciudad en el campo fijo ciudad_solicitud de la solicitud
                     ciudad_solicitante = None
                     if soli:
-                        detalle_credito = soli.get('detalle_credito', {})
-                        if isinstance(detalle_credito, str):
-                            import json
-                            try:
-                                detalle_credito = json.loads(detalle_credito)
-                            except:
-                                detalle_credito = {}
-
-                        # Buscar ciudad en la raíz del JSON
-                        ciudad_solicitante = detalle_credito.get('ciudad_solicitud')
+                        # ciudad_solicitud es un campo fijo en la tabla solicitudes
+                        ciudad_solicitante = soli.get('ciudad_solicitud')
 
                     if ciudad_solicitante and ciudad_solicitante != ciudad_usuario:
                         print(f"   🏙️ Saltando solicitante {sol_id} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")

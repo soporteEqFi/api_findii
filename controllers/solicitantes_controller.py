@@ -412,23 +412,16 @@ class SolicitantesController:
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     print(f"   Solicitud {idx + 1}: {solicitud_data}")
 
-                    # Extraer banco y ciudad desde detalle_credito (campos dinámicos)
+                    # Extraer banco y ciudad desde campos fijos (raíz del objeto solicitud)
                     detalle_credito = solicitud_data.get("detalle_credito", {})
-                    banco_nombre = None
-                    ciudad = None
-
-                    # Buscar banco en la raíz del JSON detalle_credito
-                    banco_nombre = detalle_credito.get("banco")
-                    ciudad = detalle_credito.get("ciudad_solicitud")
+                    banco_nombre = solicitud_data.get("banco_nombre")  # Campo fijo en la raíz
+                    ciudad = solicitud_data.get("ciudad_solicitud")    # Campo fijo en la raíz
 
                     print(f"   🏦 Banco extraído: {banco_nombre}")
                     print(f"   🏙️ Ciudad extraída: {ciudad}")
 
-                    # Asegurar que el banco y ciudad estén en la raíz del JSON
-                    if banco_nombre:
-                        detalle_credito["banco"] = banco_nombre
-                    if ciudad:
-                        detalle_credito["ciudad_solicitud"] = ciudad
+                    # NOTA: banco_nombre y ciudad_solicitud son campos fijos, no van en detalle_credito
+                    # detalle_credito solo contiene campos dinámicos
 
                     # Obtener user_id del header
                     user_id = request.headers.get("X-User-Id")
@@ -440,6 +433,7 @@ class SolicitantesController:
                         "empresa_id": empresa_id,
                         "solicitante_id": solicitante_id,
                         "created_by_user_id": int(user_id),
+                        "assigned_to_user_id": int(user_id),  # Asignar al mismo usuario que crea
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
                     }
@@ -448,7 +442,7 @@ class SolicitantesController:
                     if banco_nombre:
                         datos_para_modelo["banco_nombre"] = banco_nombre
                     if ciudad:
-                        datos_para_modelo["ciudad"] = ciudad  # El modelo espera 'ciudad', no 'ciudad_solicitud'
+                        datos_para_modelo["ciudad_solicitud"] = ciudad
 
                     solicitud_creada = self.solicitudes_model.create(**datos_para_modelo)
                     solicitudes_creadas.append(solicitud_creada)

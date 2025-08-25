@@ -13,7 +13,7 @@ class SolicitudesModel:
 
     TABLE = "solicitudes"
 
-    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad_solicitud: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
@@ -25,8 +25,8 @@ class SolicitudesModel:
             payload["assigned_to_user_id"] = assigned_to_user_id
         if banco_nombre is not None:
             payload["banco_nombre"] = banco_nombre
-        if ciudad is not None:
-            payload["ciudad"] = ciudad
+        if ciudad_solicitud is not None:
+            payload["ciudad_solicitud"] = ciudad_solicitud
 
         resp = supabase.table(self.TABLE).insert(payload).execute()
         data = _get_data(resp)
@@ -37,7 +37,7 @@ class SolicitudesModel:
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
 
-    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
         if estado:
             q = q.eq("estado", estado)
@@ -45,8 +45,6 @@ class SolicitudesModel:
             q = q.eq("solicitante_id", solicitante_id)
         if banco_nombre:
             q = q.eq("banco_nombre", banco_nombre)
-        if ciudad:
-            q = q.eq("ciudad", ciudad)
         q = q.range(offset, offset + max(limit - 1, 0))
         resp = q.execute()
         data = _get_data(resp)
@@ -129,24 +127,41 @@ class SolicitudesModel:
         # Aplicar filtros de permisos por rol
         if usuario_info:
             rol = usuario_info.get("rol")
+            print(f"🔍 APLICANDO FILTROS POR ROL:")
+            print(f"   🏷️ Rol del usuario: {rol}")
+            print(f"   👤 Info completa del usuario: {usuario_info}")
 
             if rol == "admin":
                 # Admin ve todas las solicitudes de la empresa
+                print(f"   ✅ Admin - sin filtros aplicados")
                 pass
             elif rol == "banco":
                 # Usuario banco solo ve solicitudes de su banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
-                ciudad = usuario_info.get("ciudad")
+                ciudad_solicitud = usuario_info.get("ciudad_solicitud")
+
+                print(f"   🏦 Banco del usuario: {banco_nombre}")
+                print(f"   🏙️ Ciudad del usuario: {ciudad_solicitud}")
 
                 if banco_nombre:
                     q = q.eq("banco_nombre", banco_nombre)
+                    print(f"   ✅ Filtro banco aplicado: {banco_nombre}")
                 else:
                     # Si no tiene banco asignado, no ve nada
+                    print(f"   ❌ Usuario sin banco asignado - retornando lista vacía")
                     return []
 
-                # Aplicar filtro de ciudad si está disponible
-                if ciudad:
-                    q = q.eq("ciudad", ciudad)
+                # Aplicar filtro de ciudad_solicitud si está disponible
+                if ciudad_solicitud:
+                    q = q.eq("ciudad_solicitud", ciudad_solicitud)
+                    print(f"   ✅ Filtro ciudad aplicado: {ciudad_solicitud}")
+                else:
+                    print(f"   ⚠️ Usuario sin ciudad asignada - solo filtro por banco")
+
+                print(f"   🔍 FILTROS APLICADOS:")
+                print(f"      🏦 banco_nombre = {banco_nombre}")
+                print(f"      🏙️ ciudad_solicitud = {ciudad_solicitud}")
+                print(f"      📋 Query final: banco_nombre='{banco_nombre}' AND ciudad_solicitud='{ciudad_solicitud}'")
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
@@ -175,7 +190,7 @@ class SolicitudesModel:
             elif rol == "banco":
                 # Usuario banco solo ve solicitudes de su banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
-                ciudad = usuario_info.get("ciudad")
+                ciudad_solicitud = usuario_info.get("ciudad_solicitud")
 
                 if banco_nombre:
                     q = q.eq("banco_nombre", banco_nombre)
@@ -183,9 +198,9 @@ class SolicitudesModel:
                     # Si no tiene banco asignado, no ve nada
                     return None
 
-                # Aplicar filtro de ciudad si está disponible
-                if ciudad:
-                    q = q.eq("ciudad", ciudad)
+                # Aplicar filtro de ciudad_solicitud si está disponible
+                if ciudad_solicitud:
+                    q = q.eq("ciudad_solicitud", ciudad_solicitud)
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
