@@ -176,11 +176,28 @@ class SolicitantesController:
 
             # Extraer datos de cada entidad
             datos_solicitante = body.get("solicitante", {})
-            datos_ubicaciones = body.get("ubicaciones", [])
+            print(f"   🔍 Body completo: {body}")
+            print(f"   🔍 Claves en body: {list(body.keys())}")
+            print(f"   🔍 datos_solicitante: {datos_solicitante}")
+            print(f"   🔍 Tipo datos_solicitante: {type(datos_solicitante)}")
+
+            # Manejar ubicaciones (puede ser objeto o lista)
+            ubicacion_obj = body.get("ubicacion", {})
+            ubicaciones_list = body.get("ubicaciones", [])
+            datos_ubicaciones = [ubicacion_obj] if ubicacion_obj else ubicaciones_list
+
             datos_actividad = body.get("actividad_economica", {})
             datos_financiera = body.get("informacion_financiera", {})
-            datos_referencias = body.get("referencias", [])
-            datos_solicitudes = body.get("solicitudes", [])
+
+            # Manejar referencias (puede ser objeto o lista)
+            referencia_obj = body.get("referencia", {})
+            referencias_list = body.get("referencias", [])
+            datos_referencias = [referencia_obj] if referencia_obj else referencias_list
+
+            # Manejar solicitudes (puede ser objeto o lista)
+            solicitud_obj = body.get("solicitud", {})
+            solicitudes_list = body.get("solicitudes", [])
+            datos_solicitudes = [solicitud_obj] if solicitud_obj else solicitudes_list
 
             print(f"\n🔍 DATOS EXTRAÍDOS:")
             print(f"   Solicitante: {len(datos_solicitante)} campos")
@@ -190,9 +207,17 @@ class SolicitantesController:
             print(f"   Referencias: {len(datos_referencias)} registros")
             print(f"   Solicitudes: {len(datos_solicitudes)} registros")
 
+            # Debug: mostrar qué se encontró
+            if ubicacion_obj:
+                print(f"   📍 Ubicación encontrada como objeto")
+            if referencia_obj:
+                print(f"   👥 Referencia encontrada como objeto")
+            if solicitud_obj:
+                print(f"   📋 Solicitud encontrada como objeto")
+
             # 1. CREAR SOLICITANTE
             print(f"\n1️⃣ CREANDO SOLICITANTE...")
-            if not datos_solicitante:
+            if not datos_solicitante or len(datos_solicitante) == 0:
                 raise ValueError("Datos del solicitante son requeridos")
 
             datos_solicitante["empresa_id"] = empresa_id
@@ -260,6 +285,7 @@ class SolicitantesController:
                     detalle_direccion = ubicacion_data.get("detalle_direccion", {})
 
                     # Mover campos que están en la raíz pero deben ir en detalle_direccion
+                    # NOTA: ciudad_residencia y departamento_residencia son campos fijos, NO se mueven
                     campos_para_mover = [
                         "direccion", "direccion_residencia", "tipo_direccion", "barrio", "estrato",
                         "telefono", "celular", "correo_personal", "recibir_correspondencia",
@@ -356,6 +382,7 @@ class SolicitantesController:
                     detalle_referencia = referencia_data.get("detalle_referencia", {})
 
                     # Mover campos que están en la raíz pero deben ir en detalle_referencia
+                    # NOTA: tipo_referencia es campo fijo, NO se mueve
                     campos_para_mover = [
                         "nombre_completo", "telefono", "celular_referencia", "relacion_referencia",
                         "nombre", "ciudad", "departamento", "direccion"
@@ -385,27 +412,45 @@ class SolicitantesController:
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     print(f"   Solicitud {idx + 1}: {solicitud_data}")
 
-                    # Extraer banco desde detalle_credito (campo dinámico)
+                    # Extraer banco y ciudad desde detalle_credito (campos dinámicos)
                     detalle_credito = solicitud_data.get("detalle_credito", {})
                     banco_nombre = None
+                    ciudad = None
 
                     # Buscar banco en la raíz del JSON detalle_credito
                     banco_nombre = detalle_credito.get("banco")
+                    ciudad = detalle_credito.get("ciudad_solicitud")
 
                     print(f"   🏦 Banco extraído: {banco_nombre}")
+                    print(f"   🏙️ Ciudad extraída: {ciudad}")
 
-                    # Asegurar que el banco esté en la raíz del JSON
+                    # Asegurar que el banco y ciudad estén en la raíz del JSON
                     if banco_nombre:
                         detalle_credito["banco"] = banco_nombre
+                    if ciudad:
+                        detalle_credito["ciudad_solicitud"] = ciudad
 
-                    # Preparar datos para el modelo
-                    solicitud_data["empresa_id"] = empresa_id
-                    solicitud_data["solicitante_id"] = solicitante_id
+                    # Obtener user_id del header
+                    user_id = request.headers.get("X-User-Id")
+                    if not user_id:
+                        raise ValueError("X-User-Id header es requerido para crear solicitudes")
+
+                    # Preparar datos para el modelo (solo campos que acepta el modelo)
+                    datos_para_modelo = {
+                        "empresa_id": empresa_id,
+                        "solicitante_id": solicitante_id,
+                        "created_by_user_id": int(user_id),
+                        "estado": solicitud_data.get("estado", "Pendiente"),
+                        "detalle_credito": detalle_credito
+                    }
+
+                    # Agregar campos opcionales solo si están presentes
                     if banco_nombre:
-                        solicitud_data["banco_nombre"] = banco_nombre
-                    solicitud_data["detalle_credito"] = detalle_credito  # Con banco sincronizado
+                        datos_para_modelo["banco_nombre"] = banco_nombre
+                    if ciudad:
+                        datos_para_modelo["ciudad"] = ciudad  # El modelo espera 'ciudad', no 'ciudad_solicitud'
 
-                    solicitud_creada = self.solicitudes_model.create(**solicitud_data)
+                    solicitud_creada = self.solicitudes_model.create(**datos_para_modelo)
                     solicitudes_creadas.append(solicitud_creada)
                     print(f"   ✅ Solicitud {idx + 1} creada con ID: {solicitud_creada['id']}")
             else:

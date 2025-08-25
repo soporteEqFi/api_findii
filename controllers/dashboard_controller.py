@@ -149,7 +149,7 @@ class DashboardController:
                                 detalle_credito = {}
 
                         # Buscar ciudad en la raíz del JSON
-                        ciudad_solicitante = detalle_credito.get('ciudad')
+                        ciudad_solicitante = detalle_credito.get('ciudad_solicitud')
 
                     if ciudad_solicitante and ciudad_solicitante != ciudad_usuario:
                         print(f"   🏙️ Saltando solicitante {sol_id} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")

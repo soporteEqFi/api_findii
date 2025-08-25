@@ -139,7 +139,7 @@ class SolicitudesController:
         try:
             empresa_id = self._empresa_id()
 
-            # Buscar específicamente en solicitudes.detalle_credito con clave "ciudad"
+            # Buscar específicamente en solicitudes.detalle_credito con clave "ciudad_solicitud"
             ciudades_encontradas = []
 
             try:
@@ -191,7 +191,7 @@ class SolicitudesController:
 
             # Buscar banco en la raíz del JSON detalle_credito
             banco_nombre = detalle_credito.get("banco")
-            ciudad = detalle_credito.get("ciudad")
+            ciudad = detalle_credito.get("ciudad_solicitud")
 
             if not banco_nombre:
                 return jsonify({"ok": False, "error": "banco es requerido en detalle_credito"}), 400
@@ -215,7 +215,7 @@ class SolicitudesController:
 
             # Asegurar que el banco y ciudad estén en la raíz del JSON
             detalle_credito["banco"] = banco_nombre
-            detalle_credito["ciudad"] = ciudad
+            detalle_credito["ciudad_solicitud"] = ciudad
 
             print(f"\n📝 CREANDO SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")

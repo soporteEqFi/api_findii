@@ -54,7 +54,7 @@ class SchemaCompletoModel:
                 "campos_fijos": [
                     {"key": "estado", "type": "string", "required": True, "description": "Estado de la solicitud"},
                     {"key": "banco_nombre", "type": "string", "required": False, "description": "Nombre del banco"},
-                    {"key": "ciudad", "type": "string", "required": False, "description": "Ciudad"}
+                    {"key": "ciudad_solicitud", "type": "string", "required": False, "description": "Ciudad de la solicitud"}
                 ]
             }
         }
@@ -95,18 +95,20 @@ class SchemaCompletoModel:
         """Ordena los campos por order_index si está presente"""
         def get_order_index(campo):
             # Prioridad 1: order_index en la columna fija (BD)
-            if "order_index" in campo:
+            if "order_index" in campo and campo["order_index"] is not None:
                 return campo["order_index"]
 
             # Prioridad 2: order_index en list_values (JSON)
             if "list_values" in campo and isinstance(campo["list_values"], dict):
-                return campo["list_values"].get("order_index", 999)
+                order_index = campo["list_values"].get("order_index", 999)
+                return order_index if order_index is not None else 999
 
             # Prioridad 3: order_index en object_structure
             if "list_values" in campo and isinstance(campo["list_values"], dict) and "object_structure" in campo["list_values"]:
                 object_structure = campo["list_values"]["object_structure"]
                 if object_structure and "order_index" in object_structure[0]:
-                    return object_structure[0]["order_index"]
+                    order_index = object_structure[0]["order_index"]
+                    return order_index if order_index is not None else 999
 
             return 999  # Valor por defecto para campos sin order_index
 
