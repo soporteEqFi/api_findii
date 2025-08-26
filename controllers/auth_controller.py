@@ -65,6 +65,11 @@ class AuthController:
 
             print(f"Usuario: {usuario}")
 
+            # Obtener información de la empresa
+            empresa_info = None
+            if usuario.get("empresa_id"):
+                empresa_info = self.model.get_empresa_info(usuario["empresa_id"])
+
             return jsonify({
                 "ok": True,
                 "access_token": access_token,
@@ -74,8 +79,10 @@ class AuthController:
                     "email": usuario["email"],
                     "rol": usuario["rol"],
                     "cedula": usuario["cedula"],
+                    "empresa_id": usuario.get("empresa_id"),
                     "info_extra": usuario["info_extra"]
                 },
+                "empresa": empresa_info,
                 "message": "Login exitoso"
             }), 200
 
@@ -102,6 +109,11 @@ class AuthController:
                     "message": "Token válido pero usuario no existe"
                 }), 404
 
+            # Obtener información de la empresa
+            empresa_info = None
+            if usuario.get("empresa_id"):
+                empresa_info = self.model.get_empresa_info(usuario["empresa_id"])
+
             return jsonify({
                 "ok": True,
                 "user": {
@@ -110,8 +122,10 @@ class AuthController:
                     "email": usuario["email"],
                     "rol": usuario["rol"],
                     "cedula": usuario["cedula"],
+                    "empresa_id": usuario.get("empresa_id"),
                     "info_extra": usuario["info_extra"]
                 },
+                "empresa": empresa_info,
                 "message": "Token válido"
             }), 200
 
