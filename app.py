@@ -15,6 +15,7 @@ from routes.schema_completo_routes import schema_completo
 from routes.dashboard_routes import dashboard_bp as dashboard
 from routes.documentos_routes import documentos
 from routes.configuraciones_routes import configuraciones
+from routes.usuarios_routes import usuarios
 
 load_dotenv()
 
@@ -62,6 +63,7 @@ app.register_blueprint(referencias, url_prefix="/referencias")
 app.register_blueprint(dashboard, url_prefix="/dashboard")
 app.register_blueprint(documentos, url_prefix="/documentos")
 app.register_blueprint(configuraciones, url_prefix="/configuraciones")
+app.register_blueprint(usuarios, url_prefix="/usuarios")
 
 def pagina_no_encontrada(error):
     print(f"❌ 404 - PÁGINA NO ENCONTRADA: {error}")
