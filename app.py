@@ -16,13 +16,17 @@ from routes.dashboard_routes import dashboard_bp as dashboard
 from routes.documentos_routes import documentos
 from routes.configuraciones_routes import configuraciones
 from routes.usuarios_routes import usuarios
+from routes.notificaciones_routes import notificaciones
 
 load_dotenv()
 
 app = Flask(__name__)
 jwt = JWTManager(app)
-cors = CORS(app, resources={r"/*": {"origins": "*"}})
+cors = CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+
+# Configurar Flask para manejar redirecciones CORS
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 # Middleware para logging de requests
 @app.before_request
@@ -64,6 +68,7 @@ app.register_blueprint(dashboard, url_prefix="/dashboard")
 app.register_blueprint(documentos, url_prefix="/documentos")
 app.register_blueprint(configuraciones, url_prefix="/configuraciones")
 app.register_blueprint(usuarios, url_prefix="/usuarios")
+app.register_blueprint(notificaciones, url_prefix="/notificaciones")
 
 def pagina_no_encontrada(error):
     print(f"❌ 404 - PÁGINA NO ENCONTRADA: {error}")
