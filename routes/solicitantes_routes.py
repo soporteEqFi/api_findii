@@ -48,3 +48,10 @@ def get_todos_registros_solicitante(id: int):
 def crear_registro_completo():
     """Crear un registro completo con todas las entidades relacionadas"""
     return con_solicitantes.crear_registro_completo()
+
+
+@solicitantes.route("/<int:id>/editar-registro-completo", methods=["PATCH"])
+@cross_origin()
+def editar_registro_completo(id: int):
+    """Editar un registro completo con todas las entidades relacionadas"""
+    return con_solicitantes.editar_registro_completo(id)

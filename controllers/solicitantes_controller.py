@@ -576,3 +576,227 @@ class SolicitantesController:
         except Exception as ex:
             log_error(ex, "ERROR INESPERADO")
             return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def editar_registro_completo(self, solicitante_id: int):
+        """Editar un registro completo: solicitante + ubicaciones + actividad económica + info financiera + referencias + solicitudes"""
+        log_request_details("EDITAR REGISTRO COMPLETO", f"solicitante_id={solicitante_id}")
+
+        try:
+            empresa_id = self._empresa_id()
+            body = request.get_json(silent=True) or {}
+
+            print(f"\n📋 EMPRESA ID: {empresa_id}")
+            print(f"📋 SOLICITANTE ID: {solicitante_id}")
+
+            # Verificar que el solicitante existe
+            solicitante_existente = self.model.get_by_id(id=solicitante_id, empresa_id=empresa_id)
+            if not solicitante_existente:
+                return jsonify({"ok": False, "error": "Solicitante no encontrado"}), 404
+
+            # Extraer datos de cada entidad
+            datos_solicitante = body.get("solicitante", {})
+            datos_ubicaciones = body.get("ubicaciones", [])
+            datos_actividad = body.get("actividad_economica", {})
+            datos_financiera = body.get("informacion_financiera", {})
+            datos_referencias = body.get("referencias", [])
+            datos_solicitudes = body.get("solicitudes", [])
+
+            # 1. ACTUALIZAR SOLICITANTE
+            solicitante_actualizado = None
+            if datos_solicitante:
+                print(f"\n1️⃣ ACTUALIZANDO SOLICITANTE...")
+                solicitante_actualizado = self.model.update(
+                    id=solicitante_id, 
+                    empresa_id=empresa_id, 
+                    updates=datos_solicitante
+                )
+                print(f"   ✅ Solicitante actualizado")
+            else:
+                solicitante_actualizado = solicitante_existente
+
+            # 2. ACTUALIZAR UBICACIONES
+            ubicaciones_actualizadas = []
+            if datos_ubicaciones:
+                print(f"\n2️⃣ ACTUALIZANDO UBICACIONES...")
+                for idx, ubicacion_data in enumerate(datos_ubicaciones):
+                    # Procesar campos dinámicos
+                    detalle_direccion = ubicacion_data.get("detalle_direccion", {})
+                    campos_para_mover = [
+                        "direccion", "direccion_residencia", "tipo_direccion", "barrio", "estrato",
+                        "telefono", "celular", "correo_personal", "recibir_correspondencia",
+                        "tipo_vivienda", "paga_arriendo", "valor_mensual_arriendo", "arrendador"
+                    ]
+                    for campo in campos_para_mover:
+                        if campo in ubicacion_data:
+                            detalle_direccion[campo] = ubicacion_data.pop(campo)
+
+                    ubicacion_data["detalle_direccion"] = detalle_direccion
+
+                    # Si hay ID, actualizar; si no, crear nueva
+                    if "id" in ubicacion_data and ubicacion_data["id"]:
+                        ubicacion_actualizada = self.ubicaciones_model.update(
+                            id=ubicacion_data["id"],
+                            empresa_id=empresa_id,
+                            updates={k: v for k, v in ubicacion_data.items() if k != "id"}
+                        )
+                    else:
+                        ubicacion_data["empresa_id"] = empresa_id
+                        ubicacion_data["solicitante_id"] = solicitante_id
+                        ubicacion_actualizada = self.ubicaciones_model.create(**ubicacion_data)
+                    
+                    ubicaciones_actualizadas.append(ubicacion_actualizada)
+
+            # 3. ACTUALIZAR ACTIVIDAD ECONÓMICA
+            actividad_actualizada = None
+            if datos_actividad:
+                print(f"\n3️⃣ ACTUALIZANDO ACTIVIDAD ECONÓMICA...")
+                detalle_actividad = datos_actividad.get("detalle_actividad", {})
+                campos_para_mover = ["tipo_actividad", "tipo_actividad_economica"]
+                for campo in campos_para_mover:
+                    if campo in datos_actividad:
+                        detalle_actividad[campo] = datos_actividad.pop(campo)
+
+                datos_actividad["detalle_actividad"] = detalle_actividad
+
+                # Buscar actividad existente
+                actividades_existentes = self.actividad_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                if actividades_existentes and len(actividades_existentes) > 0:
+                    actividad_id = actividades_existentes[0]["id"]
+                    actividad_actualizada = self.actividad_model.update(
+                        id=actividad_id,
+                        empresa_id=empresa_id,
+                        updates=datos_actividad
+                    )
+                else:
+                    datos_actividad["empresa_id"] = empresa_id
+                    datos_actividad["solicitante_id"] = solicitante_id
+                    actividad_actualizada = self.actividad_model.create(**datos_actividad)
+
+            # 4. ACTUALIZAR INFORMACIÓN FINANCIERA
+            financiera_actualizada = None
+            if datos_financiera:
+                print(f"\n4️⃣ ACTUALIZANDO INFORMACIÓN FINANCIERA...")
+                detalle_financiera = datos_financiera.get("detalle_financiera", {})
+                campos_para_mover = [
+                    "ingreso_basico_mensual", "ingreso_variable_mensual", "otros_ingresos_mensuales",
+                    "gastos_financieros_mensuales", "gastos_personales_mensuales", "declara_renta"
+                ]
+                for campo in campos_para_mover:
+                    if campo in datos_financiera:
+                        detalle_financiera[campo] = datos_financiera.pop(campo)
+
+                datos_financiera["detalle_financiera"] = detalle_financiera
+
+                # Buscar información financiera existente
+                financieras_existentes = self.financiera_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                if financieras_existentes and len(financieras_existentes) > 0:
+                    financiera_id = financieras_existentes[0]["id"]
+                    financiera_actualizada = self.financiera_model.update(
+                        id=financiera_id,
+                        empresa_id=empresa_id,
+                        updates=datos_financiera
+                    )
+                else:
+                    datos_financiera["empresa_id"] = empresa_id
+                    datos_financiera["solicitante_id"] = solicitante_id
+                    financiera_actualizada = self.financiera_model.create(**datos_financiera)
+
+            # 5. ACTUALIZAR REFERENCIAS
+            referencias_actualizadas = []
+            if datos_referencias:
+                print(f"\n5️⃣ ACTUALIZANDO REFERENCIAS...")
+                for idx, referencia_data in enumerate(datos_referencias):
+                    detalle_referencia = referencia_data.get("detalle_referencia", {})
+                    campos_para_mover = [
+                        "nombre_completo", "telefono", "celular_referencia", "relacion_referencia",
+                        "nombre", "ciudad", "departamento", "direccion"
+                    ]
+                    for campo in campos_para_mover:
+                        if campo in referencia_data:
+                            detalle_referencia[campo] = referencia_data.pop(campo)
+
+                    referencia_data["detalle_referencia"] = detalle_referencia
+
+                    # Si hay ID, actualizar; si no, crear nueva
+                    if "id" in referencia_data and referencia_data["id"]:
+                        referencia_actualizada = self.referencias_model.update(
+                            id=referencia_data["id"],
+                            empresa_id=empresa_id,
+                            updates={k: v for k, v in referencia_data.items() if k != "id"}
+                        )
+                    else:
+                        referencia_data["empresa_id"] = empresa_id
+                        referencia_data["solicitante_id"] = solicitante_id
+                        referencia_actualizada = self.referencias_model.create(**referencia_data)
+                    
+                    referencias_actualizadas.append(referencia_actualizada)
+
+            # 6. ACTUALIZAR SOLICITUDES
+            solicitudes_actualizadas = []
+            if datos_solicitudes:
+                print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
+                user_id = request.headers.get("X-User-Id")
+                if not user_id:
+                    raise ValueError("X-User-Id header es requerido para actualizar solicitudes")
+
+                for idx, solicitud_data in enumerate(datos_solicitudes):
+                    detalle_credito = solicitud_data.get("detalle_credito", {})
+                    datos_para_modelo = {
+                        "estado": solicitud_data.get("estado", "Pendiente"),
+                        "detalle_credito": detalle_credito
+                    }
+
+                    if solicitud_data.get("banco_nombre"):
+                        datos_para_modelo["banco_nombre"] = solicitud_data["banco_nombre"]
+                    if solicitud_data.get("ciudad_solicitud"):
+                        datos_para_modelo["ciudad_solicitud"] = solicitud_data["ciudad_solicitud"]
+
+                    # Si hay ID, actualizar; si no, crear nueva
+                    if "id" in solicitud_data and solicitud_data["id"]:
+                        solicitud_actualizada = self.solicitudes_model.update(
+                            id=solicitud_data["id"],
+                            empresa_id=empresa_id,
+                            updates=datos_para_modelo
+                        )
+                    else:
+                        datos_para_modelo.update({
+                            "empresa_id": empresa_id,
+                            "solicitante_id": solicitante_id,
+                            "created_by_user_id": int(user_id),
+                            "assigned_to_user_id": int(user_id)
+                        })
+                        solicitud_actualizada = self.solicitudes_model.create(**datos_para_modelo)
+                    
+                    solicitudes_actualizadas.append(solicitud_actualizada)
+
+            # 7. PREPARAR RESPUESTA
+            response_data = {
+                "ok": True,
+                "data": {
+                    "solicitante": solicitante_actualizado,
+                    "ubicaciones": ubicaciones_actualizadas,
+                    "actividad_economica": actividad_actualizada,
+                    "informacion_financiera": financiera_actualizada,
+                    "referencias": referencias_actualizadas,
+                    "solicitudes": solicitudes_actualizadas,
+                    "resumen": {
+                        "solicitante_id": solicitante_id,
+                        "total_ubicaciones": len(ubicaciones_actualizadas),
+                        "tiene_actividad_economica": bool(actividad_actualizada),
+                        "tiene_informacion_financiera": bool(financiera_actualizada),
+                        "total_referencias": len(referencias_actualizadas),
+                        "total_solicitudes": len(solicitudes_actualizadas)
+                    }
+                },
+                "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}"
+            }
+
+            log_response(response_data)
+            return jsonify(response_data), 200
+
+        except ValueError as ve:
+            log_error(ve, "ERROR DE VALIDACIÓN")
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            log_error(ex, "ERROR INESPERADO")
+            return jsonify({"ok": False, "error": str(ex)}), 500
