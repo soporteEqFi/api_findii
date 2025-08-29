@@ -97,6 +97,9 @@ class DashboardController:
                 elif rol == "empresa":
                     # Usuario empresa ve todas las solicitudes de su empresa
                     print(f"   🏢 Empresa: viendo todas las solicitudes")
+                elif rol == "supervisor":
+                    # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
+                    print(f"   👁️ Supervisor: viendo todas las solicitudes")
                 else:
                     # Rol desconocido, no ve nada
                     print(f"   ❌ Rol desconocido: {rol}")
