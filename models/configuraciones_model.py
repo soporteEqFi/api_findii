@@ -47,3 +47,25 @@ class ConfiguracionesModel:
         except Exception as e:
             print(f"❌ Error obteniendo configuraciones: {e}")
             return {}
+
+    def obtener_columnas_tabla(self, *, empresa_id: int) -> Dict[str, Any]:
+        """Obtener configuración de columnas para tablas"""
+        try:
+            resp = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id).eq("categoria", "columnas_tabla").eq("activo", True).execute()
+            data = _get_data(resp)
+
+            if data and len(data) > 0:
+                configuracion = data[0].get("configuracion", [])
+                return {
+                    "id": data[0].get("id"),
+                    "categoria": data[0].get("categoria"),
+                    "columnas": configuracion,
+                    "descripcion": data[0].get("descripcion"),
+                    "created_at": data[0].get("created_at"),
+                    "updated_at": data[0].get("updated_at")
+                }
+            return {}
+
+        except Exception as e:
+            print(f"❌ Error obteniendo configuración de columnas: {e}")
+            return {}

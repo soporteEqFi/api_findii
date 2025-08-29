@@ -29,3 +29,13 @@ def obtener_todas():
     Ejemplo: GET /configuraciones?empresa_id=1
     """
     return con_config.obtener_todas()
+
+@configuraciones.route('/columnas-tabla', methods=['GET'])
+@cross_origin()
+def obtener_columnas_tabla():
+    """
+    Obtener configuración de columnas para tablas
+
+    Ejemplo: GET /configuraciones/columnas-tabla?empresa_id=1
+    """
+    return con_config.obtener_columnas_tabla()

@@ -634,6 +634,11 @@ class SolicitantesController:
             ubicaciones_actualizadas = []
             if datos_ubicaciones:
                 print(f"\n2️⃣ ACTUALIZANDO UBICACIONES...")
+                
+                # Obtener ubicaciones existentes del solicitante
+                ubicaciones_existentes = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                print(f"   📍 Ubicaciones existentes encontradas: {len(ubicaciones_existentes)}")
+                
                 for idx, ubicacion_data in enumerate(datos_ubicaciones):
                     # Procesar campos dinámicos
                     detalle_direccion = ubicacion_data.get("detalle_direccion", {})
@@ -648,14 +653,31 @@ class SolicitantesController:
 
                     ubicacion_data["detalle_direccion"] = detalle_direccion
 
-                    # Si hay ID, actualizar; si no, crear nueva
-                    if "id" in ubicacion_data and ubicacion_data["id"]:
+                    # Buscar ubicación existente para actualizar
+                    ubicacion_id = ubicacion_data.get("id")
+                    ubicacion_existente = None
+                    
+                    # Si hay ID específico, buscar por ID
+                    if ubicacion_id and str(ubicacion_id).strip() and str(ubicacion_id) != "0":
+                        ubicacion_existente = next((u for u in ubicaciones_existentes if u["id"] == int(ubicacion_id)), None)
+                        print(f"   🔍 Buscando ubicación por ID {ubicacion_id}: {'Encontrada' if ubicacion_existente else 'No encontrada'}")
+                    
+                    # Si no hay ID o no se encontró, usar ubicación existente por índice
+                    if not ubicacion_existente and idx < len(ubicaciones_existentes):
+                        ubicacion_existente = ubicaciones_existentes[idx]
+                        print(f"   🔄 Usando ubicación existente por índice {idx}, ID: {ubicacion_existente['id']}")
+                    
+                    # Actualizar o crear según corresponda
+                    if ubicacion_existente:
+                        print(f"   ✏️ ACTUALIZANDO ubicación ID: {ubicacion_existente['id']}")
                         ubicacion_actualizada = self.ubicaciones_model.update(
-                            id=ubicacion_data["id"],
+                            id=ubicacion_existente["id"],
                             empresa_id=empresa_id,
                             updates={k: v for k, v in ubicacion_data.items() if k != "id"}
                         )
+                        print(f"   ✅ Ubicación {ubicacion_existente['id']} actualizada exitosamente")
                     else:
+                        print(f"   🆕 CREANDO nueva ubicación (no hay ubicaciones existentes para índice {idx})")
                         ubicacion_data["empresa_id"] = empresa_id
                         ubicacion_data["solicitante_id"] = solicitante_id
                         ubicacion_actualizada = self.ubicaciones_model.create(**ubicacion_data)
@@ -755,8 +777,36 @@ class SolicitantesController:
                 if not user_id:
                     raise ValueError("X-User-Id header es requerido para actualizar solicitudes")
 
+                # Obtener solicitudes existentes del solicitante
+                solicitudes_existentes = self.solicitudes_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                print(f"   📋 Solicitudes existentes encontradas: {len(solicitudes_existentes)}")
+
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     detalle_credito = solicitud_data.get("detalle_credito", {})
+                    
+                    # Procesar campos anidados de tipo de crédito
+                    tipo_credito = solicitud_data.get("tipo_credito")
+                    if tipo_credito:
+                        detalle_credito["tipo_credito"] = tipo_credito
+                        
+                        # Buscar campos anidados específicos del tipo de crédito
+                        # Mapeo de tipos de crédito a sus campos anidados
+                        credit_type_mappings = {
+                            "Crédito hipotecario": "credito_hipotecario",
+                            "Crédito de consumo": "credito_consumo",
+                            "Crédito comercial": "credito_comercial",
+                            "Microcrédito": "microcredito",
+                            "Crédito educativo": "credito_educativo",
+                            "Crédito vehicular": "credito_vehicular"
+                        }
+                        
+                        # Buscar el campo anidado correspondiente al tipo de crédito
+                        for credit_type, nested_field in credit_type_mappings.items():
+                            if credit_type.lower() in tipo_credito.lower() and nested_field in solicitud_data:
+                                detalle_credito[nested_field] = solicitud_data[nested_field]
+                                print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
+                                break
+                    
                     datos_para_modelo = {
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
@@ -767,14 +817,37 @@ class SolicitantesController:
                     if solicitud_data.get("ciudad_solicitud"):
                         datos_para_modelo["ciudad_solicitud"] = solicitud_data["ciudad_solicitud"]
 
-                    # Si hay ID, actualizar; si no, crear nueva
-                    if "id" in solicitud_data and solicitud_data["id"]:
+                    # Buscar solicitud existente para actualizar
+                    solicitud_id = solicitud_data.get("id")
+                    solicitud_existente = None
+                    
+                    # Si hay ID específico, buscar por ID
+                    if solicitud_id and str(solicitud_id).strip() and str(solicitud_id) != "0":
+                        solicitud_existente = next((s for s in solicitudes_existentes if s["id"] == int(solicitud_id)), None)
+                        print(f"   🔍 Buscando por ID {solicitud_id}: {'Encontrada' if solicitud_existente else 'No encontrada'}")
+                    
+                    # Si no hay ID o no se encontró, usar la primera solicitud existente
+                    if not solicitud_existente and solicitudes_existentes:
+                        solicitud_existente = solicitudes_existentes[0]
+                        print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
+                    
+                    # Actualizar o crear según corresponda
+                    if solicitud_existente:
+                        print(f"   ✏️ ACTUALIZANDO solicitud ID: {solicitud_existente['id']}")
+                        
+                        # Separar detalle_credito de otros campos base
+                        detalle_credito = datos_para_modelo.pop("detalle_credito", {})
+                        base_updates = datos_para_modelo if datos_para_modelo else None
+                        
                         solicitud_actualizada = self.solicitudes_model.update(
-                            id=solicitud_data["id"],
+                            id=solicitud_existente["id"],
                             empresa_id=empresa_id,
-                            updates=datos_para_modelo
+                            base_updates=base_updates,
+                            detalle_credito_merge=detalle_credito
                         )
+                        print(f"   ✅ Solicitud {solicitud_existente['id']} actualizada exitosamente")
                     else:
+                        print(f"   🆕 CREANDO nueva solicitud (no hay solicitudes existentes)")
                         datos_para_modelo.update({
                             "empresa_id": empresa_id,
                             "solicitante_id": solicitante_id,

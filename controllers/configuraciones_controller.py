@@ -62,3 +62,29 @@ class ConfiguracionesController:
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:
             return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def obtener_columnas_tabla(self):
+        """Obtener configuración de columnas para tablas"""
+        try:
+            empresa_id = self._empresa_id()
+
+            configuracion_columnas = self.model.obtener_columnas_tabla(
+                empresa_id=empresa_id
+            )
+
+            if not configuracion_columnas:
+                return jsonify({
+                    "ok": False,
+                    "error": "No se encontró configuración de columnas para la tabla"
+                }), 404
+
+            return jsonify({
+                "ok": True,
+                "data": configuracion_columnas,
+                "message": "Configuración de columnas obtenida exitosamente"
+            })
+
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            return jsonify({"ok": False, "error": str(ex)}), 500
