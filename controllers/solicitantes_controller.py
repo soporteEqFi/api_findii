@@ -11,6 +11,7 @@ from utils.debug_helpers import (
     log_request_details, log_validation_results,
     log_data_to_save, log_operation_result, log_response, log_error
 )
+from utils.email.sent_email import enviar_email_registro_completo
 import json
 import os
 import uuid
@@ -481,6 +482,21 @@ class SolicitantesController:
             print(f"   💰 Info financiera: {'✅' if financiera_creada else '❌'}")
             print(f"   👥 Referencias: {len(referencias_creadas)}")
             print(f"   📄 Solicitudes: {len(solicitudes_creadas)}")
+
+            # 8. ENVIAR EMAIL DE CONFIRMACIÓN
+            print(f"\n📧 ENVIANDO EMAIL DE CONFIRMACIÓN...")
+            try:
+                email_enviado = enviar_email_registro_completo(response_data)
+                if email_enviado:
+                    print(f"   ✅ Email enviado exitosamente")
+                    response_data["email_enviado"] = True
+                else:
+                    print(f"   ⚠️ No se pudo enviar el email, pero el registro se creó correctamente")
+                    response_data["email_enviado"] = False
+            except Exception as email_error:
+                print(f"   ❌ Error enviando email: {str(email_error)}")
+                response_data["email_enviado"] = False
+                # No fallar la operación por error de email
 
             log_response(response_data)
             return jsonify(response_data), 201
