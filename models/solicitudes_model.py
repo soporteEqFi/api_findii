@@ -164,9 +164,15 @@ class SolicitudesModel:
                 print(f"      📋 Query final: banco_nombre='{banco_nombre}' AND ciudad_solicitud='{ciudad_solicitud}'")
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
+                print(f"   ✅ Empresa - sin filtros aplicados")
+                pass
+            elif rol == "supervisor":
+                # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
+                print(f"   ✅ Supervisor - sin filtros aplicados")
                 pass
             else:
                 # Rol desconocido, no ve nada
+                print(f"   ❌ Rol desconocido '{rol}' - retornando lista vacía")
                 return []
 
         # Aplicar paginación
@@ -203,6 +209,9 @@ class SolicitudesModel:
                     q = q.eq("ciudad_solicitud", ciudad_solicitud)
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
+                pass
+            elif rol == "supervisor":
+                # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
                 pass
             else:
                 # Rol desconocido, no ve nada
