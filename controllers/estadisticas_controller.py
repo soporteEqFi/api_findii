@@ -45,9 +45,9 @@ class EstadisticasController:
                 return None
 
             # Extraer banco_nombre y ciudad del info_extra del usuario
-            info_extra = user_data.get("info_extra", {})
-            banco_nombre = info_extra.get("banco_nombre")
-            ciudad = info_extra.get("ciudad")
+            info_extra = user_data.get("info_extra") or {}
+            banco_nombre = info_extra.get("banco_nombre") if isinstance(info_extra, dict) else None
+            ciudad = info_extra.get("ciudad") if isinstance(info_extra, dict) else None
 
             usuario_info = {
                 "id": user_data["id"],
@@ -172,6 +172,41 @@ class EstadisticasController:
             print(f"❌ Error inesperado: {ex}")
             return jsonify({"ok": False, "error": str(ex)}), 500
 
+    def estadisticas_usuarios(self):
+        """Endpoint para obtener estadísticas de usuarios"""
+        try:
+            print(f"\n👥 OBTENIENDO ESTADÍSTICAS DE USUARIOS")
+            
+            empresa_id = self._empresa_id()
+            usuario_info = self._obtener_usuario_autenticado()
+            
+            print(f"   🏢 Empresa ID: {empresa_id}")
+            print(f"   👤 Usuario info: {usuario_info}")
+            
+            # Obtener estadísticas del modelo
+            estadisticas = self.model.estadisticas_usuarios(empresa_id, usuario_info)
+            
+            print(f"   📈 Estadísticas obtenidas: {estadisticas}")
+            
+            response_data = {
+                "ok": True,
+                "data": {
+                    "tipo": "usuarios",
+                    "empresa_id": empresa_id,
+                    "usuario_rol": usuario_info.get("rol") if usuario_info else None,
+                    "estadisticas": estadisticas
+                }
+            }
+            
+            return jsonify(response_data)
+            
+        except ValueError as ve:
+            print(f"❌ Error de validación: {ve}")
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            print(f"❌ Error inesperado: {ex}")
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
     def estadisticas_completas(self):
         """Endpoint para obtener todas las estadísticas en una sola llamada"""
         try:
@@ -191,6 +226,7 @@ class EstadisticasController:
             estadisticas_generales = self.model.estadisticas_generales(empresa_id, usuario_info)
             estadisticas_rendimiento = self.model.estadisticas_rendimiento(empresa_id, usuario_info, dias)
             estadisticas_financieras = self.model.estadisticas_financieras(empresa_id, usuario_info)
+            estadisticas_usuarios = self.model.estadisticas_usuarios(empresa_id, usuario_info)
             
             response_data = {
                 "ok": True,
@@ -202,7 +238,8 @@ class EstadisticasController:
                     "estadisticas": {
                         "generales": estadisticas_generales,
                         "rendimiento": estadisticas_rendimiento,
-                        "financieras": estadisticas_financieras
+                        "financieras": estadisticas_financieras,
+                        "usuarios": estadisticas_usuarios
                     }
                 }
             }

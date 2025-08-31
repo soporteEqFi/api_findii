@@ -45,6 +45,20 @@ def get_estadisticas_financieras():
     """
     return estadisticas_controller.estadisticas_financieras()
 
+@estadisticas_bp.route('/usuarios', methods=['GET'])
+def get_estadisticas_usuarios():
+    """
+    Obtener estadísticas de usuarios por empresa
+    Solo disponible para admin y supervisor
+    
+    Retorna:
+    - Total de usuarios
+    - Usuarios por rol
+    - Usuarios por banco (desde info_extra)
+    - Usuarios por ciudad (desde info_extra)
+    """
+    return estadisticas_controller.estadisticas_usuarios()
+
 @estadisticas_bp.route('/completas', methods=['GET'])
 def get_estadisticas_completas():
     """
@@ -56,6 +70,7 @@ def get_estadisticas_completas():
     - Generales
     - Rendimiento  
     - Financieras
+    - Usuarios (solo admin/supervisor)
     """
     return estadisticas_controller.estadisticas_completas()
 

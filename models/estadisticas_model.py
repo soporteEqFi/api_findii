@@ -74,13 +74,29 @@ class EstadisticasModel:
             documentos_resp = supabase.table("documentos").select("id", count="exact").execute()
             total_documentos = documentos_resp.count or 0
             
+            # Solicitudes por día (últimos 30 días para gráfico de línea de tiempo)
+            from datetime import datetime, timedelta
+            fecha_inicio = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            
+            solicitudes_tiempo_query = supabase.table("solicitudes").select("created_at").eq("empresa_id", empresa_id).gte("created_at", fecha_inicio)
+            solicitudes_tiempo_query = self._aplicar_query_filtros_rol(solicitudes_tiempo_query, usuario_info)
+            solicitudes_tiempo_resp = solicitudes_tiempo_query.execute()
+            solicitudes_tiempo_data = _get_data(solicitudes_tiempo_resp) or []
+            
+            # Agrupar por fecha
+            solicitudes_por_dia = {}
+            for solicitud in solicitudes_tiempo_data:
+                fecha = solicitud.get("created_at", "")[:10]  # Solo la fecha YYYY-MM-DD
+                solicitudes_por_dia[fecha] = solicitudes_por_dia.get(fecha, 0) + 1
+            
             return {
                 "total_solicitantes": total_solicitantes,
                 "total_solicitudes": total_solicitudes,
                 "solicitudes_por_estado": solicitudes_por_estado,
                 "solicitudes_por_banco": solicitudes_por_banco,
                 "solicitudes_por_ciudad": solicitudes_por_ciudad,
-                "total_documentos": total_documentos
+                "total_documentos": total_documentos,
+                "solicitudes_por_dia": solicitudes_por_dia
             }
             
         except Exception as e:
@@ -91,7 +107,8 @@ class EstadisticasModel:
                 "solicitudes_por_estado": {},
                 "solicitudes_por_banco": {},
                 "solicitudes_por_ciudad": {},
-                "total_documentos": 0
+                "total_documentos": 0,
+                "solicitudes_por_dia": {}
             }
 
     def estadisticas_rendimiento(self, empresa_id: int, usuario_info: dict = None, dias: int = 30) -> Dict[str, Any]:
@@ -153,6 +170,60 @@ class EstadisticasModel:
                 "solicitudes_completadas": 0,
                 "solicitudes_pendientes": 0,
                 "productividad_usuarios": {}
+            }
+
+    def estadisticas_usuarios(self, empresa_id: int, usuario_info: dict = None) -> Dict[str, Any]:
+        """Obtiene estadísticas de usuarios por empresa"""
+        try:
+            # Solo admin y supervisor pueden ver estadísticas de usuarios
+            if usuario_info and usuario_info.get("rol") not in ["admin", "supervisor"]:
+                return {
+                    "error": "Sin permisos para ver estadísticas de usuarios",
+                    "total_usuarios": 0,
+                    "usuarios_por_rol": {},
+                    "usuarios_por_banco": {},
+                    "usuarios_por_ciudad": {}
+                }
+            
+            # Total de usuarios de la empresa
+            usuarios_resp = supabase.table("usuarios").select("*").eq("empresa_id", empresa_id).execute()
+            usuarios_data = _get_data(usuarios_resp) or []
+            total_usuarios = len(usuarios_data)
+            
+            # Usuarios por rol
+            usuarios_por_rol = {}
+            for usuario in usuarios_data:
+                rol = usuario.get("rol", "Sin Rol")
+                usuarios_por_rol[rol] = usuarios_por_rol.get(rol, 0) + 1
+            
+            # Usuarios por banco (desde info_extra)
+            usuarios_por_banco = {}
+            for usuario in usuarios_data:
+                info_extra = usuario.get("info_extra") or {}
+                banco = info_extra.get("banco_nombre", "Sin Banco") if isinstance(info_extra, dict) else "Sin Banco"
+                usuarios_por_banco[banco] = usuarios_por_banco.get(banco, 0) + 1
+            
+            # Usuarios por ciudad (desde info_extra)
+            usuarios_por_ciudad = {}
+            for usuario in usuarios_data:
+                info_extra = usuario.get("info_extra") or {}
+                ciudad = info_extra.get("ciudad", "Sin Ciudad") if isinstance(info_extra, dict) else "Sin Ciudad"
+                usuarios_por_ciudad[ciudad] = usuarios_por_ciudad.get(ciudad, 0) + 1
+            
+            return {
+                "total_usuarios": total_usuarios,
+                "usuarios_por_rol": usuarios_por_rol,
+                "usuarios_por_banco": usuarios_por_banco,
+                "usuarios_por_ciudad": usuarios_por_ciudad
+            }
+            
+        except Exception as e:
+            print(f"❌ Error obteniendo estadísticas de usuarios: {e}")
+            return {
+                "total_usuarios": 0,
+                "usuarios_por_rol": {},
+                "usuarios_por_banco": {},
+                "usuarios_por_ciudad": {}
             }
 
     def estadisticas_financieras(self, empresa_id: int, usuario_info: dict = None) -> Dict[str, Any]:
