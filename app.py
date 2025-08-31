@@ -17,6 +17,7 @@ from routes.documentos_routes import documentos
 from routes.configuraciones_routes import configuraciones
 from routes.usuarios_routes import usuarios
 from routes.notificaciones_routes import notificaciones
+from routes.estadisticas_routes import estadisticas
 
 load_dotenv()
 
@@ -69,6 +70,7 @@ app.register_blueprint(documentos, url_prefix="/documentos")
 app.register_blueprint(configuraciones, url_prefix="/configuraciones")
 app.register_blueprint(usuarios, url_prefix="/usuarios")
 app.register_blueprint(notificaciones, url_prefix="/notificaciones")
+app.register_blueprint(estadisticas, url_prefix="/estadisticas")
 
 def pagina_no_encontrada(error):
     print(f"❌ 404 - PÁGINA NO ENCONTRADA: {error}")
