@@ -88,3 +88,55 @@ class ConfiguracionesController:
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:
             return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def actualizar_columnas_tabla(self):
+        """Actualizar configuración completa de columnas"""
+        try:
+            empresa_id = self._empresa_id()
+            body = request.get_json(silent=True) or {}
+            
+            columnas = body.get("columnas", [])
+            if not columnas:
+                raise ValueError("Se requiere el campo 'columnas'")
+
+            resultado = self.model.actualizar_columnas_tabla(
+                empresa_id=empresa_id,
+                columnas=columnas
+            )
+
+            return jsonify({
+                "ok": True,
+                "data": resultado,
+                "message": "Configuración de columnas actualizada exitosamente"
+            })
+
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def agregar_columna(self):
+        """Agregar una nueva columna a la configuración"""
+        try:
+            empresa_id = self._empresa_id()
+            body = request.get_json(silent=True) or {}
+            
+            nombre_columna = body.get("nombre")
+            if not nombre_columna:
+                raise ValueError("Se requiere el campo 'nombre'")
+
+            resultado = self.model.agregar_columna(
+                empresa_id=empresa_id,
+                nombre_columna=nombre_columna
+            )
+
+            return jsonify({
+                "ok": True,
+                "data": resultado,
+                "message": f"Columna '{nombre_columna}' agregada exitosamente"
+            })
+
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            return jsonify({"ok": False, "error": str(ex)}), 500

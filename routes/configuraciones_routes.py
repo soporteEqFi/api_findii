@@ -39,3 +39,25 @@ def obtener_columnas_tabla():
     Ejemplo: GET /configuraciones/columnas-tabla?empresa_id=1
     """
     return con_config.obtener_columnas_tabla()
+
+@configuraciones.route('/columnas-tabla', methods=['PUT'])
+@cross_origin()
+def actualizar_columnas_tabla():
+    """
+    Actualizar configuración completa de columnas
+
+    Ejemplo: PUT /configuraciones/columnas-tabla?empresa_id=1
+    Body: {"columnas": [{"nombre": "Nombre", "activo": true, "orden": 0}]}
+    """
+    return con_config.actualizar_columnas_tabla()
+
+@configuraciones.route('/columnas-tabla/agregar', methods=['POST'])
+@cross_origin()
+def agregar_columna():
+    """
+    Agregar una nueva columna a la configuración
+
+    Ejemplo: POST /configuraciones/columnas-tabla/agregar?empresa_id=1
+    Body: {"nombre": "Nueva Columna"}
+    """
+    return con_config.agregar_columna()
