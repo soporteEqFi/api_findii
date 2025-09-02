@@ -771,6 +771,8 @@ class SolicitantesController:
 
             # 6. ACTUALIZAR SOLICITUDES
             solicitudes_actualizadas = []
+            banco_nombre_cambio = False  # Flag para detectar cambio en banco_nombre
+            
             if datos_solicitudes:
                 print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
                 user_id = request.headers.get("X-User-Id")
@@ -831,6 +833,16 @@ class SolicitantesController:
                         solicitud_existente = solicitudes_existentes[0]
                         print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
                     
+                    # DETECTAR CAMBIO EN BANCO_NOMBRE
+                    nuevo_banco_nombre = solicitud_data.get("banco_nombre")
+                    if solicitud_existente and nuevo_banco_nombre:
+                        banco_anterior = solicitud_existente.get("banco_nombre", "")
+                        if banco_anterior != nuevo_banco_nombre:
+                            print(f"   🏦 CAMBIO DETECTADO en banco_nombre: '{banco_anterior}' → '{nuevo_banco_nombre}'")
+                            banco_nombre_cambio = True
+                        else:
+                            print(f"   🏦 Sin cambio en banco_nombre: '{banco_anterior}'")
+                    
                     # Actualizar o crear según corresponda
                     if solicitud_existente:
                         print(f"   ✏️ ACTUALIZANDO solicitud ID: {solicitud_existente['id']}")
@@ -858,7 +870,31 @@ class SolicitantesController:
                     
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
-            # 7. PREPARAR RESPUESTA
+            # 7. ENVIAR EMAIL SI CAMBIÓ EL BANCO
+            if banco_nombre_cambio:
+                print(f"\n📧 ENVIANDO EMAIL POR CAMBIO DE BANCO...")
+                try:
+                    # Preparar response_data temporal para el email
+                    response_data_temp = {
+                        "ok": True,
+                        "data": {
+                            "solicitante": solicitante_actualizado,
+                            "solicitudes": solicitudes_actualizadas
+                        }
+                    }
+                    
+                    email_enviado = enviar_email_registro_completo(response_data_temp)
+                    if email_enviado:
+                        print(f"   ✅ Email enviado exitosamente por cambio de banco")
+                    else:
+                        print(f"   ⚠️ No se pudo enviar el email, pero la actualización se completó correctamente")
+                except Exception as email_error:
+                    print(f"   ❌ Error enviando email: {str(email_error)}")
+                    # No fallar la operación por error de email
+            else:
+                print(f"\n📧 NO SE ENVÍA EMAIL: No hubo cambio en banco_nombre")
+
+            # 8. PREPARAR RESPUESTA
             response_data = {
                 "ok": True,
                 "data": {
@@ -877,7 +913,8 @@ class SolicitantesController:
                         "total_solicitudes": len(solicitudes_actualizadas)
                     }
                 },
-                "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}"
+                "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}",
+                "email_enviado": banco_nombre_cambio  # Indicar si se envió email
             }
 
             log_response(response_data)

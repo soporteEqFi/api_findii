@@ -323,6 +323,75 @@ def delete_all_field_definitions(entity: str, json_field: str):
         return jsonify({"ok": False, "error": str(ex)}), 500
 
 
+@json_fields.route("/definitions/<entity>/<json_field>/reorder", methods=["PATCH"])
+@cross_origin()
+@handle_errors
+def reorder_field_definitions(entity: str, json_field: str):
+    """Actualizar el order_index de múltiples campos dinámicos"""
+    from flask import request, jsonify
+
+    try:
+        empresa_id = request.headers.get("X-Empresa-Id") or request.args.get("empresa_id")
+        if not empresa_id:
+            return jsonify({"ok": False, "error": "empresa_id es requerido"}), 400
+        empresa_id = int(empresa_id)
+
+        body = request.get_json(silent=True) or {}
+        field_orders = body.get("field_orders", [])
+
+        print(f"🔄 Reordenando campos para {entity}.{json_field}")
+        print(f"📋 Nuevos órdenes: {field_orders}")
+
+        if not isinstance(field_orders, list):
+            return jsonify({"ok": False, "error": "field_orders debe ser una lista"}), 400
+
+        if not field_orders:
+            return jsonify({"ok": False, "error": "field_orders no puede estar vacía"}), 400
+
+        # Validar estructura de field_orders
+        for idx, field_order in enumerate(field_orders):
+            if not isinstance(field_order, dict):
+                return jsonify({"ok": False, "error": f"field_orders[{idx}] debe ser un objeto"}), 400
+            if "key" not in field_order or "order_index" not in field_order:
+                return jsonify({"ok": False, "error": f"field_orders[{idx}] debe incluir 'key' y 'order_index'"}), 400
+
+        # Actualizar cada campo con su nuevo order_index
+        updated_fields = []
+        for field_order in field_orders:
+            key = field_order["key"]
+            new_order_index = field_order["order_index"]
+
+            # Buscar la definición existente por key
+            existing_defs = schema_model.get_schema(
+                empresa_id=empresa_id,
+                entity=entity,
+                json_column=json_field
+            )
+
+            existing_def = next((d for d in existing_defs if d["key"] == key), None)
+            if existing_def:
+                # Actualizar usando el ID de la definición existente
+                result = schema_model.update_definition(
+                    definition_id=existing_def["id"],
+                    updates={"order_index": new_order_index}
+                )
+                updated_fields.append(result)
+                print(f"✅ Campo '{key}' actualizado a order_index {new_order_index}")
+            else:
+                print(f"⚠️ Campo '{key}' no encontrado, saltando...")
+
+        return jsonify({
+            "ok": True,
+            "data": updated_fields,
+            "message": f"Reordenados {len(updated_fields)} campos para {entity}.{json_field}"
+        })
+
+    except ValueError as ve:
+        return jsonify({"ok": False, "error": str(ve)}), 400
+    except Exception as ex:
+        return jsonify({"ok": False, "error": str(ex)}), 500
+
+
 @json_fields.route("/definitions/<definition_id>", methods=["PATCH"])
 @cross_origin()
 @handle_errors
