@@ -168,11 +168,13 @@ class SolicitudesController:
         try:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
+            usuario_info = self._obtener_usuario_autenticado()
 
             # Extraer banco y ciudad desde campos fijos (raíz del objeto solicitud)
             banco_nombre = body.get("banco_nombre")
             ciudad = body.get("ciudad_solicitud")
             detalle_credito = body.get("detalle_credito", {})
+            observacion_inicial = body.get("observacion")
 
             if not banco_nombre:
                 return jsonify({"ok": False, "error": "banco_nombre es requerido"}), 400
@@ -194,23 +196,24 @@ class SolicitudesController:
                 print(f"   ⚠️ Ciudad '{ciudad}' no está en la lista de ciudades disponibles")
                 print(f"   📋 Ciudades válidas: {ciudades_disponibles}")
 
-            # NOTA: banco_nombre y ciudad_solicitud son campos fijos, no van en detalle_credito
-            # detalle_credito solo contiene campos dinámicos
-
             print(f"\n📝 CREANDO SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🏦 Banco extraído y sincronizado: {banco_nombre}")
-            print(f"   🏙️ Ciudad extraída y sincronizada: {ciudad}")
+            print(f"   🏦 Banco: {banco_nombre}")
+            print(f"   🏙️ Ciudad: {ciudad}")
+            if observacion_inicial:
+                print(f"   📝 Observación inicial: {observacion_inicial[:50]}...")
 
             data = self.model.create(
                 empresa_id=empresa_id,
                 solicitante_id=body.get("solicitante_id"),
                 created_by_user_id=body.get("created_by_user_id"),
                 assigned_to_user_id=body.get("assigned_to_user_id"),
-                banco_nombre=banco_nombre,  # Campo fijo
-                ciudad_solicitud=ciudad,  # Campo fijo
+                banco_nombre=banco_nombre,
+                ciudad_solicitud=ciudad,
                 estado=body.get("estado"),
-                detalle_credito=detalle_credito,  # Solo campos dinámicos
+                detalle_credito=detalle_credito,
+                observacion_inicial=observacion_inicial,
+                usuario_info=usuario_info
             )
 
             print(f"   ✅ Solicitud creada con ID: {data.get('id')}")
@@ -230,15 +233,74 @@ class SolicitudesController:
         except Exception:
             return []
 
-    def _obtener_ciudades_validas(self, empresa_id: int) -> list:
+    def _obtener_ciudades_validas(self, empresa_id: int):
         """Método interno para obtener ciudades válidas desde tabla configuraciones"""
         try:
-            return self.config_model.obtener_por_categoria(
+            ciudades = self.config_model.obtener_por_categoria(
                 empresa_id=empresa_id,
                 categoria="ciudades"
             )
+            return [c.get("valor") for c in ciudades if c.get("valor")]
         except Exception:
             return []
+
+    def _procesar_archivos_en_campos(self, data: dict) -> dict:
+        """Procesa los campos de tipo 'file' en los datos dinámicos
+        
+        Args:
+            data: Diccionario con los datos a procesar
+        
+        Returns:
+            Diccionario con las URLs de los archivos reemplazando los objetos de archivo
+        """
+        if not isinstance(data, dict):
+            return data
+        
+        from data.supabase_conn import supabase
+        from datetime import datetime
+        import os
+        
+        for key, value in list(data.items()):
+            # Si el campo es un diccionario con propiedades de archivo
+            if isinstance(value, dict) and value.get('type', '').startswith('image/'):
+                try:
+                    # Generar un nombre único para el archivo
+                    timestamp = int(datetime.utcnow().timestamp() * 1000)
+                    ext = value.get('name', '').split('.')[-1] if '.' in value.get('name', '') else 'bin'
+                    file_name = f"{key}_{timestamp}.{ext}"
+                    
+                    # Subir el archivo a Supabase Storage
+                    file_path = f"empresas/{self._empresa_id()}/documentos/{file_name}"
+                    
+                    # Convertir el base64 a bytes y subirlo
+                    file_data = value.get('base64', '').split('base64,')[-1]
+                    import base64
+                    file_bytes = base64.b64decode(file_data)
+                    
+                    # Subir el archivo
+                    supabase.storage.from_("documentos").upload(
+                        path=file_path,
+                        file=file_bytes,
+                        file_options={"content-type": value.get('type', 'application/octet-stream')}
+                    )
+                    
+                    # Obtener la URL pública
+                    url = supabase.storage.from_("documentos").get_public_url(file_path)
+                    
+                    # Reemplazar el objeto de archivo por la URL
+                    data[key] = url
+                    
+                except Exception as e:
+                    print(f"Error procesando archivo {key}: {str(e)}")
+                    data[key] = None
+                    
+            # Si el valor es un diccionario o lista, procesar recursivamente
+            elif isinstance(value, dict):
+                data[key] = self._procesar_archivos_en_campos(value)
+            elif isinstance(value, list):
+                data[key] = [self._procesar_archivos_en_campos(item) if isinstance(item, dict) else item for item in value]
+                
+        return data
 
     def get_one(self, id: int):
         try:
@@ -299,6 +361,10 @@ class SolicitudesController:
         try:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
+            
+            # Handle observaciones if present
+            observaciones = body.pop('observaciones', None)
+            
             base_updates = {}
             for field in [
                 "estado",
@@ -312,8 +378,24 @@ class SolicitudesController:
             print(f"\n📝 ACTUALIZANDO SOLICITUD {id}:")
             print(f"   📋 Empresa ID: {empresa_id}")
             print(f"   🔄 Campos a actualizar: {list(base_updates.keys())}")
+            if observaciones:
+                print(f"   📝 Incluye {len(observaciones)} observaciones")
 
             detalle_credito_merge = body.get("detalle_credito")
+            
+            # Procesar archivos en los campos dinámicos
+            if detalle_credito_merge:
+                detalle_credito_merge = self._procesar_archivos_en_campos(detalle_credito_merge)
+            
+            # Si hay observaciones, procesarlas primero
+            if observaciones and isinstance(observaciones, list):
+                for obs in observaciones:
+                    self.model.agregar_observacion_simple(
+                        id=id,
+                        observacion=obs
+                    )
+            
+            # Realizar la actualización normal
             data = self.model.update(
                 id=id,
                 empresa_id=empresa_id,
@@ -433,12 +515,84 @@ class SolicitudesController:
             print(f"💥 Error eliminando solicitud {id}: {ex}")
             return jsonify({"ok": False, "error": str(ex)}), 500
 
+    def obtener_observaciones(self, id: int):
+        """Obtener el historial de observaciones de una solicitud"""
+        try:
+            empresa_id = self._empresa_id()
+            
+            # Obtener la solicitud con las observaciones
+            solicitud = self.model.get_by_id(id=id, empresa_id=empresa_id)
+            if not solicitud:
+                return jsonify({"ok": False, "error": "Solicitud no encontrada"}), 404
+                
+            # Devolver el historial de observaciones o un array vacío si no hay
+            observaciones = solicitud.get('observaciones', {}).get('historial', [])
+            
+            return jsonify({
+                "ok": True,
+                "data": {
+                    "solicitud_id": id,
+                    "total_observaciones": len(observaciones),
+                    "observaciones": observaciones
+                }
+            })
+            
+        except Exception as ex:
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def agregar_observacion(self, id: int):
+        """Agregar una observación a una solicitud existente
+        
+        Estructura esperada en el body:
+        {
+            "observacion": "Texto de la observación",
+            "fecha_creacion": "2025-09-01T20:30:00-05:00"
+        }
+        """
+        try:
+            body = request.get_json(silent=True) or {}
+            
+            observacion = body.get("observacion")
+            fecha_creacion = body.get("fecha_creacion")
+            
+            if not observacion:
+                return jsonify({"ok": False, "error": "La observación es requerida"}), 400
+                
+            if not fecha_creacion:
+                return jsonify({"ok": False, "error": "La fecha de creación es requerida"}), 400
+                
+            print(f"\n📝 AGREGANDO OBSERVACIÓN A SOLICITUD {id}:")
+            print(f"   📝 Observación: {observacion[:50]}...")
+            print(f"   📅 Fecha creación: {fecha_creacion}")
+            
+            # Estructura simplificada que se guardará directamente
+            nueva_observacion = {
+                "observacion": observacion,
+                "fecha_creacion": fecha_creacion
+            }
+            
+            # Agregar la observación al array de observaciones
+            data = self.model.agregar_observacion_simple(
+                id=id,
+                observacion=nueva_observacion
+            )
+            
+            if not data:
+                return jsonify({"ok": False, "error": "No se pudo agregar la observación"}), 400
+                
+            return jsonify({"ok": True, "data": data})
+            
+        except ValueError as ve:
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
     def actualizar_estado(self):
-        """Actualizar solo el estado de una solicitud"""
+        """Actualizar solo el estado de una solicitud con opción de agregar observación"""
         try:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
-            print(body)
+            usuario_info = self._obtener_usuario_autenticado()
 
             # Validar campos requeridos
             if not body.get("id"):
@@ -449,11 +603,14 @@ class SolicitudesController:
 
             solicitud_id = int(body["id"])
             nuevo_estado = body["estado"]
+            observacion = body.get("observacion")
 
             print(f"\n🔄 ACTUALIZANDO ESTADO DE SOLICITUD:")
             print(f"   📋 Empresa ID: {empresa_id}")
             print(f"   🆔 Solicitud ID: {solicitud_id}")
             print(f"   📊 Nuevo estado: {nuevo_estado}")
+            if observacion:
+                print(f"   📝 Incluye observación: {observacion[:50]}...")
 
             # Verificar si la solicitud existe antes de actualizar
             print(f"\n🔍 VERIFICANDO EXISTENCIA DE SOLICITUD...")
@@ -462,15 +619,17 @@ class SolicitudesController:
                 print(f"   ❌ Solicitud {solicitud_id} no encontrada en empresa {empresa_id}")
                 return jsonify({"ok": False, "error": f"Solicitud {solicitud_id} no encontrada"}), 404
 
-            print(f"   ✅ Solicitud encontrada: {solicitud_existente.get('estado', 'N/A')}")
+            estado_anterior = solicitud_existente.get('estado', 'N/A')
+            print(f"   ✅ Solicitud encontrada: {estado_anterior}")
 
-            # Actualizar solo el estado
-            print(f"\n📝 ACTUALIZANDO ESTADO...")
-            data = self.model.update(
+            # Usar el método que maneja observaciones
+            data = self.model.actualizar_con_observacion(
                 id=solicitud_id,
                 empresa_id=empresa_id,
                 base_updates={"estado": nuevo_estado},
-                detalle_credito_merge=None
+                detalle_credito_merge=None,
+                observacion=observacion,
+                usuario_info=usuario_info
             )
 
             if not data:
@@ -482,8 +641,11 @@ class SolicitudesController:
             response_data = {
                 "ok": True,
                 "data": data,
-                "message": f"Estado de solicitud {solicitud_id} actualizado a '{nuevo_estado}'"
+                "message": f"Estado de solicitud {solicitud_id} actualizado de '{estado_anterior}' a '{nuevo_estado}'"
             }
+
+            if observacion:
+                response_data["message"] += " con observación"
 
             return jsonify(response_data)
 

@@ -50,6 +50,7 @@ CREATE TABLE public.empresas (
   nombre text,
   imagen text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  suscripcion boolean,
   CONSTRAINT empresas_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.informacion_financiera (
@@ -141,11 +142,12 @@ CREATE TABLE public.solicitudes (
   detalle_credito jsonb,
   banco_nombre character varying,
   ciudad_solicitud text,
+  observaciones jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT solicitudes_pkey PRIMARY KEY (id),
-  CONSTRAINT solicitudes_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
-  CONSTRAINT solicitudes_assigned_to_user_id_fkey FOREIGN KEY (assigned_to_user_id) REFERENCES public.usuarios(id),
   CONSTRAINT solicitudes_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.usuarios(id),
-  CONSTRAINT SOLICITUDES_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+  CONSTRAINT solicitudes_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
+  CONSTRAINT SOLICITUDES_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT solicitudes_assigned_to_user_id_fkey FOREIGN KEY (assigned_to_user_id) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.ubicacion (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,

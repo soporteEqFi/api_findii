@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
+from datetime import datetime
+import uuid
 from data.supabase_conn import supabase
 
 def _get_data(resp):
@@ -13,13 +15,19 @@ class SolicitudesModel:
 
     TABLE = "solicitudes"
 
-    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad_solicitud: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create(self, *, empresa_id: int, solicitante_id: int, created_by_user_id: int, assigned_to_user_id: Optional[int] = None, banco_nombre: Optional[str] = None, ciudad_solicitud: Optional[str] = None, estado: Optional[str] = None, detalle_credito: Optional[Dict[str, Any]] = None, observacion_inicial: Optional[str] = None, usuario_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        # Crear observaciones inicial si se proporciona
+        observaciones_data = {}
+        if observacion_inicial and usuario_info:
+            observaciones_data = self._crear_observacion_inicial(observacion_inicial, usuario_info)
+        
         payload: Dict[str, Any] = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
             "created_by_user_id": created_by_user_id,
             "estado": estado or "Pendiente",
             "detalle_credito": detalle_credito or {},
+            "observaciones": observaciones_data,
         }
         if assigned_to_user_id is not None:
             payload["assigned_to_user_id"] = assigned_to_user_id
@@ -220,5 +228,167 @@ class SolicitudesModel:
         resp = q.execute()
         data = _get_data(resp)
         return data[0] if isinstance(data, list) and data else None
+
+    def _crear_observacion_inicial(self, observacion: str, usuario_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Crear la estructura inicial de observaciones"""
+        return {
+            "historial": [{
+                "id": str(uuid.uuid4()),
+                "fecha": datetime.utcnow().isoformat() + "Z",
+                "usuario_id": usuario_info.get("id"),
+                "usuario_nombre": usuario_info.get("nombre", "Usuario"),
+                "tipo": "creacion",
+                "estado_anterior": None,
+                "estado_nuevo": "Pendiente",
+                "observacion": observacion,
+                "metadata": {
+                    "sistema": "api",
+                    "rol": usuario_info.get("rol")
+                }
+            }]
+        }
+
+    def agregar_observacion_simple(self, id: int, observacion: Dict[str, Any]) -> Dict[str, Any]:
+        """Agrega una observación simple a una solicitud existente.
+
+        Args:
+            id: ID de la solicitud
+            observacion: Diccionario con la estructura {
+                'observacion': 'texto',
+                'fecha_creacion': 'fecha_iso'
+            }
+
+        Returns:
+            La solicitud actualizada con la nueva observación
+        """
+        # Obtener la solicitud actual
+        current = supabase.table(self.TABLE).select('observaciones').eq('id', id).execute()
+        current_data = _get_data(current)
+
+        if not current_data:
+            raise ValueError("Solicitud no encontrada")
+
+        # Inicializar observaciones si no existen
+        observaciones = current_data[0].get('observaciones', {})
+        if not observaciones or 'historial' not in observaciones:
+            observaciones = {'historial': []}
+
+        # Agregar la nueva observación al historial
+        observaciones['historial'].append({
+            'id': str(uuid.uuid4()),
+            'fecha': observacion['fecha_creacion'],
+            'tipo': 'comentario',
+            'observacion': observacion['observacion']
+        })
+
+        # Actualizar la solicitud
+        resp = (
+            supabase.table(self.TABLE)
+            .update({'observaciones': observaciones})
+            .eq('id', id)
+            .execute()
+        )
+
+        updated_data = _get_data(resp)
+        return updated_data[0] if isinstance(updated_data, list) and updated_data else updated_data
+
+    def _agregar_observacion(self, observaciones_actuales: Dict[str, Any], nueva_observacion: str, usuario_info: Dict[str, Any], tipo: str = "comentario", estado_anterior: Optional[str] = None, estado_nuevo: Optional[str] = None) -> Dict[str, Any]:
+        """Agregar una nueva observación al historial existente"""
+        if not observaciones_actuales:
+            observaciones_actuales = {"historial": []}
+
+        if "historial" not in observaciones_actuales:
+            observaciones_actuales["historial"] = []
+        
+        nueva_entrada = {
+            "id": str(uuid.uuid4()),
+            "fecha": datetime.utcnow().isoformat() + "Z",
+            "usuario_id": usuario_info.get("id"),
+            "usuario_nombre": usuario_info.get("nombre", "Usuario"),
+            "tipo": tipo,
+            "estado_anterior": estado_anterior,
+            "estado_nuevo": estado_nuevo,
+            "observacion": nueva_observacion,
+            "metadata": {
+                "sistema": "api",
+                "rol": usuario_info.get("rol")
+            }
+        }
+        
+        observaciones_actuales["historial"].append(nueva_entrada)
+        return observaciones_actuales
+
+    def agregar_observacion(self, *, id: int, empresa_id: int, observacion: str, usuario_info: Dict[str, Any], tipo: str = "comentario") -> Optional[Dict[str, Any]]:
+        """Agregar una nueva observación a una solicitud existente"""
+        # Obtener la solicitud actual
+        solicitud_actual = self.get_by_id(id=id, empresa_id=empresa_id)
+        if not solicitud_actual:
+            return None
+        
+        # Obtener observaciones actuales
+        observaciones_actuales = solicitud_actual.get("observaciones", {})
+        
+        # Agregar nueva observación
+        observaciones_actualizadas = self._agregar_observacion(
+            observaciones_actuales=observaciones_actuales,
+            nueva_observacion=observacion,
+            usuario_info=usuario_info,
+            tipo=tipo
+        )
+        
+        # Actualizar en la base de datos
+        update_payload = {"observaciones": observaciones_actualizadas}
+        resp = supabase.table(self.TABLE).update(update_payload).eq("id", id).eq("empresa_id", empresa_id).execute()
+        data = _get_data(resp)
+        return data[0] if isinstance(data, list) and data else None
+
+    def actualizar_con_observacion(self, *, id: int, empresa_id: int, base_updates: Optional[Dict[str, Any]] = None, detalle_credito_merge: Optional[Dict[str, Any]] = None, observacion: Optional[str] = None, usuario_info: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        """Actualizar solicitud y agregar observación automáticamente si hay cambios de estado"""
+        # Obtener solicitud actual
+        solicitud_actual = self.get_by_id(id=id, empresa_id=empresa_id)
+        if not solicitud_actual:
+            return None
+        
+        # Detectar cambio de estado
+        estado_anterior = solicitud_actual.get("estado")
+        estado_nuevo = base_updates.get("estado") if base_updates else None
+        
+        # Realizar actualización normal
+        solicitud_actualizada = self.update(
+            id=id,
+            empresa_id=empresa_id,
+            base_updates=base_updates,
+            detalle_credito_merge=detalle_credito_merge
+        )
+        
+        # Agregar observación si se proporciona o hay cambio de estado
+        if (observacion or estado_nuevo) and usuario_info:
+            observaciones_actuales = solicitud_actualizada.get("observaciones", {})
+            
+            # Determinar tipo y mensaje de observación
+            if estado_nuevo and estado_nuevo != estado_anterior:
+                tipo_obs = "cambio_estado"
+                mensaje_obs = observacion or f"Estado cambiado de '{estado_anterior}' a '{estado_nuevo}'"
+            else:
+                tipo_obs = "comentario"
+                mensaje_obs = observacion
+            
+            if mensaje_obs:
+                observaciones_actualizadas = self._agregar_observacion(
+                    observaciones_actuales=observaciones_actuales,
+                    nueva_observacion=mensaje_obs,
+                    usuario_info=usuario_info,
+                    tipo=tipo_obs,
+                    estado_anterior=estado_anterior,
+                    estado_nuevo=estado_nuevo
+                )
+                
+                # Actualizar observaciones en BD
+                update_payload = {"observaciones": observaciones_actualizadas}
+                resp = supabase.table(self.TABLE).update(update_payload).eq("id", id).eq("empresa_id", empresa_id).execute()
+                data = _get_data(resp)
+                solicitud_actualizada = data[0] if isinstance(data, list) and data else solicitud_actualizada
+        
+        return solicitud_actualizada
 
 
