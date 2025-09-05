@@ -1,0 +1,118 @@
+{
+  "info": {
+    "_postman_id": "d3c9c0f1-9c7e-4c57-8f7a-6b5c8f2a1abc",
+    "name": "CRM-FINDII - Referencias (JSON por solicitante)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección de endpoints para gestionar referencias almacenadas en JSON por solicitante. Incluye agregar, actualizar (info y tipo), eliminar (estricto), y obtener contenedor."
+  },
+  "item": [
+    {
+      "name": "Variables (Set Defaults)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Establecer valores por defecto si no existen",
+              "pm.collectionVariables.set('baseUrl', pm.collectionVariables.get('baseUrl') || 'http://localhost:5000');",
+              "pm.collectionVariables.set('empresaId', pm.collectionVariables.get('empresaId') || '1');",
+              "pm.collectionVariables.set('solicitanteId', pm.collectionVariables.get('solicitanteId') || '76');",
+              "pm.collectionVariables.set('referenciaId', pm.collectionVariables.get('referenciaId') || '0');",
+              "pm.collectionVariables.set('idTipoReferencia', pm.collectionVariables.get('idTipoReferencia') || '0');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/ping", "host": ["{{baseUrl}}"], "path": ["ping"] }
+      }
+    },
+    {
+      "name": "Obtener contenedor de referencias (GET)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/referencias/por-solicitante?solicitante_id={{solicitanteId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["referencias", "por-solicitante"],
+          "query": [ { "key": "solicitante_id", "value": "{{solicitanteId}}" } ]
+        }
+      }
+    },
+    {
+      "name": "Agregar referencia (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"solicitante_id\": {{solicitanteId}},\n  \"referencia\": {\n    \"nombre_completo\": \"Juan Pérez\",\n    \"telefono\": \"123456789\",\n    \"ciudad\": \"Bogotá\",\n\n    \"id_tipo_referencia\": {{idTipoReferencia}},\n    \"tipo_referencia\": \"personal\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/referencias/agregar", "host": ["{{baseUrl}}"], "path": ["referencias", "agregar"] }
+      }
+    },
+    {
+      "name": "Actualizar referencia - Solo información (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"solicitante_id\": {{solicitanteId}},\n  \"referencia_id\": {{referenciaId}},\n  \"updates\": {\n    \"telefono\": \"3200000000\",\n    \"ciudad\": \"Cali\",\n    \"direccion_referencia1\": \"Cl 4 4a -30\",\n    \"nombre_referencia1\": \"FERNANDO\",\n    \"relacion_referencia1\": \"AMIGO\",\n    \"si_o_no\": \"no\",\n    \"snack_favorito\": \"Piazza\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/referencias/actualizar", "host": ["{{baseUrl}}"], "path": ["referencias", "actualizar"] }
+      }
+    },
+    {
+      "name": "Actualizar referencia - Cambiar tipo (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"solicitante_id\": {{solicitanteId}},\n  \"referencia_id\": {{referenciaId}},\n  \"updates\": {\n    \"id_tipo_referencia\": 1,\n    \"tipo_referencia\": \"familiar\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/referencias/actualizar", "host": ["{{baseUrl}}"], "path": ["referencias", "actualizar"] }
+      }
+    },
+    {
+      "name": "Eliminar referencia (DELETE - estricto)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Empresa-Id", "value": "{{empresaId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"solicitante_id\": {{solicitanteId}},\n  \"id_tipo_referencia\": {{idTipoReferencia}},\n  \"referencia_id\": {{referenciaId}}\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/referencias/eliminar", "host": ["{{baseUrl}}"], "path": ["referencias", "eliminar"] }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "empresaId", "value": "1" },
+    { "key": "solicitanteId", "value": "76" },
+    { "key": "referenciaId", "value": "0" },
+    { "key": "idTipoReferencia", "value": "0" }
+  ]
+}

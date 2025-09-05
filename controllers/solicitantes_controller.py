@@ -372,37 +372,59 @@ class SolicitantesController:
             else:
                 print(f"\n4️⃣ INFORMACIÓN FINANCIERA: No hay datos para crear")
 
-            # 5. CREAR REFERENCIAS
+            # 5. CREAR REFERENCIAS (JSON en una sola fila por solicitante)
             referencias_creadas = []
             if datos_referencias:
-                print(f"\n5️⃣ CREANDO REFERENCIAS...")
+                print(f"\n5️⃣ CREANDO REFERENCIAS (JSON)...")
                 for idx, referencia_data in enumerate(datos_referencias):
                     print(f"   Referencia {idx + 1} original: {referencia_data}")
 
-                    # Procesar campos dinámicos para referencias
-                    detalle_referencia = referencia_data.get("detalle_referencia", {})
-
-                    # Mover campos que están en la raíz pero deben ir en detalle_referencia
-                    # NOTA: tipo_referencia es campo fijo, NO se mueve
-                    campos_para_mover = [
+                    # La referencia se almacena como objeto dentro de detalle_referencia.referencias
+                    # Se admite tanto que los campos vengan en la raíz como en una subclave.
+                    # Mantendremos la estructura del ejemplo del usuario.
+                    nueva_ref = {}
+                    # Copiar campos conocidos si vienen en la raíz
+                    for k in [
                         "nombre_completo", "telefono", "celular_referencia", "relacion_referencia",
-                        "nombre", "ciudad", "departamento", "direccion"
-                    ]
-                    for campo in campos_para_mover:
-                        if campo in referencia_data:
-                            detalle_referencia[campo] = referencia_data.pop(campo)
-                            print(f"   🔄 Movido '{campo}' a detalle_referencia")
+                        "ciudad", "departamento", "direccion", "snack_favorito", "si_o_no",
+                        "id_tipo_referencia", "tipo_referencia"
+                    ]:
+                        if k in referencia_data:
+                            nueva_ref[k] = referencia_data[k]
 
-                    # Actualizar referencia_data con detalle_referencia procesado
-                    referencia_data["detalle_referencia"] = detalle_referencia
+                    # Si viene un detalle_referencia.referencias[0] ya conformado, tomarlo como base
+                    if isinstance(referencia_data.get("detalle_referencia"), dict):
+                        arr = referencia_data["detalle_referencia"].get("referencias")
+                        if isinstance(arr, list) and arr:
+                            # Usar el primer elemento como base
+                            base = arr[0]
+                            if isinstance(base, dict):
+                                base_clean = dict(base)
+                                base_clean.pop("referencia_id", None)
+                                nueva_ref.update(base_clean)
 
-                    print(f"   Referencia {idx + 1} procesada: {referencia_data}")
-                    referencia_data["empresa_id"] = empresa_id
-                    referencia_data["solicitante_id"] = solicitante_id
+                    # También aceptar alias "tipo"
+                    if "tipo" in referencia_data and isinstance(referencia_data["tipo"], (str, dict)):
+                        nueva_ref["tipo"] = referencia_data["tipo"]
+                    elif "tipo_referencia" in referencia_data and isinstance(referencia_data["tipo_referencia"], (str, dict)):
+                        nueva_ref["tipo_referencia"] = referencia_data["tipo_referencia"]
 
-                    referencia_creada = self.referencias_model.create(**referencia_data)
-                    referencias_creadas.append(referencia_creada)
-                    print(f"   ✅ Referencia {idx + 1} creada con ID: {referencia_creada['id']}")
+                    # Limpiar vacíos y validar para evitar crear referencias "vacías"
+                    cleaned = {k: v for k, v in nueva_ref.items() if v not in (None, "", [])}
+                    only_tipo = set(cleaned.keys()) <= {"tipo_referencia"}
+
+                    if not cleaned or only_tipo:
+                        print(f"   ⚠️ Referencia {idx+1}: no se crea porque está vacía o solo trae 'tipo_referencia' (keys={list(nueva_ref.keys())})")
+                        continue
+
+                    # Agregar mediante el modelo JSON (generará referencia_id incremental)
+                    agregado = self.referencias_model.add_referencia(
+                        empresa_id=empresa_id,
+                        solicitante_id=solicitante_id,
+                        referencia=cleaned
+                    )
+                    referencias_creadas.append(agregado)
+                print(f"   ✅ Total referencias agregadas: {len(referencias_creadas)}")
             else:
                 print(f"\n5️⃣ REFERENCIAS: No hay datos para crear")
 
@@ -739,35 +761,67 @@ class SolicitantesController:
                     datos_financiera["solicitante_id"] = solicitante_id
                     financiera_actualizada = self.financiera_model.create(**datos_financiera)
 
-            # 5. ACTUALIZAR REFERENCIAS
+            # 5. ACTUALIZAR REFERENCIAS (JSON en una sola fila por solicitante)
             referencias_actualizadas = []
             if datos_referencias:
-                print(f"\n5️⃣ ACTUALIZANDO REFERENCIAS...")
+                print(f"\n5️⃣ ACTUALIZANDO REFERENCIAS (JSON)...")
                 for idx, referencia_data in enumerate(datos_referencias):
-                    detalle_referencia = referencia_data.get("detalle_referencia", {})
-                    campos_para_mover = [
+                    # Si viene referencia_id (o alias id), actualizamos campos; si no, agregamos como nueva
+                    ref_id = referencia_data.get("referencia_id") or referencia_data.get("id")
+
+                    # Construir payload de campos a actualizar/agregar desde la raíz o desde detalle
+                    payload = {}
+                    for k in [
                         "nombre_completo", "telefono", "celular_referencia", "relacion_referencia",
-                        "nombre", "ciudad", "departamento", "direccion"
-                    ]
-                    for campo in campos_para_mover:
-                        if campo in referencia_data:
-                            detalle_referencia[campo] = referencia_data.pop(campo)
+                        "ciudad", "departamento", "direccion", "snack_favorito", "si_o_no",
+                        "id_tipo_referencia", "tipo_referencia"
+                    ]:
+                        if k in referencia_data:
+                            payload[k] = referencia_data[k]
 
-                    referencia_data["detalle_referencia"] = detalle_referencia
+                    if isinstance(referencia_data.get("detalle_referencia"), dict):
+                        arr = referencia_data["detalle_referencia"].get("referencias")
+                        if isinstance(arr, list) and arr:
+                            base = arr[0]
+                            if isinstance(base, dict):
+                                base_clean = dict(base)
+                                base_clean.pop("referencia_id", None)
+                                payload.update(base_clean)
 
-                    # Si hay ID, actualizar; si no, crear nueva
-                    if "id" in referencia_data and referencia_data["id"]:
-                        referencia_actualizada = self.referencias_model.update(
-                            id=referencia_data["id"],
+                    # tipo/tipo_referencia como alias
+                    if "tipo" in referencia_data and isinstance(referencia_data["tipo"], (str, dict)):
+                        payload["tipo"] = referencia_data["tipo"]
+                    elif "tipo_referencia" in referencia_data and isinstance(referencia_data["tipo_referencia"], (str, dict)):
+                        payload["tipo_referencia"] = referencia_data["tipo_referencia"]
+
+                    # Limpiar vacíos y validar para evitar crear referencias "vacías"
+                    cleaned = {k: v for k, v in payload.items() if v not in (None, "", [])}
+                    only_tipo = set(cleaned.keys()) <= {"tipo_referencia"}
+
+                    if ref_id is not None and str(ref_id).strip() != "":
+                        if not cleaned:
+                            print(f"   ⚠️ Referencia {ref_id} con payload vacío tras limpiar, se omite actualización")
+                            continue
+                        actualizado = self.referencias_model.update_referencia_fields(
                             empresa_id=empresa_id,
-                            updates={k: v for k, v in referencia_data.items() if k != "id"}
+                            solicitante_id=solicitante_id,
+                            referencia_id=int(ref_id),
+                            updates=cleaned
                         )
+                        if actualizado is not None:
+                            referencias_actualizadas.append(actualizado)
+                        else:
+                            print(f"   ❌ Referencia no encontrada para actualizar. referencia_id solicitado: {ref_id}")
                     else:
-                        referencia_data["empresa_id"] = empresa_id
-                        referencia_data["solicitante_id"] = solicitante_id
-                        referencia_actualizada = self.referencias_model.create(**referencia_data)
-                    
-                    referencias_actualizadas.append(referencia_actualizada)
+                        if only_tipo:
+                            print(f"   ⚠️ Referencia {idx+1}: no se crea porque solo trae 'tipo_referencia' sin campos informativos")
+                            continue
+                        agregado = self.referencias_model.add_referencia(
+                            empresa_id=empresa_id,
+                            solicitante_id=solicitante_id,
+                            referencia=cleaned
+                        )
+                        referencias_actualizadas.append(agregado)
 
             # 6. ACTUALIZAR SOLICITUDES
             solicitudes_actualizadas = []
