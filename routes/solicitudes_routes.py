@@ -153,3 +153,9 @@ def obtener_ciudades_disponibles():
     return con_solicitudes.obtener_ciudades_disponibles()
 
 
+@solicitudes.route("/estados-disponibles", methods=["GET"])
+@cross_origin()
+def obtener_estados_disponibles():
+    return con_solicitudes.obtener_estados_disponibles()
+
+
