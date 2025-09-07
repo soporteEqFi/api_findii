@@ -20,8 +20,8 @@ CREATE TABLE public.actividad_economica (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   empresa_id bigint,
   CONSTRAINT actividad_economica_pkey PRIMARY KEY (id),
-  CONSTRAINT ACTIVIDAD_ECONOMICA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
-  CONSTRAINT actividad_economica_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
+  CONSTRAINT actividad_economica_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
+  CONSTRAINT ACTIVIDAD_ECONOMICA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
 );
 CREATE TABLE public.configuraciones (
   id integer NOT NULL DEFAULT nextval('configuraciones_id_seq'::regclass),
@@ -106,7 +106,6 @@ CREATE TABLE public.notificaciones (
 CREATE TABLE public.referencias (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   solicitante_id bigint,
-  tipo_referencia text,
   detalle_referencia jsonb,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   empresa_id bigint,
