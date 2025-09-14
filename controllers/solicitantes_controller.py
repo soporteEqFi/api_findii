@@ -18,6 +18,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from data.supabase_conn import supabase
 from models.documentos_model import DocumentosModel
+import unicodedata
 
 
 class SolicitantesController:
@@ -843,25 +844,53 @@ class SolicitantesController:
                     # Procesar campos anidados de tipo de crédito
                     tipo_credito = solicitud_data.get("tipo_credito")
                     if tipo_credito:
+                        # Normalizar para evitar problemas por acentos/mayúsculas
+                        def _norm(s: str) -> str:
+                            try:
+                                return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii').lower()
+                            except Exception:
+                                return str(s).lower()
+
                         detalle_credito["tipo_credito"] = tipo_credito
-                        
-                        # Buscar campos anidados específicos del tipo de crédito
-                        # Mapeo de tipos de crédito a sus campos anidados
+
                         credit_type_mappings = {
-                            "Crédito hipotecario": "credito_hipotecario",
-                            "Crédito de consumo": "credito_consumo",
-                            "Crédito comercial": "credito_comercial",
-                            "Microcrédito": "microcredito",
-                            "Crédito educativo": "credito_educativo",
-                            "Crédito vehicular": "credito_vehicular"
+                            "Credito hipotecario": "credito_hipotecario",
+                            "Credito de consumo": "credito_consumo",
+                            "Credito comercial": "credito_comercial",
+                            "Microcredito": "microcredito",
+                            "Credito educativo": "credito_educativo",
+                            "Credito vehicular": "credito_vehicular",
+                            # Alias comunes
+                            "Credito de vehiculo": "credito_vehicular",
+                            "Credito de vehículo": "credito_vehicular",
                         }
-                        
-                        # Buscar el campo anidado correspondiente al tipo de crédito
+
+                        tipo_norm = _norm(tipo_credito)
+                        detected_nested = None
                         for credit_type, nested_field in credit_type_mappings.items():
-                            if credit_type.lower() in tipo_credito.lower() and nested_field in solicitud_data:
-                                detalle_credito[nested_field] = solicitud_data[nested_field]
+                            if _norm(credit_type) in tipo_norm or (nested_field == "credito_vehicular" and "vehicul" in tipo_norm):
+                                detected_nested = nested_field
+                                # Aceptar el subobjeto tanto en la raíz como dentro de detalle_credito
+                                if nested_field in solicitud_data:
+                                    detalle_credito[nested_field] = solicitud_data[nested_field]
+                                elif isinstance(detalle_credito, dict) and nested_field in detalle_credito:
+                                    # Ya viene dentro de detalle_credito, mantenerlo
+                                    pass
                                 print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
                                 break
+
+                    # Copiar cualquier subobjeto de crédito conocido aunque no coincida tipo_credito
+                    known_nested_fields = [
+                        "credito_hipotecario",
+                        "credito_consumo",
+                        "credito_comercial",
+                        "microcredito",
+                        "credito_educativo",
+                        "credito_vehicular",
+                    ]
+                    for nf in known_nested_fields:
+                        if nf in solicitud_data:
+                            detalle_credito[nf] = solicitud_data[nf]
                     
                     datos_para_modelo = {
                         "estado": solicitud_data.get("estado", "Pendiente"),

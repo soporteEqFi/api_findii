@@ -10,6 +10,24 @@ def _get_data(resp):
     if isinstance(resp, dict) and "data" in resp:
         return resp["data"]
     return resp
+def _deep_merge_dicts(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge two dicts without losing nested content.
+
+    Values in 'updates' override or extend values in 'base'. If both values are dicts,
+    they are merged recursively. Lists and scalars are replaced by the 'updates' value.
+    """
+    if not isinstance(base, dict):
+        base = {}
+    if not isinstance(updates, dict):
+        return updates
+
+    merged: Dict[str, Any] = dict(base)
+    for k, v in updates.items():
+        if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
+            merged[k] = _deep_merge_dicts(merged[k], v)
+        else:
+            merged[k] = v
+    return merged
 class SolicitudesModel:
     """Operaciones CRUD para la entidad solicitud usando Supabase."""
 
@@ -82,7 +100,8 @@ class SolicitudesModel:
         if base_updates:
             update_payload.update(base_updates)
         if detalle_credito_merge:
-            merged = {**(current_json or {}), **detalle_credito_merge}
+            # Deep merge para no perder campos anidados (e.g., credito_vehicular)
+            merged = _deep_merge_dicts(current_json or {}, detalle_credito_merge)
             update_payload["detalle_credito"] = merged
 
         if not update_payload:
