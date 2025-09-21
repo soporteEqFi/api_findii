@@ -444,6 +444,25 @@ class SolicitantesController:
                     print(f"   🏦 Banco extraído: {banco_nombre}")
                     print(f"   🏙️ Ciudad extraída: {ciudad}")
 
+                    # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
+                    nombre_asesor = body.get("nombre_asesor", "")
+                    correo_asesor = body.get("correo_asesor", "")
+                    nombre_banco_usuario = body.get("nombre_banco_usuario", "")
+                    correo_banco_usuario = body.get("correo_banco_usuario", "")
+
+                    print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
+                    print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
+
+                    # Agregar estos datos al detalle_credito para que se guarden
+                    if nombre_asesor:
+                        detalle_credito["nombre_asesor"] = nombre_asesor
+                    if correo_asesor:
+                        detalle_credito["correo_asesor"] = correo_asesor
+                    if nombre_banco_usuario:
+                        detalle_credito["nombre_banco_usuario"] = nombre_banco_usuario
+                    if correo_banco_usuario:
+                        detalle_credito["correo_banco_usuario"] = correo_banco_usuario
+
                     # NOTA: banco_nombre y ciudad_solicitud son campos fijos, no van en detalle_credito
                     # detalle_credito solo contiene campos dinámicos
 
@@ -506,19 +525,20 @@ class SolicitantesController:
             print(f"   👥 Referencias: {len(referencias_creadas)}")
             print(f"   📄 Solicitudes: {len(solicitudes_creadas)}")
 
-            # 8. ENVIAR EMAIL DE CONFIRMACIÓN
-            print(f"\n📧 ENVIANDO EMAIL DE CONFIRMACIÓN...")
+            # 8. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
+            print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
             try:
-                email_enviado = enviar_email_registro_completo(response_data)
+                # Pasar el JSON original para extraer correos de forma robusta
+                email_enviado = enviar_email_registro_completo(response_data, body)
                 if email_enviado:
-                    print(f"   ✅ Email enviado exitosamente")
-                    response_data["email_enviado"] = True
+                    print(f"   ✅ Emails enviados exitosamente")
+                    response_data["emails_enviados"] = True
                 else:
-                    print(f"   ⚠️ No se pudo enviar el email, pero el registro se creó correctamente")
-                    response_data["email_enviado"] = False
+                    print(f"   ⚠️ No se pudieron enviar todos los emails, pero el registro se creó correctamente")
+                    response_data["emails_enviados"] = False
             except Exception as email_error:
-                print(f"   ❌ Error enviando email: {str(email_error)}")
-                response_data["email_enviado"] = False
+                print(f"   ❌ Error enviando emails: {str(email_error)}")
+                response_data["emails_enviados"] = False
                 # No fallar la operación por error de email
 
             log_response(response_data)
@@ -826,7 +846,6 @@ class SolicitantesController:
 
             # 6. ACTUALIZAR SOLICITUDES
             solicitudes_actualizadas = []
-            banco_nombre_cambio = False  # Flag para detectar cambio en banco_nombre
             
             if datos_solicitudes:
                 print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
@@ -892,6 +911,25 @@ class SolicitantesController:
                         if nf in solicitud_data:
                             detalle_credito[nf] = solicitud_data[nf]
                     
+                    # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
+                    nombre_asesor = body.get("nombre_asesor", "")
+                    correo_asesor = body.get("correo_asesor", "")
+                    nombre_banco_usuario = body.get("nombre_banco_usuario", "")
+                    correo_banco_usuario = body.get("correo_banco_usuario", "")
+
+                    print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
+                    print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
+
+                    # Agregar estos datos al detalle_credito para que se guarden
+                    if nombre_asesor:
+                        detalle_credito["nombre_asesor"] = nombre_asesor
+                    if correo_asesor:
+                        detalle_credito["correo_asesor"] = correo_asesor
+                    if nombre_banco_usuario:
+                        detalle_credito["nombre_banco_usuario"] = nombre_banco_usuario
+                    if correo_banco_usuario:
+                        detalle_credito["correo_banco_usuario"] = correo_banco_usuario
+                    
                     datos_para_modelo = {
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
@@ -916,15 +954,6 @@ class SolicitantesController:
                         solicitud_existente = solicitudes_existentes[0]
                         print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
                     
-                    # DETECTAR CAMBIO EN BANCO_NOMBRE
-                    nuevo_banco_nombre = solicitud_data.get("banco_nombre")
-                    if solicitud_existente and nuevo_banco_nombre:
-                        banco_anterior = solicitud_existente.get("banco_nombre", "")
-                        if banco_anterior != nuevo_banco_nombre:
-                            print(f"   🏦 CAMBIO DETECTADO en banco_nombre: '{banco_anterior}' → '{nuevo_banco_nombre}'")
-                            banco_nombre_cambio = True
-                        else:
-                            print(f"   🏦 Sin cambio en banco_nombre: '{banco_anterior}'")
                     
                     # Actualizar o crear según corresponda
                     if solicitud_existente:
@@ -953,29 +982,33 @@ class SolicitantesController:
                     
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
-            # 7. ENVIAR EMAIL SI CAMBIÓ EL BANCO
-            if banco_nombre_cambio:
-                print(f"\n📧 ENVIANDO EMAIL POR CAMBIO DE BANCO...")
-                try:
-                    # Preparar response_data temporal para el email
-                    response_data_temp = {
-                        "ok": True,
-                        "data": {
-                            "solicitante": solicitante_actualizado,
-                            "solicitudes": solicitudes_actualizadas
-                        }
+            # 7. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
+            print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
+            try:
+                # Preparar response_data temporal para el email
+                response_data_temp = {
+                    "ok": True,
+                    "data": {
+                        "solicitante": solicitante_actualizado,
+                        "ubicaciones": ubicaciones_actualizadas,
+                        "actividad_economica": actividad_actualizada,
+                        "informacion_financiera": financiera_actualizada,
+                        "referencias": referencias_actualizadas,
+                        "solicitudes": solicitudes_actualizadas
                     }
-                    
-                    email_enviado = enviar_email_registro_completo(response_data_temp)
-                    if email_enviado:
-                        print(f"   ✅ Email enviado exitosamente por cambio de banco")
-                    else:
-                        print(f"   ⚠️ No se pudo enviar el email, pero la actualización se completó correctamente")
-                except Exception as email_error:
-                    print(f"   ❌ Error enviando email: {str(email_error)}")
-                    # No fallar la operación por error de email
-            else:
-                print(f"\n📧 NO SE ENVÍA EMAIL: No hubo cambio en banco_nombre")
+                }
+                
+                # Pasar el JSON original para extraer correos de forma robusta
+                email_enviado = enviar_email_registro_completo(response_data_temp, body)
+                emails_enviados_exitosamente = email_enviado
+                if email_enviado:
+                    print(f"   ✅ Emails enviados exitosamente")
+                else:
+                    print(f"   ⚠️ No se pudieron enviar todos los emails, pero la actualización se completó correctamente")
+            except Exception as email_error:
+                print(f"   ❌ Error enviando emails: {str(email_error)}")
+                emails_enviados_exitosamente = False
+                # No fallar la operación por error de email
 
             # 8. PREPARAR RESPUESTA
             response_data = {
@@ -997,7 +1030,7 @@ class SolicitantesController:
                     }
                 },
                 "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}",
-                "email_enviado": banco_nombre_cambio  # Indicar si se envió email
+                "emails_enviados": emails_enviados_exitosamente  # Indicar si se enviaron emails
             }
 
             log_response(response_data)
