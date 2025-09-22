@@ -658,7 +658,9 @@ def enviar_email_asesor(email_settings, data):
     try:
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
-        msg['To'] = data['asesor']['correo']
+        # Enviar tanto al asesor como a comercial@findii.co
+        destinatarios = [data['asesor']['correo'], 'comercial@findii.co']
+        msg['To'] = ', '.join(destinatarios)
         msg['Subject'] = f"Nueva solicitud asignada a tu gestión – Cliente: {data['solicitante']['nombre_completo']}"
 
         # Extraer información para el email

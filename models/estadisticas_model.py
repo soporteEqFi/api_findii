@@ -24,9 +24,8 @@ class EstadisticasModel:
             # Aplicar filtros adicionales según el rol
             filtros_solicitudes = self._aplicar_filtros_rol(filtros_base.copy(), usuario_info)
 
-            # Total de solicitantes
-            solicitantes_resp = supabase.table("solicitantes").select("id", count="exact").eq("empresa_id", empresa_id).execute()
-            total_solicitantes = solicitantes_resp.count or 0
+            # Total de solicitantes (aplicando filtros de rol optimizados)
+            total_solicitantes = self._contar_solicitantes_por_rol(empresa_id, usuario_info)
 
             # Total de solicitudes (con filtros de rol)
             solicitudes_query = supabase.table("solicitudes").select("id", count="exact").eq("empresa_id", empresa_id)
@@ -70,9 +69,8 @@ class EstadisticasModel:
                     ciudad = solicitud.get("ciudad_solicitud", "Sin Ciudad")
                     solicitudes_por_ciudad[ciudad] = solicitudes_por_ciudad.get(ciudad, 0) + 1
 
-            # Total de documentos
-            documentos_resp = supabase.table("documentos").select("id", count="exact").execute()
-            total_documentos = documentos_resp.count or 0
+            # Total de documentos (aplicando filtros de empresa y rol optimizados)
+            total_documentos = self._contar_documentos_por_rol(empresa_id, usuario_info)
 
             # Solicitudes por día (últimos 30 días para gráfico de línea de tiempo)
             from datetime import datetime, timedelta
@@ -229,12 +227,11 @@ class EstadisticasModel:
     def estadisticas_financieras(self, empresa_id: int, usuario_info: dict = None) -> Dict[str, Any]:
         """Obtiene estadísticas financieras y de calidad"""
         try:
-            # Rangos de ingresos (desde información financiera)
-            financiera_resp = supabase.table("informacion_financiera").select("detalle_financiera").eq("empresa_id", empresa_id).execute()
-            financiera_data = _get_data(financiera_resp) or []
+            # Rangos de ingresos y actividad económica (optimizado con filtros directos por user_id)
+            financiera_data, actividades_data = self._obtener_datos_financieros_por_rol(empresa_id, usuario_info)
 
+            # Procesar rangos de ingresos
             rangos_ingresos = {"0-1M": 0, "1M-3M": 0, "3M-5M": 0, "5M+": 0}
-
             for info in financiera_data:
                 detalle = info.get("detalle_financiera", {})
                 ingreso_basico = detalle.get("ingreso_basico_mensual", 0)
@@ -252,29 +249,19 @@ class EstadisticasModel:
                 except:
                     pass
 
-            # Tipos de actividad económica más comunes
-            actividades_resp = supabase.table("actividad_economica").select("detalle_actividad").eq("empresa_id", empresa_id).execute()
-            actividades_data = _get_data(actividades_resp) or []
-
+            # Procesar tipos de actividad económica
             tipos_actividad = {}
             for actividad in actividades_data:
                 detalle = actividad.get("detalle_actividad", {})
                 tipo = detalle.get("tipo_actividad", "Sin Especificar")
                 tipos_actividad[tipo] = tipos_actividad.get(tipo, 0) + 1
 
-            # Referencias promedio por solicitante
-            referencias_resp = supabase.table("referencias").select("solicitante_id", count="exact").eq("empresa_id", empresa_id).execute()
-            total_referencias = referencias_resp.count or 0
-
-            solicitantes_resp = supabase.table("solicitantes").select("id", count="exact").eq("empresa_id", empresa_id).execute()
-            total_solicitantes = solicitantes_resp.count or 1  # Evitar división por cero
-
+            # Referencias y documentos promedio (optimizado con filtros directos por user_id)
+            total_solicitantes = self._contar_solicitantes_por_rol(empresa_id, usuario_info) or 1  # Evitar división por cero
+            total_referencias = self._contar_referencias_por_rol(empresa_id, usuario_info)
+            total_documentos = self._contar_documentos_por_rol(empresa_id, usuario_info)
+            
             referencias_promedio = round(total_referencias / total_solicitantes, 2)
-
-            # Documentos promedio por solicitante
-            documentos_resp = supabase.table("documentos").select("id", count="exact").execute()
-            total_documentos = documentos_resp.count or 0
-
             documentos_promedio = round(total_documentos / total_solicitantes, 2)
 
             return {
@@ -351,9 +338,245 @@ class EstadisticasModel:
                     # Filtrar por created_by_user_id o assigned_to_user_id
                     query = query.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
         elif rol == "asesor":
-            # Usuario asesor ve solo sus propias solicitudes
+            # Usuario asesor ve solo sus propias solicitudes (priorizando created_by_user_id)
             user_id = usuario_info.get("id")
             if user_id:
+                # Priorizar solicitudes creadas por el usuario, incluir también las asignadas
                 query = query.or_(f"created_by_user_id.eq.{user_id},assigned_to_user_id.eq.{user_id}")
 
         return query
+
+    def _contar_solicitantes_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
+        """Cuenta solicitantes aplicando filtros de rol de manera optimizada usando user_id directamente"""
+        try:
+            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
+                # Admin, supervisor y empresa ven todos los solicitantes de la empresa
+                resp = supabase.table("solicitantes").select("id", count="exact").eq("empresa_id", empresa_id).execute()
+                return resp.count or 0
+            
+            rol = usuario_info.get("rol")
+            user_id = usuario_info.get("id")
+            
+            if rol == "asesor" and user_id:
+                # Asesor ve solo solicitantes de solicitudes creadas por él (created_by_user_id es la variable principal)
+                # Usar join directo con solicitudes filtrando principalmente por created_by_user_id
+                resp = supabase.table("solicitantes").select(
+                    "id, solicitudes!inner(created_by_user_id, assigned_to_user_id)", 
+                    count="exact"
+                ).eq("empresa_id", empresa_id).eq(
+                    "solicitudes.created_by_user_id", user_id
+                ).execute()
+                return resp.count or 0
+                
+            elif rol == "banco":
+                # Usuario banco ve solicitantes filtrados por banco y ciudad
+                banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+                
+                if not banco_nombre and not ciudad:
+                    return 0
+                
+                # Usar join directo con solicitudes filtrando por banco/ciudad
+                query = supabase.table("solicitantes").select(
+                    "id, solicitudes!inner(banco_nombre, ciudad_solicitud)", 
+                    count="exact"
+                ).eq("empresa_id", empresa_id)
+                
+                filters = []
+                if banco_nombre:
+                    filters.append(f"solicitudes.banco_nombre.eq.{banco_nombre}")
+                if ciudad:
+                    filters.append(f"solicitudes.ciudad_solicitud.eq.{ciudad}")
+                
+                if filters:
+                    query = query.or_(",".join(filters))
+                
+                resp = query.execute()
+                return resp.count or 0
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Error contando solicitantes por rol: {e}")
+            return 0
+
+    def _contar_documentos_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
+        """Cuenta documentos aplicando filtros de rol de manera optimizada usando user_id directamente"""
+        try:
+            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
+                # Admin, supervisor y empresa ven todos los documentos de la empresa
+                resp = supabase.table("documentos").select(
+                    "id, solicitantes!inner(empresa_id)", 
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id).execute()
+                return resp.count or 0
+            
+            rol = usuario_info.get("rol")
+            user_id = usuario_info.get("id")
+            
+            if rol == "asesor" and user_id:
+                # Asesor ve solo documentos de solicitantes de solicitudes creadas por él (created_by_user_id principal)
+                # Usar doble join: documentos -> solicitantes -> solicitudes, filtrando por created_by_user_id
+                resp = supabase.table("documentos").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))", 
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id).eq(
+                    "solicitantes.solicitudes.created_by_user_id", user_id
+                ).execute()
+                return resp.count or 0
+                
+            elif rol == "banco":
+                # Usuario banco ve documentos filtrados por banco y ciudad
+                banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+                
+                if not banco_nombre and not ciudad:
+                    return 0
+                
+                # Usar doble join: documentos -> solicitantes -> solicitudes, filtrando por banco/ciudad
+                query = supabase.table("documentos").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))", 
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id)
+                
+                if banco_nombre:
+                    query = query.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
+                if ciudad:
+                    query = query.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
+                
+                resp = query.execute()
+                return resp.count or 0
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Error contando documentos por rol: {e}")
+            return 0
+
+    def _obtener_datos_financieros_por_rol(self, empresa_id: int, usuario_info: dict = None) -> tuple:
+        """Obtiene datos financieros y de actividad económica aplicando filtros de rol optimizados"""
+        try:
+            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
+                # Admin, supervisor y empresa ven toda la información de la empresa
+                financiera_resp = supabase.table("informacion_financiera").select("detalle_financiera").eq("empresa_id", empresa_id).execute()
+                financiera_data = _get_data(financiera_resp) or []
+                
+                actividades_resp = supabase.table("actividad_economica").select("detalle_actividad").eq("empresa_id", empresa_id).execute()
+                actividades_data = _get_data(actividades_resp) or []
+                
+                return financiera_data, actividades_data
+            
+            rol = usuario_info.get("rol")
+            user_id = usuario_info.get("id")
+            
+            if rol == "asesor" and user_id:
+                # Asesor ve solo información de solicitantes de solicitudes creadas por él (created_by_user_id principal)
+                # Usar join directo: informacion_financiera -> solicitantes -> solicitudes, filtrando por created_by_user_id
+                financiera_resp = supabase.table("informacion_financiera").select(
+                    "detalle_financiera, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))"
+                ).eq("solicitantes.empresa_id", empresa_id).eq(
+                    "solicitantes.solicitudes.created_by_user_id", user_id
+                ).execute()
+                financiera_data = _get_data(financiera_resp) or []
+                
+                # Actividad económica con el mismo filtro
+                actividades_resp = supabase.table("actividad_economica").select(
+                    "detalle_actividad, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))"
+                ).eq("solicitantes.empresa_id", empresa_id).eq(
+                    "solicitantes.solicitudes.created_by_user_id", user_id
+                ).execute()
+                actividades_data = _get_data(actividades_resp) or []
+                
+                return financiera_data, actividades_data
+                
+            elif rol == "banco":
+                # Usuario banco ve información filtrada por banco y ciudad
+                banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+                
+                if not banco_nombre and not ciudad:
+                    return [], []
+                
+                # Información financiera con filtro de banco/ciudad
+                query_financiera = supabase.table("informacion_financiera").select(
+                    "detalle_financiera, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))"
+                ).eq("solicitantes.empresa_id", empresa_id)
+                
+                if banco_nombre:
+                    query_financiera = query_financiera.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
+                if ciudad:
+                    query_financiera = query_financiera.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
+                
+                financiera_resp = query_financiera.execute()
+                financiera_data = _get_data(financiera_resp) or []
+                
+                # Actividad económica con el mismo filtro
+                query_actividades = supabase.table("actividad_economica").select(
+                    "detalle_actividad, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))"
+                ).eq("solicitantes.empresa_id", empresa_id)
+                
+                if banco_nombre:
+                    query_actividades = query_actividades.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
+                if ciudad:
+                    query_actividades = query_actividades.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
+                
+                actividades_resp = query_actividades.execute()
+                actividades_data = _get_data(actividades_resp) or []
+                
+                return financiera_data, actividades_data
+            
+            return [], []
+            
+        except Exception as e:
+            print(f"❌ Error obteniendo datos financieros por rol: {e}")
+            return [], []
+
+    def _contar_referencias_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
+        """Cuenta referencias aplicando filtros de rol de manera optimizada usando user_id directamente"""
+        try:
+            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
+                # Admin, supervisor y empresa ven todas las referencias de la empresa
+                resp = supabase.table("referencias").select("id", count="exact").eq("empresa_id", empresa_id).execute()
+                return resp.count or 0
+            
+            rol = usuario_info.get("rol")
+            user_id = usuario_info.get("id")
+            
+            if rol == "asesor" and user_id:
+                # Asesor ve solo referencias de solicitantes de solicitudes creadas por él (created_by_user_id principal)
+                # Usar doble join: referencias -> solicitantes -> solicitudes, filtrando por created_by_user_id
+                resp = supabase.table("referencias").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))", 
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id).eq(
+                    "solicitantes.solicitudes.created_by_user_id", user_id
+                ).execute()
+                return resp.count or 0
+                
+            elif rol == "banco":
+                # Usuario banco ve referencias filtradas por banco y ciudad
+                banco_nombre = usuario_info.get("banco_nombre")
+                ciudad = usuario_info.get("ciudad")
+                
+                if not banco_nombre and not ciudad:
+                    return 0
+                
+                # Usar doble join: referencias -> solicitantes -> solicitudes, filtrando por banco/ciudad
+                query = supabase.table("referencias").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))", 
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id)
+                
+                if banco_nombre:
+                    query = query.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
+                if ciudad:
+                    query = query.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
+                
+                resp = query.execute()
+                return resp.count or 0
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Error contando referencias por rol: {e}")
+            return 0
