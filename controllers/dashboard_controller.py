@@ -98,8 +98,36 @@ class DashboardController:
                     # Usuario empresa ve todas las solicitudes de su empresa
                     print(f"   🏢 Empresa: viendo todas las solicitudes")
                 elif rol == "supervisor":
-                    # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
-                    print(f"   👁️ Supervisor: viendo todas las solicitudes")
+                    # Usuario supervisor ve las solicitudes de su equipo + las suyas propias
+                    user_id = usuario_info.get("id")
+                    if user_id:
+                        from models.usuarios_model import UsuariosModel
+                        usuarios_model = UsuariosModel()
+                        team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                        # Incluir su propio ID + IDs de su equipo
+                        user_ids = [user_id]  # Su propio ID
+                        if team_members:
+                            team_ids = [member["id"] for member in team_members]
+                            user_ids.extend(team_ids)
+                            print(f"   👁️ Supervisor: viendo solicitudes de su equipo + las suyas: {user_ids}")
+                        else:
+                            print(f"   👁️ Supervisor sin equipo: viendo solo sus solicitudes: {user_ids}")
+
+                        # Filtrar por created_by_user_id o assigned_to_user_id
+                        solicitud_query = solicitud_query.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
+                    else:
+                        print(f"   ❌ Supervisor sin ID de usuario")
+                        return jsonify({"ok": True, "data": []})
+                elif rol == "asesor":
+                    # Usuario asesor ve solo sus propias solicitudes
+                    user_id = usuario_info.get("id")
+                    if user_id:
+                        solicitud_query = solicitud_query.or_(f"created_by_user_id.eq.{user_id},assigned_to_user_id.eq.{user_id}")
+                        print(f"   👤 Asesor: viendo solo sus solicitudes: {user_id}")
+                    else:
+                        print(f"   ❌ Asesor sin ID de usuario")
+                        return jsonify({"ok": True, "data": []})
                 else:
                     # Rol desconocido, no ve nada
                     print(f"   ❌ Rol desconocido: {rol}")

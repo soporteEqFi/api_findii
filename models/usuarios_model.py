@@ -20,7 +20,7 @@ class UsuariosModel:
         try:
             # Obtener usuarios que pertenecen a la empresa usando el campo empresa_id
             resp = supabase.table(self.usuarios_table).select(
-                "id, nombre, cedula, correo, rol, info_extra, empresa_id, created_at"
+                "id, nombre, cedula, correo, rol, info_extra, empresa_id, reports_to_id, created_at"
             ).eq("empresa_id", empresa_id).execute()
 
             data = _get_data(resp)
@@ -45,6 +45,7 @@ class UsuariosModel:
                     "correo": usuario["correo"],
                     "rol": usuario["rol"],
                     "empresa_id": usuario["empresa_id"],
+                    "reports_to_id": usuario.get("reports_to_id"),
                     "info_extra": info_extra,
                     "created_at": usuario["created_at"]
                 })
@@ -59,7 +60,7 @@ class UsuariosModel:
         """Obtiene un usuario específico por ID, verificando que pertenezca a la empresa."""
         try:
             resp = supabase.table(self.usuarios_table).select(
-                "id, nombre, cedula, correo, rol, info_extra, empresa_id, created_at"
+                "id, nombre, cedula, correo, rol, info_extra, empresa_id, reports_to_id, created_at"
             ).eq("id", user_id).eq("empresa_id", empresa_id).execute()
 
             data = _get_data(resp)
@@ -83,6 +84,7 @@ class UsuariosModel:
                 "correo": usuario["correo"],
                 "rol": usuario["rol"],
                 "empresa_id": usuario["empresa_id"],
+                "reports_to_id": usuario.get("reports_to_id"),
                 "info_extra": info_extra,
                 "created_at": usuario["created_at"]
             }
@@ -101,7 +103,7 @@ class UsuariosModel:
 
             # Preparar datos para actualizar (excluir campos sensibles)
             datos_actualizar = {}
-            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra"]
+            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id"]
 
             for campo in campos_permitidos:
                 if campo in kwargs:
@@ -134,6 +136,7 @@ class UsuariosModel:
                 "correo": usuario_actualizado["correo"],
                 "rol": usuario_actualizado["rol"],
                 "empresa_id": usuario_actualizado["empresa_id"],
+                "reports_to_id": usuario_actualizado.get("reports_to_id"),
                 "info_extra": info_extra,
                 "created_at": usuario_actualizado["created_at"]
             }
@@ -160,6 +163,7 @@ class UsuariosModel:
                 "contraseña": kwargs["contraseña"],
                 "rol": kwargs["rol"],
                 "empresa_id": empresa_id,
+                "reports_to_id": kwargs.get("reports_to_id"),
                 "info_extra": kwargs.get("info_extra", {})
             }
 
@@ -187,6 +191,7 @@ class UsuariosModel:
                 "correo": usuario_creado["correo"],
                 "rol": usuario_creado["rol"],
                 "empresa_id": usuario_creado["empresa_id"],
+                "reports_to_id": usuario_creado.get("reports_to_id"),
                 "info_extra": info_extra,
                 "created_at": usuario_creado["created_at"]
             }
@@ -213,3 +218,44 @@ class UsuariosModel:
         except Exception as e:
             print(f"Error al eliminar usuario: {e}")
             return False
+
+    def get_team_members(self, supervisor_id: int, empresa_id: int) -> List[Dict]:
+        """Obtiene todos los usuarios que reportan a un supervisor específico."""
+        try:
+            resp = supabase.table(self.usuarios_table).select(
+                "id, nombre, cedula, correo, rol, info_extra, empresa_id, reports_to_id, created_at"
+            ).eq("empresa_id", empresa_id).eq("reports_to_id", supervisor_id).execute()
+
+            data = _get_data(resp)
+            if not data:
+                return []
+
+            # Procesar usuarios del equipo
+            team_members = []
+            for usuario in data:
+                info_extra = usuario.get("info_extra", {})
+                if isinstance(info_extra, str):
+                    import json
+                    try:
+                        info_extra = json.loads(info_extra)
+                    except json.JSONDecodeError:
+                        info_extra = {}
+
+                team_members.append({
+                    "id": usuario["id"],
+                    "nombre": usuario["nombre"],
+                    "cedula": usuario["cedula"],
+                    "correo": usuario["correo"],
+                    "rol": usuario["rol"],
+                    "empresa_id": usuario["empresa_id"],
+                    "reports_to_id": usuario.get("reports_to_id"),
+                    "info_extra": info_extra,
+                    "created_at": usuario["created_at"]
+                })
+
+            return team_members
+
+        except Exception as e:
+            print(f"Error al obtener miembros del equipo: {e}")
+            return []
+

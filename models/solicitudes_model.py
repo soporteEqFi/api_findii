@@ -38,7 +38,7 @@ class SolicitudesModel:
         observaciones_data = {}
         if observacion_inicial and usuario_info:
             observaciones_data = self._crear_observacion_inicial(observacion_inicial, usuario_info)
-        
+
         payload: Dict[str, Any] = {
             "empresa_id": empresa_id,
             "solicitante_id": solicitante_id,
@@ -194,9 +194,37 @@ class SolicitudesModel:
                 print(f"   ✅ Empresa - sin filtros aplicados")
                 pass
             elif rol == "supervisor":
-                # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
-                print(f"   ✅ Supervisor - sin filtros aplicados")
-                pass
+                # Usuario supervisor ve las solicitudes de su equipo + las suyas propias
+                user_id = usuario_info.get("id")
+                if user_id:
+                    # Obtener IDs de usuarios de su equipo
+                    from models.usuarios_model import UsuariosModel
+                    usuarios_model = UsuariosModel()
+                    team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                    # Incluir su propio ID + IDs de su equipo
+                    user_ids = [user_id]  # Su propio ID
+                    if team_members:
+                        team_ids = [member["id"] for member in team_members]
+                        user_ids.extend(team_ids)
+                        print(f"   ✅ Supervisor - viendo solicitudes de su equipo + las suyas: {user_ids}")
+                    else:
+                        print(f"   ✅ Supervisor sin equipo - viendo solo sus solicitudes: {user_ids}")
+
+                    # Filtrar por created_by_user_id o assigned_to_user_id
+                    q = q.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
+                else:
+                    print(f"   ❌ Supervisor sin ID de usuario")
+                    return []
+            elif rol == "asesor":
+                # Usuario asesor ve solo sus propias solicitudes
+                user_id = usuario_info.get("id")
+                if user_id:
+                    q = q.or_(f"created_by_user_id.eq.{user_id},assigned_to_user_id.eq.{user_id}")
+                    print(f"   ✅ Asesor - filtros aplicados para su ID: {user_id}")
+                else:
+                    print(f"   ❌ Asesor sin ID de usuario")
+                    return []
             else:
                 # Rol desconocido, no ve nada
                 print(f"   ❌ Rol desconocido '{rol}' - retornando lista vacía")
@@ -238,8 +266,31 @@ class SolicitudesModel:
                 # Usuario empresa ve todas las solicitudes de su empresa
                 pass
             elif rol == "supervisor":
-                # Usuario supervisor ve todas las solicitudes de la empresa (similar a admin)
-                pass
+                # Usuario supervisor ve las solicitudes de su equipo + las suyas propias
+                user_id = usuario_info.get("id")
+                if user_id:
+                    # Obtener IDs de usuarios de su equipo
+                    from models.usuarios_model import UsuariosModel
+                    usuarios_model = UsuariosModel()
+                    team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                    # Incluir su propio ID + IDs de su equipo
+                    user_ids = [user_id]  # Su propio ID
+                    if team_members:
+                        team_ids = [member["id"] for member in team_members]
+                        user_ids.extend(team_ids)
+
+                    # Filtrar por created_by_user_id o assigned_to_user_id
+                    q = q.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
+                else:
+                    return None
+            elif rol == "asesor":
+                # Usuario asesor ve solo sus propias solicitudes
+                user_id = usuario_info.get("id")
+                if user_id:
+                    q = q.or_(f"created_by_user_id.eq.{user_id},assigned_to_user_id.eq.{user_id}")
+                else:
+                    return None
             else:
                 # Rol desconocido, no ve nada
                 return None
@@ -318,7 +369,7 @@ class SolicitudesModel:
 
         if "historial" not in observaciones_actuales:
             observaciones_actuales["historial"] = []
-        
+
         nueva_entrada = {
             "id": str(uuid.uuid4()),
             "fecha": datetime.utcnow().isoformat() + "Z",
@@ -333,7 +384,7 @@ class SolicitudesModel:
                 "rol": usuario_info.get("rol")
             }
         }
-        
+
         observaciones_actuales["historial"].append(nueva_entrada)
         return observaciones_actuales
 
@@ -343,10 +394,10 @@ class SolicitudesModel:
         solicitud_actual = self.get_by_id(id=id, empresa_id=empresa_id)
         if not solicitud_actual:
             return None
-        
+
         # Obtener observaciones actuales
         observaciones_actuales = solicitud_actual.get("observaciones", {})
-        
+
         # Agregar nueva observación
         observaciones_actualizadas = self._agregar_observacion(
             observaciones_actuales=observaciones_actuales,
@@ -354,7 +405,7 @@ class SolicitudesModel:
             usuario_info=usuario_info,
             tipo=tipo
         )
-        
+
         # Actualizar en la base de datos
         update_payload = {"observaciones": observaciones_actualizadas}
         resp = supabase.table(self.TABLE).update(update_payload).eq("id", id).eq("empresa_id", empresa_id).execute()
@@ -367,11 +418,11 @@ class SolicitudesModel:
         solicitud_actual = self.get_by_id(id=id, empresa_id=empresa_id)
         if not solicitud_actual:
             return None
-        
+
         # Detectar cambio de estado
         estado_anterior = solicitud_actual.get("estado")
         estado_nuevo = base_updates.get("estado") if base_updates else None
-        
+
         # Realizar actualización normal
         solicitud_actualizada = self.update(
             id=id,
@@ -379,11 +430,11 @@ class SolicitudesModel:
             base_updates=base_updates,
             detalle_credito_merge=detalle_credito_merge
         )
-        
+
         # Agregar observación si se proporciona o hay cambio de estado
         if (observacion or estado_nuevo) and usuario_info:
             observaciones_actuales = solicitud_actualizada.get("observaciones", {})
-            
+
             # Determinar tipo y mensaje de observación
             if estado_nuevo and estado_nuevo != estado_anterior:
                 tipo_obs = "cambio_estado"
@@ -391,7 +442,7 @@ class SolicitudesModel:
             else:
                 tipo_obs = "comentario"
                 mensaje_obs = observacion
-            
+
             if mensaje_obs:
                 observaciones_actualizadas = self._agregar_observacion(
                     observaciones_actuales=observaciones_actuales,
@@ -401,13 +452,13 @@ class SolicitudesModel:
                     estado_anterior=estado_anterior,
                     estado_nuevo=estado_nuevo
                 )
-                
+
                 # Actualizar observaciones en BD
                 update_payload = {"observaciones": observaciones_actualizadas}
                 resp = supabase.table(self.TABLE).update(update_payload).eq("id", id).eq("empresa_id", empresa_id).execute()
                 data = _get_data(resp)
                 solicitud_actualizada = data[0] if isinstance(data, list) and data else solicitud_actualizada
-        
+
         return solicitud_actualizada
 
 

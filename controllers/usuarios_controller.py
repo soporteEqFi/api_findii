@@ -93,7 +93,7 @@ class UsuariosController:
                 return jsonify({"ok": False, "error": "No hay datos para actualizar"}), 400
 
             # Validar campos permitidos
-            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra"]
+            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id"]
             datos_validos = {}
 
             for campo in campos_permitidos:
@@ -193,3 +193,30 @@ class UsuariosController:
         except Exception as ex:
             log_error(ex, "ERROR INESPERADO")
             return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def get_team_members(self, supervisor_id: int):
+        """Obtiene los miembros del equipo de un supervisor."""
+        log_request_details(f"OBTENER EQUIPO DEL SUPERVISOR {supervisor_id}", "usuarios")
+
+        try:
+            empresa_id = self._empresa_id()
+            print(f"\n📋 EMPRESA ID: {empresa_id}")
+            print(f"👨‍💼 SUPERVISOR ID: {supervisor_id}")
+
+            # Obtener miembros del equipo
+            team_members = self.model.get_team_members(supervisor_id, empresa_id)
+
+            log_operation_result(team_members, f"MIEMBROS DEL EQUIPO OBTENIDOS: {len(team_members)}")
+
+            response_data = {"ok": True, "data": team_members}
+            log_response(response_data)
+
+            return jsonify(response_data)
+
+        except ValueError as ve:
+            log_error(ve, "ERROR DE VALIDACIÓN")
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            log_error(ex, "ERROR INESPERADO")
+            return jsonify({"ok": False, "error": str(ex)}), 500
+

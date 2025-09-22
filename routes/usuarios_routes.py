@@ -40,3 +40,10 @@ def update_usuario(id):
 def delete_usuario(id):
     """Elimina un usuario específico por ID."""
     return con_usuarios.delete(id)
+
+
+@usuarios.route("/<int:supervisor_id>/team", methods=["GET"])
+@cross_origin()
+def get_team_members(supervisor_id):
+    """Obtiene los miembros del equipo de un supervisor."""
+    return con_usuarios.get_team_members(supervisor_id)
