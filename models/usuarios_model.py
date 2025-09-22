@@ -16,9 +16,9 @@ class UsuariosModel:
         self.usuarios_table = "usuarios"
 
     def list_by_empresa(self, empresa_id: int) -> List[Dict]:
-        """Lista todos los usuarios de una empresa."""
+        """Lista todos los usuarios de una empresa con nombre del supervisor."""
         try:
-            # Obtener usuarios que pertenecen a la empresa usando el campo empresa_id
+            # Consulta simple sin JOIN
             resp = supabase.table(self.usuarios_table).select(
                 "id, nombre, cedula, correo, rol, info_extra, empresa_id, reports_to_id, created_at"
             ).eq("empresa_id", empresa_id).execute()
@@ -26,6 +26,19 @@ class UsuariosModel:
             data = _get_data(resp)
             if not data:
                 return []
+
+            # Obtener todos los IDs de supervisores únicos
+            supervisor_ids = set()
+            for usuario in data:
+                if usuario.get("reports_to_id"):
+                    supervisor_ids.add(usuario["reports_to_id"])
+
+            # Consultar supervisores para obtener nombres
+            supervisores_map = {}
+            if supervisor_ids:
+                supervisores_resp = supabase.table(self.usuarios_table).select("id, nombre").in_("id", list(supervisor_ids)).execute()
+                supervisores_data = _get_data(supervisores_resp) or []
+                supervisores_map = {supervisor["id"]: supervisor["nombre"] for supervisor in supervisores_data}
 
             # Procesar usuarios
             usuarios_empresa = []
@@ -38,6 +51,10 @@ class UsuariosModel:
                     except json.JSONDecodeError:
                         info_extra = {}
 
+                # Obtener nombre del supervisor
+                reports_to_id = usuario.get("reports_to_id")
+                supervisor_nombre = supervisores_map.get(reports_to_id) if reports_to_id else None
+
                 usuarios_empresa.append({
                     "id": usuario["id"],
                     "nombre": usuario["nombre"],
@@ -45,7 +62,8 @@ class UsuariosModel:
                     "correo": usuario["correo"],
                     "rol": usuario["rol"],
                     "empresa_id": usuario["empresa_id"],
-                    "reports_to_id": usuario.get("reports_to_id"),
+                    "reports_to_id": reports_to_id,
+                    "reports_to_nombre": supervisor_nombre,  # Nombre del supervisor
                     "info_extra": info_extra,
                     "created_at": usuario["created_at"]
                 })
@@ -77,6 +95,15 @@ class UsuariosModel:
                 except json.JSONDecodeError:
                     info_extra = {}
 
+            # Obtener nombre del supervisor si existe
+            supervisor_nombre = None
+            reports_to_id = usuario.get("reports_to_id")
+            if reports_to_id:
+                supervisor_resp = supabase.table(self.usuarios_table).select("nombre").eq("id", reports_to_id).execute()
+                supervisor_data = _get_data(supervisor_resp)
+                if supervisor_data and len(supervisor_data) > 0:
+                    supervisor_nombre = supervisor_data[0].get("nombre")
+
             return {
                 "id": usuario["id"],
                 "nombre": usuario["nombre"],
@@ -84,7 +111,8 @@ class UsuariosModel:
                 "correo": usuario["correo"],
                 "rol": usuario["rol"],
                 "empresa_id": usuario["empresa_id"],
-                "reports_to_id": usuario.get("reports_to_id"),
+                "reports_to_id": reports_to_id,
+                "reports_to_nombre": supervisor_nombre,  # Nombre del supervisor
                 "info_extra": info_extra,
                 "created_at": usuario["created_at"]
             }
@@ -241,6 +269,15 @@ class UsuariosModel:
                     except json.JSONDecodeError:
                         info_extra = {}
 
+                # Obtener nombre del supervisor
+                supervisor_nombre = None
+                reports_to_id = usuario.get("reports_to_id")
+                if reports_to_id:
+                    supervisor_resp = supabase.table(self.usuarios_table).select("nombre").eq("id", reports_to_id).execute()
+                    supervisor_data = _get_data(supervisor_resp)
+                    if supervisor_data and len(supervisor_data) > 0:
+                        supervisor_nombre = supervisor_data[0].get("nombre")
+
                 team_members.append({
                     "id": usuario["id"],
                     "nombre": usuario["nombre"],
@@ -248,7 +285,8 @@ class UsuariosModel:
                     "correo": usuario["correo"],
                     "rol": usuario["rol"],
                     "empresa_id": usuario["empresa_id"],
-                    "reports_to_id": usuario.get("reports_to_id"),
+                    "reports_to_id": reports_to_id,
+                    "reports_to_nombre": supervisor_nombre,  # Nombre del supervisor
                     "info_extra": info_extra,
                     "created_at": usuario["created_at"]
                 })
