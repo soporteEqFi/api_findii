@@ -38,7 +38,7 @@ def log_request_info():
     print(f"   URL: {request.url}")
     print(f"   Path: {request.path}")
     print(f"   Args: {dict(request.args)}")
-    print(f"   Headers: {dict(request.headers)}")
+    # print(f"   Headers: {dict(request.headers)}")
     if request.method in ['POST', 'PUT', 'PATCH']:
         try:
             body = request.get_json(silent=True)
@@ -50,7 +50,7 @@ def log_request_info():
 def log_response_info(response):
     print(f"📤 RESPONSE ENVIADA:")
     print(f"   Status: {response.status_code}")
-    print(f"   Headers: {dict(response.headers)}")
+    # print(f"   Headers: {dict(response.headers)}")
     if response.status_code >= 400:
         print(f"   ❌ ERROR {response.status_code} - {response.get_data(as_text=True)}")
     print("="*50)
