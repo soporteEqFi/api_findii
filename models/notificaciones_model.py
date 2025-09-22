@@ -134,10 +134,13 @@ class NotificacionesModel:
     def list(self, empresa_id: int, usuario_info: dict = None, **filtros) -> List[Dict]:
         """Lista notificaciones con filtros opcionales y permisos por rol."""
         try:
+            print(f"\n🔍 [NotificacionesModel.list] empresa_id: {empresa_id}")
+            print(f"👤 [NotificacionesModel.list] usuario_info: {usuario_info}")
+
             query = supabase.table(self.notificaciones_table).select("*").eq("empresa_id", empresa_id)
 
             # Aplicar filtros de rol
-            query = self._aplicar_filtros_rol(query, usuario_info)
+            query = self._aplicar_filtros_rol(query, usuario_info, empresa_id)
 
             # Aplicar filtros adicionales
             if filtros.get("tipo"):
@@ -155,7 +158,9 @@ class NotificacionesModel:
             query = query.order("fecha_recordatorio", desc=False)
 
             resp = query.execute()
-            return _get_data(resp) or []
+            notificaciones = _get_data(resp) or []
+            print(f"📊 [NotificacionesModel.list] Notificaciones obtenidas: {len(notificaciones)}")
+            return notificaciones
 
         except Exception as e:
             print(f"Error al listar notificaciones: {e}")
@@ -234,7 +239,7 @@ class NotificacionesModel:
             # Llamada sin filtros de rol (comportamiento anterior)
             return self.list(empresa_id, **filtros)
 
-    def _aplicar_filtros_rol(self, query, usuario_info: dict = None):
+    def _aplicar_filtros_rol(self, query, usuario_info: dict = None, empresa_id: int = None):
         """Aplica filtros de rol a una query de notificaciones"""
         if not usuario_info:
             return query
@@ -261,8 +266,8 @@ class NotificacionesModel:
                     query = query.or_(",".join(metadata_filtros))
 
         elif rol == "supervisor":
-            # Usuario supervisor: ve notificaciones de su equipo + las suyas propias
-            if user_id:
+            # Usuario supervisor: ve notificaciones creadas por su equipo + las suyas propias
+            if user_id and empresa_id:
                 # Obtener IDs de usuarios de su equipo
                 from models.usuarios_model import UsuariosModel
                 usuarios_model = UsuariosModel()
@@ -273,14 +278,14 @@ class NotificacionesModel:
                 if team_members:
                     team_ids = [member["id"] for member in team_members]
                     user_ids.extend(team_ids)
-                    print(f"   ✅ Supervisor {user_id} - viendo notificaciones de su equipo: {user_ids}")
+                    print(f"   ✅ Supervisor {user_id} - viendo notificaciones creadas por su equipo: {user_ids}")
 
-                # Filtrar por usuario_id en las notificaciones
+                # Filtrar por usuario_id (quien creó la notificación)
                 query = query.in_("usuario_id", user_ids)
 
         elif rol == "asesor":
-            # Usuario asesor: ve sus notificaciones + las notificaciones de su supervisor
-            if user_id:
+            # Usuario asesor: ve notificaciones creadas por él + las creadas por su supervisor
+            if user_id and empresa_id:
                 # Obtener el supervisor del asesor
                 from models.usuarios_model import UsuariosModel
                 usuarios_model = UsuariosModel()
@@ -291,11 +296,11 @@ class NotificacionesModel:
                 if asesor_info and asesor_info.get("reports_to_id"):
                     supervisor_id = asesor_info["reports_to_id"]
                     user_ids.append(supervisor_id)
-                    print(f"   ✅ Asesor {user_id} - viendo notificaciones suyas + de su supervisor {supervisor_id}: {user_ids}")
+                    print(f"   ✅ Asesor {user_id} - viendo notificaciones creadas por él + por su supervisor {supervisor_id}: {user_ids}")
                 else:
                     print(f"   ✅ Asesor {user_id} - sin supervisor, viendo solo sus notificaciones: {user_ids}")
 
-                # Filtrar por usuario_id en las notificaciones
+                # Filtrar por usuario_id (quien creó la notificación)
                 query = query.in_("usuario_id", user_ids)
 
         # admin, empresa: ven todas las notificaciones (sin filtros adicionales)

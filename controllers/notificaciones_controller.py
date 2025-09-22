@@ -221,9 +221,11 @@ class NotificacionesController:
 
         try:
             empresa_id = self._empresa_id()
+            usuario_info = self._obtener_usuario_autenticado()
             body = request.get_json(silent=True) or {}
 
             print(f"\n📋 EMPRESA ID: {empresa_id}")
+            print(f"👤 USUARIO INFO: {usuario_info}")
             print(f"📝 DATOS RECIBIDOS: {body}")
 
             # Validar campos requeridos
@@ -232,6 +234,25 @@ class NotificacionesController:
                 if campo not in body:
                     log_error(f"Campo requerido faltante: {campo}", "ERROR DE VALIDACIÓN")
                     return jsonify({"ok": False, "error": f"Campo requerido faltante: {campo}"}), 400
+
+            # Manejar usuario_id
+            if usuario_info and usuario_info.get("id"):
+                usuario_autenticado_id = usuario_info["id"]
+
+                # Si el frontend envía usuario_id, verificar que sea el mismo usuario autenticado
+                if "usuario_id" in body:
+                    if body["usuario_id"] != usuario_autenticado_id:
+                        log_error(f"Usuario ID enviado ({body['usuario_id']}) no coincide con usuario autenticado ({usuario_autenticado_id})", "ERROR DE VALIDACIÓN")
+                        return jsonify({"ok": False, "error": "No puedes crear notificaciones para otros usuarios"}), 403
+                    print(f"✅ Usuario ID validado: {body['usuario_id']}")
+                else:
+                    # Si no se envía usuario_id, asignar el del usuario autenticado
+                    body["usuario_id"] = usuario_autenticado_id
+                    print(f"✅ Usuario ID asignado automáticamente: {usuario_autenticado_id}")
+            else:
+                # Si no hay usuario autenticado, no se puede crear notificación
+                log_error("Usuario no autenticado", "ERROR DE AUTENTICACIÓN")
+                return jsonify({"ok": False, "error": "Usuario no autenticado"}), 401
 
             # Crear notificación
             notificacion_creada = self.model.create(empresa_id=empresa_id, **body)
