@@ -39,55 +39,55 @@ class NotificacionesModel:
                 return False, "No se encontró configuración de notificaciones para la empresa"
 
             config_data = config.get("configuracion", {})
-            tipos_disponibles = config_data.get("tipos_disponibles", [])
 
             # Validar tipo
             tipo = datos.get("tipo")
-            tipo_config = None
-            for t in tipos_disponibles:
-                if t.get("tipo") == tipo:
-                    tipo_config = t
-                    break
-
-            if not tipo_config:
-                return False, f"Tipo de notificación '{tipo}' no está configurado"
-
-            # Validar prioridad
-            prioridad = datos.get("prioridad", "normal")
-            prioridades_validas = tipo_config.get("prioridades", [])
-            if prioridad not in prioridades_validas:
-                return False, f"Prioridad '{prioridad}' no es válida. Opciones: {prioridades_validas}"
+            tipos_disponibles = config_data.get("tipos_disponibles", [])
+            if tipo not in tipos_disponibles:
+                return False, f"Tipo de notificación '{tipo}' no está configurado. Opciones: {tipos_disponibles}"
 
             # Validar estado
             estado = datos.get("estado", "pendiente")
-            estados_validos = tipo_config.get("estados", [])
-            if estado not in estados_validos:
-                return False, f"Estado '{estado}' no es válido. Opciones: {estados_validos}"
+            estados_disponibles = config_data.get("estados_disponibles", [])
+            if estado not in estados_disponibles:
+                return False, f"Estado '{estado}' no es válido. Opciones: {estados_disponibles}"
 
-            # Validar metadata
+            # Validar prioridad
+            prioridad = datos.get("prioridad", "normal")
+            prioridades_disponibles = config_data.get("prioridades_disponibles", [])
+            if prioridad not in prioridades_disponibles:
+                return False, f"Prioridad '{prioridad}' no es válida. Opciones: {prioridades_disponibles}"
+
+            # Validar fechas
+            fecha_recordatorio = datos.get("fecha_recordatorio")
+            fecha_vencimiento = datos.get("fecha_vencimiento")
+
+            if fecha_recordatorio and fecha_vencimiento:
+                try:
+                    fecha_rec = datetime.fromisoformat(fecha_recordatorio.replace('Z', '+00:00'))
+                    fecha_ven = datetime.fromisoformat(fecha_vencimiento.replace('Z', '+00:00'))
+
+                    if fecha_ven <= fecha_rec:
+                        return False, "fecha_vencimiento debe ser posterior a fecha_recordatorio"
+                except ValueError:
+                    return False, "Formato de fecha inválido"
+
+            # Validar metadata (campos opcionales)
             metadata = datos.get("metadata", {})
-            metadata_estructura = tipo_config.get("metadata_estructura", {})
+            if metadata:
+                # Validar estado_actual si existe
+                estado_actual = metadata.get("estado_actual")
+                if estado_actual:
+                    estados_actuales = config_data.get("estados_actuales_disponibles", [])
+                    if estados_actuales and estado_actual not in estados_actuales:
+                        return False, f"Estado actual '{estado_actual}' no es válido. Opciones: {estados_actuales}"
 
-            for campo, config_campo in metadata_estructura.items():
-                if config_campo.get("requerido", False) and campo not in metadata:
-                    return False, f"Campo requerido faltante en metadata: {campo}"
-
-                if campo in metadata:
-                    valor = metadata[campo]
-                    tipo_esperado = config_campo.get("tipo")
-
-                    # Validar tipo
-                    if tipo_esperado == "string" and not isinstance(valor, str):
-                        return False, f"Campo '{campo}' debe ser string"
-                    elif tipo_esperado == "number" and not isinstance(valor, (int, float)):
-                        return False, f"Campo '{campo}' debe ser number"
-                    elif tipo_esperado == "boolean" and not isinstance(valor, bool):
-                        return False, f"Campo '{campo}' debe ser boolean"
-
-                    # Validar opciones si existen
-                    opciones = config_campo.get("opciones")
-                    if opciones and valor not in opciones:
-                        return False, f"Valor '{valor}' no es válido para '{campo}'. Opciones: {opciones}"
+                # Validar accion_requerida si existe
+                accion_requerida = metadata.get("accion_requerida")
+                if accion_requerida:
+                    acciones_disponibles = config_data.get("acciones_requeridas_disponibles", [])
+                    if acciones_disponibles and accion_requerida not in acciones_disponibles:
+                        return False, f"Acción requerida '{accion_requerida}' no es válida. Opciones: {acciones_disponibles}"
 
             return True, "Validación exitosa"
 
@@ -131,12 +131,15 @@ class NotificacionesModel:
             print(f"Error al crear notificación: {e}")
             return None
 
-    def list(self, empresa_id: int, **filtros) -> List[Dict]:
-        """Lista notificaciones con filtros opcionales."""
+    def list(self, empresa_id: int, usuario_info: dict = None, **filtros) -> List[Dict]:
+        """Lista notificaciones con filtros opcionales y permisos por rol."""
         try:
             query = supabase.table(self.notificaciones_table).select("*").eq("empresa_id", empresa_id)
 
-            # Aplicar filtros
+            # Aplicar filtros de rol
+            query = self._aplicar_filtros_rol(query, usuario_info)
+
+            # Aplicar filtros adicionales
             if filtros.get("tipo"):
                 query = query.eq("tipo", filtros["tipo"])
             if filtros.get("estado"):
@@ -218,9 +221,83 @@ class NotificacionesModel:
         """Marca una notificación como leída."""
         return self.update(notificacion_id, empresa_id, estado="leida")
 
-    def obtener_pendientes(self, empresa_id: int, usuario_id: Optional[int] = None) -> List[Dict]:
-        """Obtiene notificaciones pendientes."""
+    def obtener_pendientes(self, empresa_id: int, usuario_info: dict = None, usuario_id: Optional[int] = None) -> List[Dict]:
+        """Obtiene notificaciones pendientes con filtros por rol."""
         filtros = {"estado": "pendiente"}
         if usuario_id:
             filtros["usuario_id"] = usuario_id
-        return self.list(empresa_id, **filtros)
+
+        # Manejar compatibilidad con llamadas sin usuario_info
+        if usuario_info is not None:
+            return self.list(empresa_id, usuario_info, **filtros)
+        else:
+            # Llamada sin filtros de rol (comportamiento anterior)
+            return self.list(empresa_id, **filtros)
+
+    def _aplicar_filtros_rol(self, query, usuario_info: dict = None):
+        """Aplica filtros de rol a una query de notificaciones"""
+        if not usuario_info:
+            return query
+
+        rol = usuario_info.get("rol")
+        user_id = usuario_info.get("id")
+
+        if rol == "banco":
+            # Usuario banco: solo ve notificaciones de su banco y ciudad
+            banco_nombre = usuario_info.get("banco_nombre")
+            ciudad = usuario_info.get("ciudad")
+
+            # Filtrar por metadata que contenga banco_nombre y ciudad
+            if banco_nombre or ciudad:
+                # Crear filtros para metadata JSONB
+                metadata_filtros = []
+                if banco_nombre:
+                    metadata_filtros.append(f"metadata->>'banco_nombre'.eq.{banco_nombre}")
+                if ciudad:
+                    metadata_filtros.append(f"metadata->>'ciudad'.eq.{ciudad}")
+
+                if metadata_filtros:
+                    # Aplicar filtros OR para metadata
+                    query = query.or_(",".join(metadata_filtros))
+
+        elif rol == "supervisor":
+            # Usuario supervisor: ve notificaciones de su equipo + las suyas propias
+            if user_id:
+                # Obtener IDs de usuarios de su equipo
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
+                    print(f"   ✅ Supervisor {user_id} - viendo notificaciones de su equipo: {user_ids}")
+
+                # Filtrar por usuario_id en las notificaciones
+                query = query.in_("usuario_id", user_ids)
+
+        elif rol == "asesor":
+            # Usuario asesor: ve sus notificaciones + las notificaciones de su supervisor
+            if user_id:
+                # Obtener el supervisor del asesor
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                asesor_info = usuarios_model.get_by_id(user_id, empresa_id)
+
+                user_ids = [user_id]  # Sus propias notificaciones
+
+                if asesor_info and asesor_info.get("reports_to_id"):
+                    supervisor_id = asesor_info["reports_to_id"]
+                    user_ids.append(supervisor_id)
+                    print(f"   ✅ Asesor {user_id} - viendo notificaciones suyas + de su supervisor {supervisor_id}: {user_ids}")
+                else:
+                    print(f"   ✅ Asesor {user_id} - sin supervisor, viendo solo sus notificaciones: {user_ids}")
+
+                # Filtrar por usuario_id en las notificaciones
+                query = query.in_("usuario_id", user_ids)
+
+        # admin, empresa: ven todas las notificaciones (sin filtros adicionales)
+
+        return query
