@@ -59,12 +59,32 @@ class SolicitudesModel:
         return data[0] if isinstance(data, list) and data else data
 
     def get_by_id(self, *, id: int, empresa_id: int) -> Optional[Dict[str, Any]]:
-        resp = supabase.table(self.TABLE).select("*").eq("id", id).eq("empresa_id", empresa_id).execute()
+        # Hacer JOIN con usuarios para obtener el nombre del creador
+        resp = supabase.table(self.TABLE).select("*, usuarios!created_by_user_id(nombre)").eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
-        return data[0] if isinstance(data, list) and data else None
+
+        if not data or not isinstance(data, list) or len(data) == 0:
+            return None
+
+        item = data[0]
+
+        # Extraer nombre del usuario creador
+        usuario_creador = item.get("usuarios", {})
+        created_by_user_name = usuario_creador.get("nombre") if usuario_creador else None
+
+        # Crear nuevo objeto con el campo agregado
+        processed_item = {**item}
+        processed_item["created_by_user_name"] = created_by_user_name
+
+        # Remover el objeto usuarios anidado para limpiar la respuesta
+        if "usuarios" in processed_item:
+            del processed_item["usuarios"]
+
+        return processed_item
 
     def list(self, *, empresa_id: int, estado: Optional[str] = None, solicitante_id: Optional[int] = None, banco_nombre: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
+        # Hacer JOIN con usuarios para obtener el nombre del creador
+        q = supabase.table(self.TABLE).select("*, usuarios!created_by_user_id(nombre)").eq("empresa_id", empresa_id)
         if estado:
             q = q.eq("estado", estado)
         if solicitante_id:
@@ -74,7 +94,25 @@ class SolicitudesModel:
         q = q.range(offset, offset + max(limit - 1, 0))
         resp = q.execute()
         data = _get_data(resp)
-        return data or []
+
+        # Procesar datos para agregar created_by_user_name
+        processed_data = []
+        for item in data:
+            # Extraer nombre del usuario creador
+            usuario_creador = item.get("usuarios", {})
+            created_by_user_name = usuario_creador.get("nombre") if usuario_creador else None
+
+            # Crear nuevo objeto con el campo agregado
+            processed_item = {**item}
+            processed_item["created_by_user_name"] = created_by_user_name
+
+            # Remover el objeto usuarios anidado para limpiar la respuesta
+            if "usuarios" in processed_item:
+                del processed_item["usuarios"]
+
+            processed_data.append(processed_item)
+
+        return processed_data or []
 
     def update(
         self,
@@ -143,6 +181,7 @@ class SolicitudesModel:
 
     def list_con_filtros_rol(self, *, empresa_id: int, usuario_info: dict = None, estado: Optional[str] = None, solicitante_id: Optional[int] = None, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """Listar solicitudes aplicando filtros de permisos por rol"""
+        # Consulta simple sin JOIN por ahora
         q = supabase.table(self.TABLE).select("*").eq("empresa_id", empresa_id)
 
         # Aplicar filtros básicos
@@ -235,11 +274,50 @@ class SolicitudesModel:
 
         resp = q.execute()
         data = _get_data(resp)
-        return data or []
+
+        print(f"🔍 DEBUG JOIN - Datos recibidos: {len(data) if data else 0} registros")
+        if data and len(data) > 0:
+            print(f"🔍 DEBUG JOIN - Primer registro: {data[0]}")
+
+        # Obtener todos los IDs de usuarios únicos
+        user_ids = set()
+        for item in data:
+            if item.get("created_by_user_id"):
+                user_ids.add(item["created_by_user_id"])
+            if item.get("assigned_to_user_id"):
+                user_ids.add(item["assigned_to_user_id"])
+
+        print(f"🔍 DEBUG JOIN - IDs de usuarios encontrados: {user_ids}")
+
+        # Consultar usuarios para obtener nombres
+        usuarios_map = {}
+        if user_ids:
+            usuarios_resp = supabase.table("usuarios").select("id, nombre").in_("id", list(user_ids)).execute()
+            usuarios_data = _get_data(usuarios_resp) or []
+            usuarios_map = {usuario["id"]: usuario["nombre"] for usuario in usuarios_data}
+            print(f"🔍 DEBUG JOIN - Mapa de usuarios: {usuarios_map}")
+
+        # Procesar datos para agregar created_by_user_name
+        processed_data = []
+        for item in data:
+            # Obtener nombre del usuario creador
+            created_by_user_id = item.get("created_by_user_id")
+            created_by_user_name = usuarios_map.get(created_by_user_id) if created_by_user_id else None
+
+            print(f"🔍 DEBUG JOIN - ID: {created_by_user_id}, Nombre: {created_by_user_name}")
+
+            # Crear nuevo objeto con el campo agregado
+            processed_item = {**item}
+            processed_item["created_by_user_name"] = created_by_user_name
+
+            processed_data.append(processed_item)
+
+        return processed_data or []
 
     def get_by_id_con_filtros_rol(self, *, id: int, empresa_id: int, usuario_info: dict = None) -> Optional[Dict[str, Any]]:
         """Obtener una solicitud específica aplicando filtros de permisos por rol"""
-        q = supabase.table(self.TABLE).select("*").eq("id", id).eq("empresa_id", empresa_id)
+        # Hacer JOIN con usuarios para obtener el nombre del creador
+        q = supabase.table(self.TABLE).select("*, usuarios!created_by_user_id(nombre)").eq("id", id).eq("empresa_id", empresa_id)
 
         # Aplicar filtros de permisos por rol
         if usuario_info:
@@ -297,7 +375,25 @@ class SolicitudesModel:
 
         resp = q.execute()
         data = _get_data(resp)
-        return data[0] if isinstance(data, list) and data else None
+
+        if not data or not isinstance(data, list) or len(data) == 0:
+            return None
+
+        item = data[0]
+
+        # Extraer nombre del usuario creador
+        usuario_creador = item.get("usuarios", {})
+        created_by_user_name = usuario_creador.get("nombre") if usuario_creador else None
+
+        # Crear nuevo objeto con el campo agregado
+        processed_item = {**item}
+        processed_item["created_by_user_name"] = created_by_user_name
+
+        # Remover el objeto usuarios anidado para limpiar la respuesta
+        if "usuarios" in processed_item:
+            del processed_item["usuarios"]
+
+        return processed_item
 
     def _crear_observacion_inicial(self, observacion: str, usuario_info: Dict[str, Any]) -> Dict[str, Any]:
         """Crear la estructura inicial de observaciones"""

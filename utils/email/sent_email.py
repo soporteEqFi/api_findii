@@ -10,10 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def config_email():
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = "equitisoporte@gmail.com"  # Reemplaza con tu correo
-    sender_password = os.getenv('EMAIL_PASSWORD')  # Reemplaza con tu contraseña de aplicación
+    smtp_server = "smtp.zoho.com"
+    smtp_port = 465
+    sender_email = "credito@findii.co"
+    sender_password = os.getenv('EMAIL_PASSWORD')
 
     email_settings = {
         "smtp_server": smtp_server,
@@ -24,24 +24,69 @@ def config_email():
 
     return email_settings
 
+def test_email_connection():
+    """
+    Función para probar la conexión SMTP con Zoho
+    """
+    try:
+        email_settings = config_email()
+
+        if not email_settings["sender_password"]:
+            print("❌ No se encontró EMAIL_PASSWORD en las variables de entorno")
+            return False
+
+        print("🧪 Probando conexión SMTP con Zoho...")
+        print(f"   📧 Servidor: {email_settings['smtp_server']}")
+        print(f"   🔌 Puerto: {email_settings['smtp_port']}")
+        print(f"   👤 Email: {email_settings['sender_email']}")
+        print(f"   🔑 Contraseña: {'*' * len(email_settings['sender_password'])}")
+
+        # Probar conexión SSL
+        server = smtplib.SMTP_SSL(email_settings["smtp_server"], email_settings["smtp_port"])
+        server.set_debuglevel(1)  # Debug detallado
+
+        print("   🔐 Probando autenticación...")
+        server.login(email_settings["sender_email"], email_settings["sender_password"])
+
+        server.quit()
+        print("   ✅ Conexión exitosa!")
+        return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"   ❌ Error de autenticación: {str(e)}")
+        print("   💡 Soluciones:")
+        print("      1. Verifica que tengas 2FA habilitado en Zoho")
+        print("      2. Genera una contraseña de aplicación específica")
+        print("      3. Usa la contraseña de aplicación, NO tu contraseña normal")
+        return False
+
+    except smtplib.SMTPConnectError as e:
+        print(f"   ❌ Error de conexión: {str(e)}")
+        print("   💡 Verifica tu conexión a internet")
+        return False
+
+    except Exception as e:
+        print(f"   ❌ Error inesperado: {str(e)}")
+        return False
+
 def formatear_campos_dinamicos(campos_dict, titulo="", nivel_indentacion=1):
     """
     Formatea campos dinámicos de manera recursiva para mostrar en el email
     """
     if not campos_dict or not isinstance(campos_dict, dict):
         return ""
-    
+
     resultado = []
     indentacion = "    " * nivel_indentacion
-    
+
     if titulo:
         resultado.append(f"\n{indentacion}{titulo.upper()}")
         resultado.append(f"{indentacion}{'=' * len(titulo)}")
-    
+
     for clave, valor in campos_dict.items():
         # Formatear clave para mostrar
         clave_formateada = clave.replace('_', ' ').title()
-        
+
         if isinstance(valor, dict):
             # Si es un diccionario, formatear recursivamente
             resultado.append(f"{indentacion}• {clave_formateada}:")
@@ -62,21 +107,21 @@ def formatear_campos_dinamicos(campos_dict, titulo="", nivel_indentacion=1):
         else:
             # Valor simple
             resultado.append(f"{indentacion}• {clave_formateada}: {valor}")
-    
+
     return "\n".join(resultado)
 
 def mapear_datos_para_email(response_data, original_json=None):
     """
     Mapea los datos de la respuesta del controlador crear_registro_completo
     al formato esperado por las funciones de email (solicitante, asesor y banco)
-    
+
     Args:
         response_data: Respuesta del controlador con los datos creados
         original_json: JSON original enviado desde el frontend (para extraer correos)
     """
     try:
         data = response_data.get("data", {})
-        
+
         # Extraer datos del solicitante
         solicitante = data.get("solicitante", {})
         solicitudes = data.get("solicitudes", [])
@@ -84,57 +129,57 @@ def mapear_datos_para_email(response_data, original_json=None):
         actividad_economica = data.get("actividad_economica", {})
         informacion_financiera = data.get("informacion_financiera", {})
         referencias = data.get("referencias", [])
-        
+
         # Obtener primera solicitud si existe
         primera_solicitud = solicitudes[0] if solicitudes else {}
         primera_ubicacion = ubicaciones[0] if ubicaciones else {}
-        
+
         # Generar ID de radicado único
         id_radicado = f"FD-{uuid.uuid4().hex[:8].upper()}"
-        
+
         # Preparar datos básicos del solicitante
         nombre_completo = f"{solicitante.get('nombres', '')} {solicitante.get('primer_apellido', '')} {solicitante.get('segundo_apellido', '')}"
         correo_electronico = solicitante.get("correo", "")
-        
+
         # Extraer campos dinámicos
         info_extra = solicitante.get("info_extra", {})
         detalle_credito = primera_solicitud.get("detalle_credito", {})
         detalle_direccion = primera_ubicacion.get("detalle_direccion", {}) if primera_ubicacion else {}
         detalle_actividad = actividad_economica.get("detalle_actividad", {}) if actividad_economica else {}
         detalle_financiera = informacion_financiera.get("detalle_financiera", {}) if informacion_financiera else {}
-        
+
         # EXTRACCIÓN ROBUSTA DE CORREOS DESDE EL JSON ORIGINAL
         nombre_asesor = ""
         correo_asesor = ""
         nombre_banco_usuario = ""
         correo_banco_usuario = ""
-        
+
         if original_json:
             print(f"🔍 DEBUG - Extrayendo correos desde JSON original:")
             print(f"   📋 Claves en JSON original: {list(original_json.keys())}")
-            
+
             # Extraer correo del solicitante (siempre en la raíz)
             correo_solicitante_original = original_json.get("correo", "")
             if correo_solicitante_original:
                 correo_electronico = correo_solicitante_original
                 print(f"   ✅ Correo solicitante encontrado en raíz: {correo_electronico}")
-            
+
             # EXTRACCIÓN ROBUSTA: BUSCAR EN RAÍZ Y EN SOLICITUDES[0]
             # Obtener primera solicitud del JSON original si existe
             solicitud_original = (original_json.get("solicitudes") or [{}])[0]
-            
+
             # Buscar en raíz primero, luego en solicitudes[0]
             correo_asesor = (original_json.get("correo_asesor") or solicitud_original.get("correo_asesor", "")).strip()
             nombre_asesor = (original_json.get("nombre_asesor") or solicitud_original.get("nombre_asesor", "")).strip()
             correo_banco_usuario = (original_json.get("correo_banco_usuario") or solicitud_original.get("correo_banco_usuario", "")).strip()
             nombre_banco_usuario = (original_json.get("nombre_banco_usuario") or solicitud_original.get("nombre_banco_usuario", "")).strip()
-            
+
             print(f"   👨‍💼 Asesor extraído: '{nombre_asesor}' ('{correo_asesor}')")
             print(f"   🏦 Usuario banco extraído: '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
-            
+
             # Debug adicional: mostrar dónde se encontraron exactamente los datos
             print(f"   🔍 DEBUG UBICACIÓN DE DATOS:")
-            
+
             # Verificar correo_asesor
             if original_json.get("correo_asesor"):
                 print(f"   📍 ✅ correo_asesor encontrado en RAÍZ: '{original_json.get('correo_asesor')}'")
@@ -142,7 +187,7 @@ def mapear_datos_para_email(response_data, original_json=None):
                 print(f"   📍 ✅ correo_asesor encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_asesor')}'")
             else:
                 print(f"   📍 ❌ correo_asesor NO encontrado en ninguna ubicación")
-            
+
             # Verificar correo_banco_usuario
             if original_json.get("correo_banco_usuario"):
                 print(f"   📍 ✅ correo_banco_usuario encontrado en RAÍZ: '{original_json.get('correo_banco_usuario')}'")
@@ -150,7 +195,7 @@ def mapear_datos_para_email(response_data, original_json=None):
                 print(f"   📍 ✅ correo_banco_usuario encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_banco_usuario')}'")
             else:
                 print(f"   📍 ❌ correo_banco_usuario NO encontrado en ninguna ubicación")
-            
+
             # Mostrar estructura de solicitudes para debugging
             print(f"   🔍 DEBUG ESTRUCTURA SOLICITUDES:")
             if original_json.get("solicitudes"):
@@ -174,14 +219,14 @@ def mapear_datos_para_email(response_data, original_json=None):
             print(f"   👨‍💼 Asesor (fallback): '{nombre_asesor}' ('{correo_asesor}')")
             print(f"   🏦 Usuario banco (fallback): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
             print(f"   📋 Claves disponibles en detalle_credito: {list(detalle_credito.keys())}")
-            
+
             # También intentar extraer desde la respuesta procesada
             if solicitudes and len(solicitudes) > 0:
                 primera_solicitud_procesada = solicitudes[0]
                 detalle_credito_procesado = primera_solicitud_procesada.get("detalle_credito", {})
                 print(f"   🔍 Intentando extraer desde solicitud procesada...")
                 print(f"   📋 Claves en detalle_credito procesado: {list(detalle_credito_procesado.keys())}")
-                
+
                 # Usar datos procesados si no se encontraron en detalle_credito original
                 if not correo_asesor:
                     correo_asesor = detalle_credito_procesado.get("correo_asesor", "").strip()
@@ -189,16 +234,16 @@ def mapear_datos_para_email(response_data, original_json=None):
                 if not correo_banco_usuario:
                     correo_banco_usuario = detalle_credito_procesado.get("correo_banco_usuario", "").strip()
                     nombre_banco_usuario = detalle_credito_procesado.get("nombre_banco_usuario", "").strip()
-                
+
                 print(f"   👨‍💼 Asesor (procesado): '{nombre_asesor}' ('{correo_asesor}')")
                 print(f"   🏦 Usuario banco (procesado): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
-        
+
         # Validar que los datos críticos no estén vacíos
         print(f"\n🔍 VALIDACIÓN FINAL DE DATOS:")
         print(f"   📧 Correo solicitante: '{correo_electronico}' - {'✅ Válido' if correo_electronico.strip() else '❌ Vacío'}")
         print(f"   👨‍💼 Asesor: '{nombre_asesor}' / '{correo_asesor}' - {'✅ Válido' if correo_asesor.strip() else '❌ Vacío'}")
         print(f"   🏦 Banco: '{nombre_banco_usuario}' / '{correo_banco_usuario}' - {'✅ Válido' if correo_banco_usuario.strip() else '❌ Vacío'}")
-        
+
         # Resumen de dónde se encontraron los datos
         if original_json:
             print(f"   📍 RESUMEN DE UBICACIONES:")
@@ -208,7 +253,7 @@ def mapear_datos_para_email(response_data, original_json=None):
             if correo_banco_usuario:
                 ubicacion_banco = "raíz" if original_json.get("correo_banco_usuario") else "solicitudes[0]"
                 print(f"      - Datos banco: encontrados en {ubicacion_banco}")
-        
+
         # Mapear datos al formato esperado por el email
         datos_mapeados = {
             "id_radicado": id_radicado,
@@ -242,16 +287,16 @@ def mapear_datos_para_email(response_data, original_json=None):
                 "correo_usuario": correo_banco_usuario
             }
         }
-        
+
         print(f"\n✅ DATOS MAPEADOS CORRECTAMENTE PARA ENVIO DE EMAILS:")
         print(f"   🆔 ID Radicado: {id_radicado}")
         print(f"   👤 Solicitante: {nombre_completo} ({correo_electronico})")
         print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
         print(f"   🏦 Banco: {nombre_banco_usuario} ({correo_banco_usuario})")
         print(f"   📊 Estado de emails: Solicitante={bool(correo_electronico.strip())}, Asesor={bool(correo_asesor.strip())}, Banco={bool(correo_banco_usuario.strip())}")
-        
+
         return datos_mapeados
-        
+
     except Exception as e:
         print(f"❌ ERROR CRITICO mapeando datos para email: {str(e)}")
         import traceback
@@ -269,7 +314,7 @@ def enviar_email_registro_completo(response_data, original_json=None):
     1. Email al solicitante
     2. Email al asesor
     3. Email al banco
-    
+
     Args:
         response_data: Respuesta del controlador con los datos creados
         original_json: JSON original enviado desde el frontend (para extraer correos)
@@ -322,14 +367,14 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # Verificar si al menos uno se envió exitosamente
         exito_general = any(resultados.values())
-        
+
         # Resumen mejorado con emojis
         print(f"\n📊 RESUMEN DE ENVÍOS DE CORREOS:")
         print(f"   👤 Solicitante: {'✅ Enviado' if resultados['solicitante'] else '❌ Fallido/Sin email'}")
         print(f"   👨‍💼 Asesor: {'✅ Enviado' if resultados['asesor'] else '❌ Fallido/Sin email'}")
         print(f"   🏦 Banco: {'✅ Enviado' if resultados['banco'] else '❌ Fallido/Sin email'}")
         print(f"   📊 Total exitosos: {sum(resultados.values())}/3")
-        
+
         return exito_general
 
     except Exception as e:
@@ -376,10 +421,10 @@ def email_body_and_send(email_settings, data):
 
         # Formatear datos básicos del solicitante
         datos_basicos_str = formatear_campos_dinamicos(data['solicitante']['datos_basicos'])
-        
+
         # Formatear información extra del solicitante
         info_extra_str = formatear_campos_dinamicos(data['solicitante']['info_extra'], "Información Adicional")
-        
+
         # Formatear detalles del crédito
         detalle_credito_str = formatear_campos_dinamicos(data['solicitud']['detalle_credito'], "Detalles del Crédito")
 
@@ -398,7 +443,7 @@ def email_body_and_send(email_settings, data):
         ====================
         • Nombre: {data['solicitante']['nombre_completo']}
         • Email: {data['solicitante']['correo_electronico']}
-        
+
         DATOS BÁSICOS
         =============
 {datos_basicos_str}
@@ -432,16 +477,34 @@ def email_body_and_send(email_settings, data):
         return False
 
 def send_email(email_settings, msg):
-
-    # Enviar correo
+    """
+    Envía correo usando SSL para Zoho (puerto 465)
+    """
     max_attempts = 3
     retry_delay = 2  # segundos entre intentos
 
     for attempt in range(max_attempts):
         try:
-            server = smtplib.SMTP(email_settings["smtp_server"], email_settings["smtp_port"])
-            server.starttls()
+            print(f"🔧 Configurando conexión SMTP para Zoho...")
+            print(f"   📧 Servidor: {email_settings['smtp_server']}")
+            print(f"   🔌 Puerto: {email_settings['smtp_port']}")
+            print(f"   👤 Usuario: {email_settings['sender_email']}")
+
+            # Para Zoho con puerto 465, usar SMTP_SSL directamente
+            if email_settings["smtp_port"] == 465:
+                print("   🔒 Usando SSL directo (puerto 465)")
+                server = smtplib.SMTP_SSL(email_settings["smtp_server"], email_settings["smtp_port"])
+            else:
+                print("   🔓 Usando STARTTLS")
+                server = smtplib.SMTP(email_settings["smtp_server"], email_settings["smtp_port"])
+                server.starttls()
+
+            # Configurar timeout y debug
+            server.set_debuglevel(0)  # Cambiar a 1 para debug detallado
+
+            print("   🔐 Iniciando autenticación...")
             server.login(email_settings["sender_email"], email_settings["sender_password"])
+            print("   ✅ Autenticación exitosa")
 
             # Verifica que msg sea un objeto EmailMessage o MIMEMultipart
             if isinstance(msg, dict):
@@ -462,26 +525,51 @@ def send_email(email_settings, msg):
                 email_msg.attach(MIMEText(body, 'html' if msg.get('html', False) else 'plain'))
 
                 # Enviar el mensaje correctamente formateado
+                print("   📤 Enviando mensaje...")
                 server.send_message(email_msg)
             else:
                 # Si ya es un objeto de mensaje correctamente formateado
+                print("   📤 Enviando mensaje...")
                 server.send_message(msg)
 
             server.quit()
-            print("Correo enviado exitosamente")
+            print("   ✅ Correo enviado exitosamente")
             return True
-        except Exception as e:
-            print(f"Intento {attempt+1}/{max_attempts} - Error al enviar correo: {str(e)}")
-            # Imprimir información adicional para depuración
-            print(f"Tipo de msg: {type(msg)}")
-            if hasattr(msg, 'items'):
-                print(f"Contenido de msg: {dict(msg)}")
 
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ Error de autenticación (intento {attempt+1}/{max_attempts}): {str(e)}")
+            print("   💡 Verifica:")
+            print("      - Email: credito@findii.co")
+            print("      - Contraseña de aplicación (no la contraseña normal)")
+            print("      - 2FA habilitado en Zoho")
             if attempt < max_attempts - 1:
-                print(f"Reintentando en {retry_delay} segundos...")
+                print(f"   ⏳ Reintentando en {retry_delay} segundos...")
                 std_time.sleep(retry_delay)
             else:
-                print("Se agotaron los intentos para enviar el correo")
+                return False
+
+        except smtplib.SMTPConnectError as e:
+            print(f"❌ Error de conexión (intento {attempt+1}/{max_attempts}): {str(e)}")
+            print("   💡 Verifica:")
+            print("      - Conexión a internet")
+            print("      - Servidor SMTP: smtp.zoho.com")
+            print("      - Puerto: 465")
+            if attempt < max_attempts - 1:
+                print(f"   ⏳ Reintentando en {retry_delay} segundos...")
+                std_time.sleep(retry_delay)
+            else:
+                return False
+
+        except Exception as e:
+            print(f"❌ Error general (intento {attempt+1}/{max_attempts}): {str(e)}")
+            print(f"   🔍 Tipo de error: {type(e).__name__}")
+            print(f"   📧 Tipo de msg: {type(msg)}")
+
+            if attempt < max_attempts - 1:
+                print(f"   ⏳ Reintentando en {retry_delay} segundos...")
+                std_time.sleep(retry_delay)
+            else:
+                print("   ❌ Se agotaron los intentos para enviar el correo")
                 return False
 
 def enviar_email_solicitante(email_settings, data):
@@ -498,14 +586,14 @@ def enviar_email_solicitante(email_settings, data):
         solicitante = data['solicitante']
         solicitud = data['solicitud']
         detalle_credito = solicitud.get('detalle_credito', {})
-        
+
         # Obtener datos específicos del crédito
         tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
         valor_vehiculo = detalle_credito.get('credito_vehicular', {}).get('valor_vehiculo', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
         monto_solicitado = detalle_credito.get('credito_vehicular', {}).get('monto_solicitado', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
-        plazo = detalle_credito.get('credito_vehicular', {}).get('plazo', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
+        plazo = detalle_credito.get('credito_vehicular', {}).get('plazo_meses', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
         cuota_inicial = detalle_credito.get('credito_vehicular', {}).get('cuota_inicial', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
-        
+
         # Obtener información adicional del solicitante
         info_extra = solicitante.get('info_extra', {})
         celular = info_extra.get('celular', 'N/A')
@@ -552,7 +640,7 @@ Estado actual: {solicitud['estado']}
 
 👉 Muy pronto uno de nuestros asesores se pondrá en contacto contigo para guiarte en el proceso y resolver cualquier inquietud.
 
-Si tienes dudas, puedes responder directamente a este correo o escribirnos en nuestra página web findii.co 
+Si tienes dudas, puedes responder directamente a este correo o escribirnos en nuestra página web findii.co
 Gracias por elegirnos,
 El equipo Findii ✨"""
 
@@ -578,14 +666,14 @@ def enviar_email_asesor(email_settings, data):
         solicitud = data['solicitud']
         detalle_credito = solicitud.get('detalle_credito', {})
         info_extra = solicitante.get('info_extra', {})
-        
+
         # Obtener datos específicos del crédito
         tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
         valor_vehiculo = detalle_credito.get('credito_vehicular', {}).get('valor_vehiculo', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
         monto_solicitado = detalle_credito.get('credito_vehicular', {}).get('monto_solicitado', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
         cuota_inicial = detalle_credito.get('credito_vehicular', {}).get('cuota_inicial', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
-        plazo = detalle_credito.get('credito_vehicular', {}).get('plazo', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
-        
+        plazo = detalle_credito.get('credito_vehicular', {}).get('plazo_meses', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
+
         # Información adicional del solicitante
         celular = info_extra.get('celular', 'N/A')
         profesion = info_extra.get('profesion', 'N/A')
@@ -665,7 +753,7 @@ def enviar_email_banco(email_settings, data):
         actividad_economica = solicitante.get('actividad_economica', {})
         informacion_financiera = solicitante.get('informacion_financiera', {})
         referencias = solicitante.get('referencias', [])
-        
+
         print(f"🔍 DEBUG EMAIL BANCO - Datos disponibles:")
         print(f"   - info_extra keys: {list(info_extra.keys())}")
         print(f"   - ubicacion keys: {list(ubicacion.keys())}")
@@ -673,7 +761,7 @@ def enviar_email_banco(email_settings, data):
         print(f"   - informacion_financiera keys: {list(informacion_financiera.keys())}")
         print(f"   - detalle_credito keys: {list(detalle_credito.keys())}")
         print(f"   - referencias count: {len(referencias)}")
-        
+
         # FUNCIÓN AUXILIAR PARA EXTRAER DATOS CON MÚTIPLES FUENTES
         def extraer_dato(fuentes_y_campos, default='No especificado'):
             """Extrae un dato buscando en múltiples fuentes y campos"""
@@ -685,7 +773,7 @@ def enviar_email_banco(email_settings, data):
                     if valor and valor != 'N/A' and str(valor).strip():
                         return str(valor).strip()
             return default
-        
+
         # EXTRAER DATOS REALES DEL SOLICITANTE CON MÚTIPLES FUENTES
         # Datos personales básicos
         nombre_completo = solicitante.get('nombre_completo', 'No especificado')
@@ -705,7 +793,7 @@ def enviar_email_banco(email_settings, data):
             (solicitante, 'correo'),
             (solicitante, 'correo_electronico')
         ])
-        
+
         # Información adicional del solicitante
         telefono = extraer_dato([
             (info_extra, ['telefono', 'celular']),
@@ -736,7 +824,7 @@ def enviar_email_banco(email_settings, data):
             (info_extra, 'lugar_nacimiento'),
             (solicitante, 'lugar_nacimiento')
         ])
-        
+
         # Información de ubicación - buscar en múltiples fuentes
         detalle_direccion = ubicacion.get('detalle_direccion', {})
         direccion_residencia = extraer_dato([
@@ -764,7 +852,7 @@ def enviar_email_banco(email_settings, data):
             (ubicacion, 'ciudad'),
             (solicitante, 'ciudad_residencia')
         ])
-        
+
         # Información de actividad económica - buscar en múltiples fuentes
         detalle_actividad = actividad_economica.get('detalle_actividad', {})
         tipo_actividad = extraer_dato([
@@ -787,7 +875,7 @@ def enviar_email_banco(email_settings, data):
             (actividad_economica, 'salario_base'),
             (info_extra, 'salario_base')
         ], '0')
-        
+
         # Información financiera - buscar en múltiples fuentes
         detalle_financiera = informacion_financiera.get('detalle_financiera', {})
         ingreso_basico = extraer_dato([
@@ -821,45 +909,45 @@ def enviar_email_banco(email_settings, data):
             (informacion_financiera, 'total_pasivos'),
             (detalle_financiera, 'total_pasivos')
         ], '0')
-        
+
         # Información del crédito
         tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
         credito_vehicular = detalle_credito.get('credito_vehicular', {})
         if credito_vehicular:
             valor_vehiculo = credito_vehicular.get('valor_vehiculo', 'N/A')
             cuota_inicial = credito_vehicular.get('cuota_inicial', 'N/A')
-            plazo_meses = credito_vehicular.get('plazo_meses', credito_vehicular.get('plazo', 'N/A'))
+            plazo_meses = credito_vehicular.get('plazo_meses', credito_vehicular.get('plazo_meses', 'N/A'))
             monto_solicitado = credito_vehicular.get('monto_solicitado', 'N/A')
             estado_vehiculo = credito_vehicular.get('estado_vehiculo', 'N/A')
             tipo_credito_especifico = credito_vehicular.get('tipo_credito', tipo_credito)
         else:
             valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
-        
+
         # Referencias - buscar en referencias (plural) y referencia (singular)
         ref_familiar_data = {}
         ref_personal_data = {}
-        
+
         # Primero buscar en referencias (lista)
         for ref in referencias:
             tipo_ref = ref.get('tipo_referencia', '').lower()
             detalle_ref = ref.get('detalle_referencia', ref)  # Usar detalle_referencia si existe, sino el objeto completo
-            
+
             if 'familiar' in tipo_ref:
                 ref_familiar_data = detalle_ref
             elif 'personal' in tipo_ref:
                 ref_personal_data = detalle_ref
-        
+
         # También buscar en el objeto 'referencia' singular (como en el JSON que muestras)
         referencia_singular = data.get('referencia', {})
         if referencia_singular:
             tipo_ref = referencia_singular.get('tipo_referencia', '').lower()
             detalle_ref = referencia_singular.get('detalle_referencia', referencia_singular)
-            
+
             if 'familiar' in tipo_ref:
                 ref_familiar_data = detalle_ref
             elif 'personal' in tipo_ref:
                 ref_personal_data = detalle_ref
-        
+
         # Extraer datos de referencias con múltiples fuentes
         ref_familiar_nombre = extraer_dato([
             (ref_familiar_data, ['nombre_referencia', 'nombre_completo', 'nombre'])
@@ -870,7 +958,7 @@ def enviar_email_banco(email_settings, data):
         ref_familiar_relacion = extraer_dato([
             (ref_familiar_data, ['relacion_referencia', 'parentesco', 'relacion'])
         ])
-        
+
         ref_personal_nombre = extraer_dato([
             (ref_personal_data, ['nombre_referencia', 'nombre_completo', 'nombre'])
         ])
@@ -880,7 +968,7 @@ def enviar_email_banco(email_settings, data):
         ref_personal_relacion = extraer_dato([
             (ref_personal_data, ['relacion_referencia', 'parentesco', 'relacion'])
         ])
-        
+
         # Debug para referencias
         print(f"🔍 DEBUG REFERENCIAS:")
         print(f"   - ref_familiar_data: {ref_familiar_data}")
@@ -904,19 +992,19 @@ def enviar_email_banco(email_settings, data):
                     valor = int(valor)
                 else:
                     return 'No reportado'
-                
+
                 # Si el valor es 0, mostrar como no reportado
                 if valor == 0:
                     return 'No reportado'
-                    
+
                 # Formatear con separadores de miles
                 return f"${valor:,}".replace(',', '.')
             except:
                 return 'No reportado'
-        
+
         # Formatear género
         genero_texto = "Masculino" if solicitante.get('datos_basicos', {}).get('genero', 'M') == 'M' else "Femenino"
-        
+
         # Extraer datos adicionales con múltiples fuentes
         fecha_expedicion = extraer_dato([
             (info_extra, 'fecha_expedicion'),
@@ -936,7 +1024,7 @@ def enviar_email_banco(email_settings, data):
             (informacion_financiera, 'declara_renta'),
             (info_extra, 'declara_renta')
         ])
-        
+
         # Separar nombres y apellidos con extracción mejorada
         nombres = extraer_dato([
             (solicitante, 'nombres'),
@@ -951,14 +1039,14 @@ def enviar_email_banco(email_settings, data):
             (info_extra, 'segundo_apellido')
         ], '')
         apellidos = f"{primer_apellido} {segundo_apellido}".strip() or 'No especificado'
-        
+
         # Debug para nombres
         print(f"🔍 DEBUG NOMBRES:")
         print(f"   - nombres: '{nombres}'")
         print(f"   - primer_apellido: '{primer_apellido}'")
         print(f"   - segundo_apellido: '{segundo_apellido}'")
         print(f"   - apellidos final: '{apellidos}'")
-        
+
         # Cuerpo del mensaje mejorado para el banco
         body = f"""Buenos días,
 
