@@ -28,8 +28,34 @@ class UsuariosController:
             empresa_id = self._empresa_id()
             print(f"\n📋 EMPRESA ID: {empresa_id}")
 
-            # Obtener usuarios de la empresa
-            usuarios = self.model.list_by_empresa(empresa_id)
+            # Intentar identificar al usuario solicitante para aplicar filtros por rol
+            user_id = request.headers.get("X-User-Id") or request.args.get("user_id")
+            usuarios = []
+
+            if user_id:
+                try:
+                    user_id_int = int(user_id)
+                except Exception:
+                    user_id_int = None
+
+                if user_id_int is not None:
+                    # Obtener datos del usuario para conocer su rol
+                    usuario_req = self.model.get_by_id(user_id_int, empresa_id)
+                    rol_req = usuario_req.get("rol") if usuario_req else None
+
+                    # Si es SUPERVISOR: solo retornar su equipo (usuarios con reports_to_id = supervisor_id)
+                    if rol_req == "supervisor":
+                        print(f"   👨‍💼 Solicitante es SUPERVISOR (id={user_id_int}). Devolviendo solo su equipo…")
+                        usuarios = self.model.get_team_members(user_id_int, empresa_id) or []
+                    else:
+                        # Otros roles o rol no identificado: comportamiento actual (todos los usuarios de la empresa)
+                        usuarios = self.model.list_by_empresa(empresa_id)
+                else:
+                    # ID inválido: comportamiento actual
+                    usuarios = self.model.list_by_empresa(empresa_id)
+            else:
+                # Sin user_id: comportamiento actual
+                usuarios = self.model.list_by_empresa(empresa_id)
 
             log_operation_result(usuarios, f"USUARIOS OBTENIDOS: {len(usuarios)}")
 
