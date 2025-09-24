@@ -348,6 +348,11 @@ def enviar_email_registro_completo(response_data, original_json=None):
             print("⚠️ WARNING: No se encontró email del solicitante o está vacío")
             resultados["solicitante"] = False
 
+        # Delay entre envíos para evitar rate limiting de Zoho
+        if resultados["solicitante"]:
+            print("⏳ Esperando 5 segundos antes del siguiente envío...")
+            std_time.sleep(5)
+
         # 2. Enviar email al asesor
         email_asesor = datos_email['asesor']['correo']
         if email_asesor and email_asesor.strip():
@@ -356,6 +361,11 @@ def enviar_email_registro_completo(response_data, original_json=None):
         else:
             print("⚠️ WARNING: No se encontró email del asesor o está vacío")
             resultados["asesor"] = False
+
+        # Delay entre envíos para evitar rate limiting de Zoho
+        if resultados["asesor"]:
+            print("⏳ Esperando 5 segundos antes del siguiente envío...")
+            std_time.sleep(5)
 
         # 3. Enviar email al banco
         email_banco = datos_email['banco']['correo_usuario']
@@ -561,6 +571,31 @@ def send_email(email_settings, msg):
             else:
                 return False
 
+        except smtplib.SMTPDataError as e:
+            error_msg = str(e)
+            print(f"❌ Error de datos SMTP (intento {attempt+1}/{max_attempts}): {error_msg}")
+            print(f"   🔍 Tipo de error: {type(e).__name__}")
+            print(f"   📧 Tipo de msg: {type(msg)}")
+            
+            # Detectar rate limiting específico de Zoho
+            if "5.4.6" in error_msg and "Unusual sending activity" in error_msg:
+                rate_limit_delay = 10 + (attempt * 5)  # Incrementar delay progresivamente
+                print(f"   🚫 Rate limiting detectado de Zoho")
+                print(f"   💡 Sugerencia: Reducir frecuencia de envíos")
+                if attempt < max_attempts - 1:
+                    print(f"   ⏳ Esperando {rate_limit_delay} segundos por rate limiting...")
+                    std_time.sleep(rate_limit_delay)
+                else:
+                    print("   ❌ Se agotaron los intentos - Rate limiting persistente")
+                    return False
+            else:
+                if attempt < max_attempts - 1:
+                    print(f"   ⏳ Reintentando en {retry_delay} segundos...")
+                    std_time.sleep(retry_delay)
+                else:
+                    print("   ❌ Se agotaron los intentos para enviar el correo")
+                    return False
+
         except Exception as e:
             print(f"❌ Error general (intento {attempt+1}/{max_attempts}): {str(e)}")
             print(f"   🔍 Tipo de error: {type(e).__name__}")
@@ -759,42 +794,26 @@ def enviar_email_banco(email_settings, data):
 
         # Extraer información para el email
         solicitante = data['solicitante']
+        print(solicitante)
         solicitud = data['solicitud']
+        # CORREGIDO: ubicacion está dentro del solicitante, no en data['ubicacion']
+        ubicacion_data = solicitante.get('ubicacion', {})
         detalle_credito = solicitud.get('detalle_credito', {})
         info_extra = solicitante.get('info_extra', {})
-        ubicacion = solicitante.get('ubicacion', {})
         actividad_economica = solicitante.get('actividad_economica', {})
         informacion_financiera = solicitante.get('informacion_financiera', {})
-        referencias = solicitante.get('referencias', [])
-
-        print(f"🔍 DEBUG EMAIL BANCO - Datos disponibles:")
-        print(f"   - info_extra keys: {list(info_extra.keys())}")
-        print(f"   - ubicacion keys: {list(ubicacion.keys())}")
-        print(f"   - actividad_economica keys: {list(actividad_economica.keys())}")
-        print(f"   - informacion_financiera keys: {list(informacion_financiera.keys())}")
-        print(f"   - detalle_credito keys: {list(detalle_credito.keys())}")
-        print(f"   - referencias count: {len(referencias)}")
+       
 
         # EXTRAER DATOS DIRECTAMENTE COMO LO HACEN LOS OTROS EMAILS
         # Usar el mismo patrón que los emails del solicitante y asesor
         datos_basicos = solicitante.get('datos_basicos', {})
         
-        # Datos personales básicos - acceso directo
-        nombre_completo = solicitante.get('nombre_completo', 'No especificado')
-        nombres = solicitante.get('nombres', 'No especificado')
-        primer_apellido = solicitante.get('primer_apellido', '')
-        segundo_apellido = solicitante.get('segundo_apellido', '')
-        apellidos = f"{primer_apellido} {segundo_apellido}".strip() or 'No especificado'
-        
-        tipo_doc = datos_basicos.get('tipo_identificacion', 'No especificado')
-        numero_doc = datos_basicos.get('numero_documento', 'No especificado')
         fecha_nacimiento = datos_basicos.get('fecha_nacimiento', 'No especificado')
         genero_texto = "Masculino" if datos_basicos.get('genero', 'M') == 'M' else "Femenino"
         correo_electronico = solicitante.get('correo_electronico', solicitante.get('correo', 'No especificado'))
 
         # Información adicional del solicitante - acceso directo a info_extra
         celular = info_extra.get('celular', 'No especificado')
-        telefono = info_extra.get('telefono', celular)
         profesion = info_extra.get('profesion', 'No especificado')
         nivel_estudios = info_extra.get('nivel_estudio', info_extra.get('nivel_estudios', 'No especificado'))
         estado_civil = info_extra.get('estado_civil', 'No especificado')
@@ -804,31 +823,31 @@ def enviar_email_banco(email_settings, data):
         personas_a_cargo = info_extra.get('personas_a_cargo', '0')
 
         # Información de ubicación - acceso directo
-        detalle_direccion = ubicacion.get('detalle_direccion', {})
-        direccion_residencia = detalle_direccion.get('direccion_residencia', detalle_direccion.get('direccion', 'No especificado'))
-        tipo_vivienda = detalle_direccion.get('tipo_vivienda', 'No especificado')
-        barrio = detalle_direccion.get('barrio', 'No especificado')
-        departamento_residencia = ubicacion.get('departamento_residencia', ubicacion.get('departamento', 'No especificado'))
-        ciudad_residencia = ubicacion.get('ciudad_residencia', ubicacion.get('ciudad', 'No especificado'))
-        correspondencia = detalle_direccion.get('recibir_correspondencia', 'No especificado')
+        # CORREGIDO: usar ubicacion_data y acceder directamente a los campos disponibles
+        direccion_residencia = ubicacion_data.get('direccion_residencia', 'No especificado')
+        tipo_vivienda = ubicacion_data.get('tipo_vivienda', 'No especificado')
+        # Estos campos no están disponibles en la estructura actual, usar valores por defecto
+        departamento_residencia = 'No especificado'
+        ciudad_residencia = 'No especificado'
+        correspondencia = ubicacion_data.get('recibir_correspondencia', 'No especificado')
 
         # Información de actividad económica - acceso directo
-        detalle_actividad = actividad_economica.get('detalle_actividad', {})
-        tipo_actividad = detalle_actividad.get('tipo_actividad_economica', detalle_actividad.get('tipo_actividad', 'No especificado'))
-        empresa = detalle_actividad.get('empresa', 'No especificado')
-        cargo = detalle_actividad.get('cargo', 'No especificado')
-        salario_base = detalle_actividad.get('salario_base', '0')
+        # CORREGIDO: acceder directamente a actividad_economica sin detalle_actividad
+        tipo_actividad = actividad_economica.get('tipo_actividad_economica', 'No especificado')
+        # Para empleados, buscar en datos_empleado
+        datos_empleado = actividad_economica.get('datos_empleado', {})
+        empresa = datos_empleado.get('nombre_empresa', 'No especificado')
+        cargo = datos_empleado.get('cargo', 'No especificado')
+        salario_base = datos_empleado.get('salario_base', '0')
 
         # Información financiera - acceso directo
-        detalle_financiera = informacion_financiera.get('detalle_financiera', {})
-        ingreso_basico = detalle_financiera.get('ingreso_basico_mensual', '0')
-        ingreso_variable = detalle_financiera.get('ingreso_variable_mensual', '0')
-        otros_ingresos = detalle_financiera.get('otros_ingresos_mensuales', '0')
-        gastos_financieros = detalle_financiera.get('gastos_financieros_mensuales', '0')
-        gastos_personales = detalle_financiera.get('gastos_personales_mensuales', '0')
-        total_activos = informacion_financiera.get('total_activos', '0')
-        total_pasivos = informacion_financiera.get('total_pasivos', '0')
-        declara_renta = detalle_financiera.get('declara_renta', 'No especificado')
+        # CORREGIDO: acceder directamente a informacion_financiera sin detalle_financiera
+        ingreso_basico = informacion_financiera.get('ingreso_basico_mensual', '0')
+        ingreso_variable = informacion_financiera.get('ingreso_variable_mensual', '0')
+        otros_ingresos = informacion_financiera.get('otros_ingresos_mensuales', '0')
+        gastos_financieros = informacion_financiera.get('gastos_financieros_mensuales', '0')
+        gastos_personales = informacion_financiera.get('gastos_personales_mensuales', '0')
+        declara_renta = informacion_financiera.get('declara_renta', 'No especificado')
 
         # Información del crédito - acceso directo
         tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
@@ -843,23 +862,7 @@ def enviar_email_banco(email_settings, data):
         else:
             valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
 
-        # Referencias - acceso directo y simplificado
-        ref_personal_nombre = 'No especificado'
-        ref_personal_telefono = 'No especificado'
-        ref_personal_ciudad = 'No especificado'
-        ref_personal_relacion = 'No especificado'
-
-        # Buscar referencias en la lista
-        for ref in referencias:
-            tipo_ref = ref.get('tipo_referencia', '').lower()
-            detalle_ref = ref.get('detalle_referencia', ref)
-            
-            if 'personal' in tipo_ref:
-                ref_personal_nombre = detalle_ref.get('nombre_referencia', detalle_ref.get('nombre_completo', detalle_ref.get('nombre', 'No especificado')))
-                ref_personal_telefono = detalle_ref.get('celular_referencia', detalle_ref.get('telefono', detalle_ref.get('celular', 'No especificado')))
-                ref_personal_ciudad = detalle_ref.get('ciudad_referencia', 'No especificado')
-                ref_personal_relacion = detalle_ref.get('relacion_referencia', detalle_ref.get('parentesco', detalle_ref.get('relacion', 'No especificado')))
-                break
+     
 
         # Formatear valores monetarios con separadores de miles
         def formatear_dinero(valor):
@@ -888,13 +891,7 @@ def enviar_email_banco(email_settings, data):
             except:
                 return 'No reportado'
 
-        # Debug para verificar datos extraídos
-        print(f"🔍 DEBUG DATOS EXTRAÍDOS PARA BANCO:")
-        print(f"   - nombres: '{nombres}' | apellidos: '{apellidos}'")
-        print(f"   - tipo_doc: '{tipo_doc}' | numero_doc: '{numero_doc}'")
-        print(f"   - celular: '{celular}' | profesion: '{profesion}'")
-        print(f"   - empresa: '{empresa}' | cargo: '{cargo}'")
-        print(f"   - direccion: '{direccion_residencia}' | ciudad: '{ciudad_residencia}'")
+     
 
         # Obtener fecha y hora actual
         fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
@@ -909,10 +906,9 @@ En Findii valoramos nuestra alianza y seguimos trabajando para que más clientes
 Agradecemos su colaboración con la siguiente consulta para {solicitud['banco_nombre']}, relacionada con la radicación de un {tipo_credito_especifico.lower()}. Adjuntamos la documentación correspondiente para su revisión.
 
 📋 DATOS DEL SOLICITANTE
-Nombres: {nombres}
-Apellidos: {apellidos}
-Tipo de identificación: {tipo_doc}
-Número de documento: {numero_doc}
+Nombres: {solicitante['nombre_completo']}
+Tipo de identificación: {solicitante['datos_basicos']['tipo_identificacion']}
+Número de documento: {solicitante['datos_basicos']['numero_documento']}
 Fecha de expedición: {fecha_expedicion}
 Fecha de nacimiento: {fecha_nacimiento}
 Lugar de nacimiento: {lugar_nacimiento}
@@ -925,24 +921,22 @@ Personas a cargo: {personas_a_cargo}
 Nivel de estudios: {nivel_estudios}
 Profesión: {profesion}
 
-📍 UBICACIÓN
+📌 UBICACIÓN
 Departamento de residencia: {departamento_residencia}
 Ciudad de residencia: {ciudad_residencia}
 Dirección: {direccion_residencia}
 Tipo de vivienda: {tipo_vivienda}
 Correspondencia: {correspondencia}
 
-💼 ACTIVIDAD ECONÓMICA
+📌 ACTIVIDAD ECONÓMICA
 Tipo de actividad económica: {tipo_actividad}
 Empresa: {empresa}
 Cargo: {cargo}
 Salario base: {formatear_dinero(salario_base)}
 
-💰 INFORMACIÓN FINANCIERA
+📌 INFORMACIÓN FINANCIERA
 Total ingresos mensuales: {formatear_dinero(informacion_financiera.get('total_ingresos_mensuales', '0'))}
 Total egresos mensuales: {formatear_dinero(informacion_financiera.get('total_egresos_mensuales', '0'))}
-Total activos: {formatear_dinero(total_activos)}
-Total pasivos: {formatear_dinero(total_pasivos)}
 Detalle:
   Ingreso básico: {formatear_dinero(ingreso_basico)}
   Ingreso variable: {formatear_dinero(ingreso_variable)}
@@ -951,7 +945,7 @@ Detalle:
   Gastos personales: {formatear_dinero(gastos_personales)}
   Declara renta: {declara_renta}
 
-🚗 DETALLES DEL CRÉDITO
+📌 DETALLES DEL CRÉDITO
 Banco: {solicitud['banco_nombre']}
 Ciudad de solicitud: {solicitud['ciudad_solicitud']}
 Estado de la solicitud: {solicitud['estado']}
@@ -963,12 +957,6 @@ Monto solicitado: {formatear_dinero(monto_solicitado)}
 Cuota inicial: {formatear_dinero(cuota_inicial)}
 Plazo: {plazo_meses} meses
 
-👥 REFERENCIAS
-Personal:
-  Nombre: {ref_personal_nombre}
-  Celular: {ref_personal_telefono}
-  Ciudad: {ref_personal_ciudad}
-  Relación: {ref_personal_relacion}
 
 Quedamos atentos a su confirmación y a cualquier información adicional que requieran para agilizar el proceso.
 
