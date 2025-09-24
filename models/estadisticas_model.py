@@ -29,13 +29,13 @@ class EstadisticasModel:
 
             # Total de solicitudes (con filtros de rol)
             solicitudes_query = supabase.table("solicitudes").select("id", count="exact").eq("empresa_id", empresa_id)
-            solicitudes_query = self._aplicar_query_filtros_rol(solicitudes_query, usuario_info)
+            solicitudes_query = self._aplicar_query_filtros_rol(solicitudes_query, usuario_info, empresa_id)
             solicitudes_resp = solicitudes_query.execute()
             total_solicitudes = solicitudes_resp.count or 0
 
             # Solicitudes por estado
             estados_query = supabase.table("solicitudes").select("estado", count="exact").eq("empresa_id", empresa_id)
-            estados_query = self._aplicar_query_filtros_rol(estados_query, usuario_info)
+            estados_query = self._aplicar_query_filtros_rol(estados_query, usuario_info, empresa_id)
             estados_resp = estados_query.execute()
             solicitudes_data = _get_data(estados_resp) or []
 
@@ -49,7 +49,7 @@ class EstadisticasModel:
             solicitudes_por_banco = {}
             if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
                 bancos_query = supabase.table("solicitudes").select("banco_nombre", count="exact").eq("empresa_id", empresa_id)
-                bancos_query = self._aplicar_query_filtros_rol(bancos_query, usuario_info)
+                bancos_query = self._aplicar_query_filtros_rol(bancos_query, usuario_info, empresa_id)
                 bancos_resp = bancos_query.execute()
                 bancos_data = _get_data(bancos_resp) or []
 
@@ -61,7 +61,7 @@ class EstadisticasModel:
             solicitudes_por_ciudad = {}
             if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
                 ciudades_query = supabase.table("solicitudes").select("ciudad_solicitud", count="exact").eq("empresa_id", empresa_id)
-                ciudades_query = self._aplicar_query_filtros_rol(ciudades_query, usuario_info)
+                ciudades_query = self._aplicar_query_filtros_rol(ciudades_query, usuario_info, empresa_id)
                 ciudades_resp = ciudades_query.execute()
                 ciudades_data = _get_data(ciudades_resp) or []
 
@@ -77,7 +77,7 @@ class EstadisticasModel:
             fecha_inicio = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
             solicitudes_tiempo_query = supabase.table("solicitudes").select("created_at").eq("empresa_id", empresa_id).gte("created_at", fecha_inicio)
-            solicitudes_tiempo_query = self._aplicar_query_filtros_rol(solicitudes_tiempo_query, usuario_info)
+            solicitudes_tiempo_query = self._aplicar_query_filtros_rol(solicitudes_tiempo_query, usuario_info, empresa_id)
             solicitudes_tiempo_resp = solicitudes_tiempo_query.execute()
             solicitudes_tiempo_data = _get_data(solicitudes_tiempo_resp) or []
 
@@ -118,7 +118,7 @@ class EstadisticasModel:
 
             # Solicitudes creadas por día (últimos N días)
             solicitudes_query = supabase.table("solicitudes").select("created_at").eq("empresa_id", empresa_id).gte("created_at", fecha_inicio)
-            solicitudes_query = self._aplicar_query_filtros_rol(solicitudes_query, usuario_info)
+            solicitudes_query = self._aplicar_query_filtros_rol(solicitudes_query, usuario_info, empresa_id)
             solicitudes_resp = solicitudes_query.execute()
             solicitudes_data = _get_data(solicitudes_resp) or []
 
@@ -130,12 +130,12 @@ class EstadisticasModel:
 
             # Solicitudes completadas vs pendientes
             completadas_query = supabase.table("solicitudes").select("id", count="exact").eq("empresa_id", empresa_id).neq("estado", "Pendiente")
-            completadas_query = self._aplicar_query_filtros_rol(completadas_query, usuario_info)
+            completadas_query = self._aplicar_query_filtros_rol(completadas_query, usuario_info, empresa_id)
             completadas_resp = completadas_query.execute()
             solicitudes_completadas = completadas_resp.count or 0
 
             pendientes_query = supabase.table("solicitudes").select("id", count="exact").eq("empresa_id", empresa_id).eq("estado", "Pendiente")
-            pendientes_query = self._aplicar_query_filtros_rol(pendientes_query, usuario_info)
+            pendientes_query = self._aplicar_query_filtros_rol(pendientes_query, usuario_info, empresa_id)
             pendientes_resp = pendientes_query.execute()
             solicitudes_pendientes = pendientes_resp.count or 0
 
@@ -143,7 +143,7 @@ class EstadisticasModel:
             productividad_usuarios = {}
             if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor"]:
                 usuarios_query = supabase.table("solicitudes").select("assigned_to_user_id, usuarios(id, info_extra)").eq("empresa_id", empresa_id)
-                usuarios_query = self._aplicar_query_filtros_rol(usuarios_query, usuario_info)
+                usuarios_query = self._aplicar_query_filtros_rol(usuarios_query, usuario_info, empresa_id)
                 usuarios_resp = usuarios_query.execute()
                 usuarios_data = _get_data(usuarios_resp) or []
 
@@ -260,7 +260,7 @@ class EstadisticasModel:
             total_solicitantes = self._contar_solicitantes_por_rol(empresa_id, usuario_info) or 1  # Evitar división por cero
             total_referencias = self._contar_referencias_por_rol(empresa_id, usuario_info)
             total_documentos = self._contar_documentos_por_rol(empresa_id, usuario_info)
-            
+
             referencias_promedio = round(total_referencias / total_solicitantes, 2)
             documentos_promedio = round(total_documentos / total_solicitantes, 2)
 
@@ -302,7 +302,7 @@ class EstadisticasModel:
 
         return filtros_base
 
-    def _aplicar_query_filtros_rol(self, query, usuario_info: dict = None):
+    def _aplicar_query_filtros_rol(self, query, usuario_info: dict = None, empresa_id: int = None):
         """Aplica filtros de rol a una query de Supabase"""
         if not usuario_info:
             return query
@@ -320,23 +320,20 @@ class EstadisticasModel:
         elif rol == "supervisor":
             # Usuario supervisor ve las solicitudes de su equipo + las suyas propias
             user_id = usuario_info.get("id")
-            if user_id:
+            if user_id and empresa_id:
                 # Obtener IDs de usuarios de su equipo
                 from models.usuarios_model import UsuariosModel
                 usuarios_model = UsuariosModel()
-                # Necesitamos el empresa_id, lo obtenemos del query si es posible
-                empresa_id = getattr(query, '_empresa_id', None)
-                if empresa_id:
-                    team_members = usuarios_model.get_team_members(user_id, empresa_id)
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
 
-                    # Incluir su propio ID + IDs de su equipo
-                    user_ids = [user_id]  # Su propio ID
-                    if team_members:
-                        team_ids = [member["id"] for member in team_members]
-                        user_ids.extend(team_ids)
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
 
-                    # Filtrar por created_by_user_id o assigned_to_user_id
-                    query = query.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
+                # Filtrar por created_by_user_id o assigned_to_user_id
+                query = query.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
         elif rol == "asesor":
             # Usuario asesor ve solo sus propias solicitudes (priorizando created_by_user_id)
             user_id = usuario_info.get("id")
@@ -353,49 +350,49 @@ class EstadisticasModel:
                 # Admin, supervisor y empresa ven todos los solicitantes de la empresa
                 resp = supabase.table("solicitantes").select("id", count="exact").eq("empresa_id", empresa_id).execute()
                 return resp.count or 0
-            
+
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
-            
+
             if rol == "asesor" and user_id:
                 # Asesor ve solo solicitantes de solicitudes creadas por él (created_by_user_id es la variable principal)
                 # Usar join directo con solicitudes filtrando principalmente por created_by_user_id
                 resp = supabase.table("solicitantes").select(
-                    "id, solicitudes!inner(created_by_user_id, assigned_to_user_id)", 
+                    "id, solicitudes!inner(created_by_user_id, assigned_to_user_id)",
                     count="exact"
                 ).eq("empresa_id", empresa_id).eq(
                     "solicitudes.created_by_user_id", user_id
                 ).execute()
                 return resp.count or 0
-                
+
             elif rol == "banco":
                 # Usuario banco ve solicitantes filtrados por banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
-                
+
                 if not banco_nombre and not ciudad:
                     return 0
-                
+
                 # Usar join directo con solicitudes filtrando por banco/ciudad
                 query = supabase.table("solicitantes").select(
-                    "id, solicitudes!inner(banco_nombre, ciudad_solicitud)", 
+                    "id, solicitudes!inner(banco_nombre, ciudad_solicitud)",
                     count="exact"
                 ).eq("empresa_id", empresa_id)
-                
+
                 filters = []
                 if banco_nombre:
                     filters.append(f"solicitudes.banco_nombre.eq.{banco_nombre}")
                 if ciudad:
                     filters.append(f"solicitudes.ciudad_solicitud.eq.{ciudad}")
-                
+
                 if filters:
                     query = query.or_(",".join(filters))
-                
+
                 resp = query.execute()
                 return resp.count or 0
-            
+
             return 0
-            
+
         except Exception as e:
             print(f"❌ Error contando solicitantes por rol: {e}")
             return 0
@@ -406,49 +403,49 @@ class EstadisticasModel:
             if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
                 # Admin, supervisor y empresa ven todos los documentos de la empresa
                 resp = supabase.table("documentos").select(
-                    "id, solicitantes!inner(empresa_id)", 
+                    "id, solicitantes!inner(empresa_id)",
                     count="exact"
                 ).eq("solicitantes.empresa_id", empresa_id).execute()
                 return resp.count or 0
-            
+
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
-            
+
             if rol == "asesor" and user_id:
                 # Asesor ve solo documentos de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar doble join: documentos -> solicitantes -> solicitudes, filtrando por created_by_user_id
                 resp = supabase.table("documentos").select(
-                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))", 
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))",
                     count="exact"
                 ).eq("solicitantes.empresa_id", empresa_id).eq(
                     "solicitantes.solicitudes.created_by_user_id", user_id
                 ).execute()
                 return resp.count or 0
-                
+
             elif rol == "banco":
                 # Usuario banco ve documentos filtrados por banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
-                
+
                 if not banco_nombre and not ciudad:
                     return 0
-                
+
                 # Usar doble join: documentos -> solicitantes -> solicitudes, filtrando por banco/ciudad
                 query = supabase.table("documentos").select(
-                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))", 
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))",
                     count="exact"
                 ).eq("solicitantes.empresa_id", empresa_id)
-                
+
                 if banco_nombre:
                     query = query.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
                 if ciudad:
                     query = query.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
-                
+
                 resp = query.execute()
                 return resp.count or 0
-            
+
             return 0
-            
+
         except Exception as e:
             print(f"❌ Error contando documentos por rol: {e}")
             return 0
@@ -460,15 +457,15 @@ class EstadisticasModel:
                 # Admin, supervisor y empresa ven toda la información de la empresa
                 financiera_resp = supabase.table("informacion_financiera").select("detalle_financiera").eq("empresa_id", empresa_id).execute()
                 financiera_data = _get_data(financiera_resp) or []
-                
+
                 actividades_resp = supabase.table("actividad_economica").select("detalle_actividad").eq("empresa_id", empresa_id).execute()
                 actividades_data = _get_data(actividades_resp) or []
-                
+
                 return financiera_data, actividades_data
-            
+
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
-            
+
             if rol == "asesor" and user_id:
                 # Asesor ve solo información de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar join directo: informacion_financiera -> solicitantes -> solicitudes, filtrando por created_by_user_id
@@ -478,7 +475,7 @@ class EstadisticasModel:
                     "solicitantes.solicitudes.created_by_user_id", user_id
                 ).execute()
                 financiera_data = _get_data(financiera_resp) or []
-                
+
                 # Actividad económica con el mismo filtro
                 actividades_resp = supabase.table("actividad_economica").select(
                     "detalle_actividad, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))"
@@ -486,47 +483,47 @@ class EstadisticasModel:
                     "solicitantes.solicitudes.created_by_user_id", user_id
                 ).execute()
                 actividades_data = _get_data(actividades_resp) or []
-                
+
                 return financiera_data, actividades_data
-                
+
             elif rol == "banco":
                 # Usuario banco ve información filtrada por banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
-                
+
                 if not banco_nombre and not ciudad:
                     return [], []
-                
+
                 # Información financiera con filtro de banco/ciudad
                 query_financiera = supabase.table("informacion_financiera").select(
                     "detalle_financiera, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))"
                 ).eq("solicitantes.empresa_id", empresa_id)
-                
+
                 if banco_nombre:
                     query_financiera = query_financiera.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
                 if ciudad:
                     query_financiera = query_financiera.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
-                
+
                 financiera_resp = query_financiera.execute()
                 financiera_data = _get_data(financiera_resp) or []
-                
+
                 # Actividad económica con el mismo filtro
                 query_actividades = supabase.table("actividad_economica").select(
                     "detalle_actividad, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))"
                 ).eq("solicitantes.empresa_id", empresa_id)
-                
+
                 if banco_nombre:
                     query_actividades = query_actividades.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
                 if ciudad:
                     query_actividades = query_actividades.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
-                
+
                 actividades_resp = query_actividades.execute()
                 actividades_data = _get_data(actividades_resp) or []
-                
+
                 return financiera_data, actividades_data
-            
+
             return [], []
-            
+
         except Exception as e:
             print(f"❌ Error obteniendo datos financieros por rol: {e}")
             return [], []
@@ -538,45 +535,45 @@ class EstadisticasModel:
                 # Admin, supervisor y empresa ven todas las referencias de la empresa
                 resp = supabase.table("referencias").select("id", count="exact").eq("empresa_id", empresa_id).execute()
                 return resp.count or 0
-            
+
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
-            
+
             if rol == "asesor" and user_id:
                 # Asesor ve solo referencias de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar doble join: referencias -> solicitantes -> solicitudes, filtrando por created_by_user_id
                 resp = supabase.table("referencias").select(
-                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))", 
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))",
                     count="exact"
                 ).eq("solicitantes.empresa_id", empresa_id).eq(
                     "solicitantes.solicitudes.created_by_user_id", user_id
                 ).execute()
                 return resp.count or 0
-                
+
             elif rol == "banco":
                 # Usuario banco ve referencias filtradas por banco y ciudad
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad = usuario_info.get("ciudad")
-                
+
                 if not banco_nombre and not ciudad:
                     return 0
-                
+
                 # Usar doble join: referencias -> solicitantes -> solicitudes, filtrando por banco/ciudad
                 query = supabase.table("referencias").select(
-                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))", 
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(banco_nombre, ciudad_solicitud))",
                     count="exact"
                 ).eq("solicitantes.empresa_id", empresa_id)
-                
+
                 if banco_nombre:
                     query = query.eq("solicitantes.solicitudes.banco_nombre", banco_nombre)
                 if ciudad:
                     query = query.eq("solicitantes.solicitudes.ciudad_solicitud", ciudad)
-                
+
                 resp = query.execute()
                 return resp.count or 0
-            
+
             return 0
-            
+
         except Exception as e:
             print(f"❌ Error contando referencias por rol: {e}")
             return 0
