@@ -289,26 +289,53 @@ class SolicitudesModel:
 
         print(f"🔍 DEBUG JOIN - IDs de usuarios encontrados: {user_ids}")
 
-        # Consultar usuarios para obtener nombres
+        # Consultar usuarios para obtener nombres y supervisores
         usuarios_map = {}
+        supervisores_map = {}
         if user_ids:
-            usuarios_resp = supabase.table("usuarios").select("id, nombre").in_("id", list(user_ids)).execute()
+            # Obtener información completa de usuarios (incluyendo reports_to_id)
+            usuarios_resp = supabase.table("usuarios").select("id, nombre, reports_to_id").in_("id", list(user_ids)).execute()
             usuarios_data = _get_data(usuarios_resp) or []
             usuarios_map = {usuario["id"]: usuario["nombre"] for usuario in usuarios_data}
-            print(f"🔍 DEBUG JOIN - Mapa de usuarios: {usuarios_map}")
 
-        # Procesar datos para agregar created_by_user_name
+            # Obtener IDs de supervisores únicos
+            supervisor_ids = set()
+            for usuario in usuarios_data:
+                if usuario.get("reports_to_id"):
+                    supervisor_ids.add(usuario["reports_to_id"])
+
+            # Consultar nombres de supervisores
+            if supervisor_ids:
+                supervisores_resp = supabase.table("usuarios").select("id, nombre").in_("id", list(supervisor_ids)).execute()
+                supervisores_data = _get_data(supervisores_resp) or []
+                supervisores_map = {supervisor["id"]: supervisor["nombre"] for supervisor in supervisores_data}
+
+            print(f"🔍 DEBUG JOIN - Mapa de usuarios: {usuarios_map}")
+            print(f"🔍 DEBUG JOIN - Mapa de supervisores: {supervisores_map}")
+
+        # Procesar datos para agregar created_by_user_name y created_by_supervisor_name
         processed_data = []
         for item in data:
             # Obtener nombre del usuario creador
             created_by_user_id = item.get("created_by_user_id")
             created_by_user_name = usuarios_map.get(created_by_user_id) if created_by_user_id else None
 
-            print(f"🔍 DEBUG JOIN - ID: {created_by_user_id}, Nombre: {created_by_user_name}")
+            # Obtener nombre del supervisor del usuario creador
+            created_by_supervisor_name = None
+            if created_by_user_id:
+                # Buscar el reports_to_id del usuario creador
+                for usuario in usuarios_data:
+                    if usuario["id"] == created_by_user_id and usuario.get("reports_to_id"):
+                        supervisor_id = usuario["reports_to_id"]
+                        created_by_supervisor_name = supervisores_map.get(supervisor_id)
+                        break
 
-            # Crear nuevo objeto con el campo agregado
+            print(f"🔍 DEBUG JOIN - ID: {created_by_user_id}, Nombre: {created_by_user_name}, Supervisor: {created_by_supervisor_name}")
+
+            # Crear nuevo objeto con los campos agregados
             processed_item = {**item}
             processed_item["created_by_user_name"] = created_by_user_name
+            processed_item["created_by_supervisor_name"] = created_by_supervisor_name
 
             processed_data.append(processed_item)
 
@@ -385,9 +412,26 @@ class SolicitudesModel:
         usuario_creador = item.get("usuarios", {})
         created_by_user_name = usuario_creador.get("nombre") if usuario_creador else None
 
-        # Crear nuevo objeto con el campo agregado
+        # Obtener nombre del supervisor del usuario creador
+        created_by_supervisor_name = None
+        created_by_user_id = item.get("created_by_user_id")
+        if created_by_user_id:
+            # Consultar el reports_to_id del usuario creador
+            usuario_resp = supabase.table("usuarios").select("reports_to_id").eq("id", created_by_user_id).execute()
+            usuario_data = _get_data(usuario_resp)
+            if usuario_data and len(usuario_data) > 0:
+                reports_to_id = usuario_data[0].get("reports_to_id")
+                if reports_to_id:
+                    # Consultar el nombre del supervisor
+                    supervisor_resp = supabase.table("usuarios").select("nombre").eq("id", reports_to_id).execute()
+                    supervisor_data = _get_data(supervisor_resp)
+                    if supervisor_data and len(supervisor_data) > 0:
+                        created_by_supervisor_name = supervisor_data[0].get("nombre")
+
+        # Crear nuevo objeto con los campos agregados
         processed_item = {**item}
         processed_item["created_by_user_name"] = created_by_user_name
+        processed_item["created_by_supervisor_name"] = created_by_supervisor_name
 
         # Remover el objeto usuarios anidado para limpiar la respuesta
         if "usuarios" in processed_item:

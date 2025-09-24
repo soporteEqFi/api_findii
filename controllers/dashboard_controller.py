@@ -68,72 +68,19 @@ class DashboardController:
             informacion_financiera = supabase.table('informacion_financiera').select('*').eq('empresa_id', empresa_id).execute()
             referencias = supabase.table('referencias').select('*').eq('empresa_id', empresa_id).execute()
 
-            # Obtener solicitudes con filtros de permisos por rol
-            solicitud_query = supabase.table('solicitudes').select('*').eq('empresa_id', empresa_id)
+            # Usar el método del modelo de solicitudes que ya tiene el JOIN implementado
+            from models.solicitudes_model import SolicitudesModel
+            solicitudes_model = SolicitudesModel()
 
-            # Aplicar filtros de permisos por rol
-            if usuario_info:
-                rol = usuario_info.get("rol")
+            # Obtener solicitudes con filtros de permisos por rol y JOIN con usuarios
+            solicitud_data = solicitudes_model.list_con_filtros_rol(
+                empresa_id=empresa_id,
+                usuario_info=usuario_info,
+                limit=1000  # Límite alto para el dashboard
+            )
 
-                if rol == "banco":
-                    # Usuario banco solo ve solicitudes de su banco
-                    banco_nombre = usuario_info.get("banco_nombre")
-                    ciudad = usuario_info.get("ciudad")
-
-                    if banco_nombre:
-                        solicitud_query = solicitud_query.eq("banco_nombre", banco_nombre)
-                        print(f"   🏦 Aplicando filtro de banco: {banco_nombre}")
-                    else:
-                        # Si no tiene banco asignado, no ve nada
-                        print(f"   ⚠️ Usuario banco sin banco asignado")
-                        return jsonify({"ok": True, "data": []})
-
-                    # Nota: El filtro de ciudad se aplicará después de obtener las solicitudes
-                    # ya que la ciudad está en tablas relacionadas, no en solicitudes directamente
-                    print(f"   🏙️ Ciudad del usuario: {ciudad} (se aplicará filtro posterior)")
-                elif rol == "admin":
-                    # Admin ve todas las solicitudes
-                    print(f"   👑 Admin: viendo todas las solicitudes")
-                elif rol == "empresa":
-                    # Usuario empresa ve todas las solicitudes de su empresa
-                    print(f"   🏢 Empresa: viendo todas las solicitudes")
-                elif rol == "supervisor":
-                    # Usuario supervisor ve las solicitudes de su equipo + las suyas propias
-                    user_id = usuario_info.get("id")
-                    if user_id:
-                        from models.usuarios_model import UsuariosModel
-                        usuarios_model = UsuariosModel()
-                        team_members = usuarios_model.get_team_members(user_id, empresa_id)
-
-                        # Incluir su propio ID + IDs de su equipo
-                        user_ids = [user_id]  # Su propio ID
-                        if team_members:
-                            team_ids = [member["id"] for member in team_members]
-                            user_ids.extend(team_ids)
-                            print(f"   👁️ Supervisor: viendo solicitudes de su equipo + las suyas: {user_ids}")
-                        else:
-                            print(f"   👁️ Supervisor sin equipo: viendo solo sus solicitudes: {user_ids}")
-
-                        # Filtrar por created_by_user_id o assigned_to_user_id
-                        solicitud_query = solicitud_query.or_(f"created_by_user_id.in.({','.join(map(str, user_ids))}),assigned_to_user_id.in.({','.join(map(str, user_ids))})")
-                    else:
-                        print(f"   ❌ Supervisor sin ID de usuario")
-                        return jsonify({"ok": True, "data": []})
-                elif rol == "asesor":
-                    # Usuario asesor ve solo sus propias solicitudes
-                    user_id = usuario_info.get("id")
-                    if user_id:
-                        solicitud_query = solicitud_query.or_(f"created_by_user_id.eq.{user_id},assigned_to_user_id.eq.{user_id}")
-                        print(f"   👤 Asesor: viendo solo sus solicitudes: {user_id}")
-                    else:
-                        print(f"   ❌ Asesor sin ID de usuario")
-                        return jsonify({"ok": True, "data": []})
-                else:
-                    # Rol desconocido, no ve nada
-                    print(f"   ❌ Rol desconocido: {rol}")
-                    return jsonify({"ok": True, "data": []})
-
-            solicitud = solicitud_query.execute()
+            # Convertir a formato compatible con el resto del código
+            solicitud = type('obj', (object,), {'data': solicitud_data})()
             ubicacion = supabase.table('ubicacion').select('*').eq('empresa_id', empresa_id).execute()
 
             print(f"   📄 Solicitudes encontradas: {len(solicitud.data) if solicitud.data else 0}")
