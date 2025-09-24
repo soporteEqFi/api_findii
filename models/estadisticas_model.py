@@ -346,15 +346,36 @@ class EstadisticasModel:
     def _contar_solicitantes_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
         """Cuenta solicitantes aplicando filtros de rol de manera optimizada usando user_id directamente"""
         try:
-            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
-                # Admin, supervisor y empresa ven todos los solicitantes de la empresa
+            if not usuario_info or usuario_info.get("rol") in ["admin", "empresa"]:
+                # Admin y empresa ven todos los solicitantes de la empresa
                 resp = supabase.table("solicitantes").select("id", count="exact").eq("empresa_id", empresa_id).execute()
                 return resp.count or 0
 
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
 
-            if rol == "asesor" and user_id:
+            if rol == "supervisor" and user_id:
+                # Supervisor ve solo solicitantes de solicitudes creadas por él y su equipo
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
+
+                # Contar solicitantes que tienen solicitudes creadas por el supervisor o su equipo
+                resp = supabase.table("solicitantes").select(
+                    "id, solicitudes!inner(created_by_user_id)",
+                    count="exact"
+                ).eq("empresa_id", empresa_id).in_(
+                    "solicitudes.created_by_user_id", user_ids
+                ).execute()
+                return resp.count or 0
+
+            elif rol == "asesor" and user_id:
                 # Asesor ve solo solicitantes de solicitudes creadas por él (created_by_user_id es la variable principal)
                 # Usar join directo con solicitudes filtrando principalmente por created_by_user_id
                 resp = supabase.table("solicitantes").select(
@@ -400,8 +421,8 @@ class EstadisticasModel:
     def _contar_documentos_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
         """Cuenta documentos aplicando filtros de rol de manera optimizada usando user_id directamente"""
         try:
-            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
-                # Admin, supervisor y empresa ven todos los documentos de la empresa
+            if not usuario_info or usuario_info.get("rol") in ["admin", "empresa"]:
+                # Admin y empresa ven todos los documentos de la empresa
                 resp = supabase.table("documentos").select(
                     "id, solicitantes!inner(empresa_id)",
                     count="exact"
@@ -411,7 +432,28 @@ class EstadisticasModel:
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
 
-            if rol == "asesor" and user_id:
+            if rol == "supervisor" and user_id:
+                # Supervisor ve solo documentos de solicitantes de solicitudes creadas por él y su equipo
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
+
+                # Contar documentos de solicitantes que tienen solicitudes creadas por el supervisor o su equipo
+                resp = supabase.table("documentos").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))",
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id).in_(
+                    "solicitantes.solicitudes.created_by_user_id", user_ids
+                ).execute()
+                return resp.count or 0
+
+            elif rol == "asesor" and user_id:
                 # Asesor ve solo documentos de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar doble join: documentos -> solicitantes -> solicitudes, filtrando por created_by_user_id
                 resp = supabase.table("documentos").select(
@@ -453,8 +495,8 @@ class EstadisticasModel:
     def _obtener_datos_financieros_por_rol(self, empresa_id: int, usuario_info: dict = None) -> tuple:
         """Obtiene datos financieros y de actividad económica aplicando filtros de rol optimizados"""
         try:
-            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
-                # Admin, supervisor y empresa ven toda la información de la empresa
+            if not usuario_info or usuario_info.get("rol") in ["admin", "empresa"]:
+                # Admin y empresa ven toda la información de la empresa
                 financiera_resp = supabase.table("informacion_financiera").select("detalle_financiera").eq("empresa_id", empresa_id).execute()
                 financiera_data = _get_data(financiera_resp) or []
 
@@ -466,7 +508,37 @@ class EstadisticasModel:
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
 
-            if rol == "asesor" and user_id:
+            if rol == "supervisor" and user_id:
+                # Supervisor ve solo información de solicitantes de solicitudes creadas por él y su equipo
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
+
+                # Información financiera con filtro de equipo
+                financiera_resp = supabase.table("informacion_financiera").select(
+                    "detalle_financiera, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))"
+                ).eq("solicitantes.empresa_id", empresa_id).in_(
+                    "solicitantes.solicitudes.created_by_user_id", user_ids
+                ).execute()
+                financiera_data = _get_data(financiera_resp) or []
+
+                # Actividad económica con el mismo filtro
+                actividades_resp = supabase.table("actividad_economica").select(
+                    "detalle_actividad, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))"
+                ).eq("solicitantes.empresa_id", empresa_id).in_(
+                    "solicitantes.solicitudes.created_by_user_id", user_ids
+                ).execute()
+                actividades_data = _get_data(actividades_resp) or []
+
+                return financiera_data, actividades_data
+
+            elif rol == "asesor" and user_id:
                 # Asesor ve solo información de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar join directo: informacion_financiera -> solicitantes -> solicitudes, filtrando por created_by_user_id
                 financiera_resp = supabase.table("informacion_financiera").select(
@@ -531,15 +603,36 @@ class EstadisticasModel:
     def _contar_referencias_por_rol(self, empresa_id: int, usuario_info: dict = None) -> int:
         """Cuenta referencias aplicando filtros de rol de manera optimizada usando user_id directamente"""
         try:
-            if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
-                # Admin, supervisor y empresa ven todas las referencias de la empresa
+            if not usuario_info or usuario_info.get("rol") in ["admin", "empresa"]:
+                # Admin y empresa ven todas las referencias de la empresa
                 resp = supabase.table("referencias").select("id", count="exact").eq("empresa_id", empresa_id).execute()
                 return resp.count or 0
 
             rol = usuario_info.get("rol")
             user_id = usuario_info.get("id")
 
-            if rol == "asesor" and user_id:
+            if rol == "supervisor" and user_id:
+                # Supervisor ve solo referencias de solicitantes de solicitudes creadas por él y su equipo
+                from models.usuarios_model import UsuariosModel
+                usuarios_model = UsuariosModel()
+                team_members = usuarios_model.get_team_members(user_id, empresa_id)
+
+                # Incluir su propio ID + IDs de su equipo
+                user_ids = [user_id]  # Su propio ID
+                if team_members:
+                    team_ids = [member["id"] for member in team_members]
+                    user_ids.extend(team_ids)
+
+                # Contar referencias de solicitantes que tienen solicitudes creadas por el supervisor o su equipo
+                resp = supabase.table("referencias").select(
+                    "id, solicitantes!inner(empresa_id, solicitudes!inner(created_by_user_id))",
+                    count="exact"
+                ).eq("solicitantes.empresa_id", empresa_id).in_(
+                    "solicitantes.solicitudes.created_by_user_id", user_ids
+                ).execute()
+                return resp.count or 0
+
+            elif rol == "asesor" and user_id:
                 # Asesor ve solo referencias de solicitantes de solicitudes creadas por él (created_by_user_id principal)
                 # Usar doble join: referencias -> solicitantes -> solicitudes, filtrando por created_by_user_id
                 resp = supabase.table("referencias").select(
