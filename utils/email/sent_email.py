@@ -4,10 +4,11 @@ from email.mime.multipart import MIMEMultipart
 import os
 import time as std_time
 import uuid
+from datetime import datetime
 
 from dotenv import load_dotenv
-# load_dotenv(os.path.expanduser("~/api_findii/.env"))
-load_dotenv()
+load_dotenv(os.path.expanduser("~/api_findii/.env"))
+# load_dotenv()
 
 def config_email():
     smtp_server = "smtp.zoho.com"
@@ -599,10 +600,15 @@ def enviar_email_solicitante(email_settings, data):
         celular = info_extra.get('celular', 'N/A')
         profesion = info_extra.get('profesion', 'N/A')
 
+        # Obtener fecha y hora actual
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        
         # Cuerpo del mensaje para el solicitante
         body = f"""Hola {solicitante['nombre_completo']},
 
 ¡Gracias por confiar en Findii! 🚀 Hemos recibido tu solicitud de crédito y ya está en proceso de validación.
+
+📅 Fecha y hora de envío: {fecha_hora_envio}
 
 Puedes hacer seguimiento en cualquier momento a través del siguiente enlace:
 👉 https://findii.co/seguimiento/{data['id_radicado']}.
@@ -681,10 +687,15 @@ def enviar_email_asesor(email_settings, data):
         profesion = info_extra.get('profesion', 'N/A')
         estado_civil = info_extra.get('estado_civil', 'N/A')
 
+        # Obtener fecha y hora actual
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        
         # Cuerpo del mensaje para el asesor
         body = f"""Hola {data['asesor']['nombre']},
 
 Se ha registrado una nueva solicitud de crédito en Findii y está asignada a tu gestión. 🎯
+
+📅 Fecha y hora de envío: {fecha_hora_envio}
 
 A continuación, encontrarás el resumen de la información para dar inicio al proceso:
 
@@ -764,218 +775,91 @@ def enviar_email_banco(email_settings, data):
         print(f"   - detalle_credito keys: {list(detalle_credito.keys())}")
         print(f"   - referencias count: {len(referencias)}")
 
-        # FUNCIÓN AUXILIAR PARA EXTRAER DATOS CON MÚTIPLES FUENTES
-        def extraer_dato(fuentes_y_campos, default='No especificado'):
-            """Extrae un dato buscando en múltiples fuentes y campos"""
-            for fuente, campos in fuentes_y_campos:
-                if isinstance(campos, str):
-                    campos = [campos]
-                for campo in campos:
-                    valor = fuente.get(campo) if fuente else None
-                    if valor and valor != 'N/A' and str(valor).strip():
-                        return str(valor).strip()
-            return default
-
-        # EXTRAER DATOS REALES DEL SOLICITANTE CON MÚTIPLES FUENTES
-        # Datos personales básicos
+        # EXTRAER DATOS DIRECTAMENTE COMO LO HACEN LOS OTROS EMAILS
+        # Usar el mismo patrón que los emails del solicitante y asesor
+        datos_basicos = solicitante.get('datos_basicos', {})
+        
+        # Datos personales básicos - acceso directo
         nombre_completo = solicitante.get('nombre_completo', 'No especificado')
-        tipo_doc = extraer_dato([
-            (solicitante, 'tipo_identificacion'),
-            (solicitante.get('datos_basicos', {}), 'tipo_identificacion')
-        ])
-        numero_doc = extraer_dato([
-            (solicitante, 'numero_documento'),
-            (solicitante.get('datos_basicos', {}), 'numero_documento')
-        ])
-        fecha_nacimiento = extraer_dato([
-            (solicitante, 'fecha_nacimiento'),
-            (solicitante.get('datos_basicos', {}), 'fecha_nacimiento')
-        ])
-        correo_electronico = extraer_dato([
-            (solicitante, 'correo'),
-            (solicitante, 'correo_electronico')
-        ])
+        nombres = solicitante.get('nombres', 'No especificado')
+        primer_apellido = solicitante.get('primer_apellido', '')
+        segundo_apellido = solicitante.get('segundo_apellido', '')
+        apellidos = f"{primer_apellido} {segundo_apellido}".strip() or 'No especificado'
+        
+        tipo_doc = datos_basicos.get('tipo_identificacion', 'No especificado')
+        numero_doc = datos_basicos.get('numero_documento', 'No especificado')
+        fecha_nacimiento = datos_basicos.get('fecha_nacimiento', 'No especificado')
+        genero_texto = "Masculino" if datos_basicos.get('genero', 'M') == 'M' else "Femenino"
+        correo_electronico = solicitante.get('correo_electronico', solicitante.get('correo', 'No especificado'))
 
-        # Información adicional del solicitante
-        telefono = extraer_dato([
-            (info_extra, ['telefono', 'celular']),
-            (solicitante, ['telefono', 'celular'])
-        ])
-        celular = extraer_dato([
-            (info_extra, 'celular'),
-            (solicitante, 'celular'),
-            (info_extra, 'telefono')
-        ])
-        profesion = extraer_dato([
-            (info_extra, ['profesion', 'profession']),
-            (solicitante, 'profesion')
-        ])
-        nivel_estudios = extraer_dato([
-            (info_extra, ['nivel_estudio', 'nivel_estudios']),
-            (solicitante, ['nivel_estudio', 'nivel_estudios'])
-        ])
-        estado_civil = extraer_dato([
-            (info_extra, 'estado_civil'),
-            (solicitante, 'estado_civil')
-        ])
-        nacionalidad = extraer_dato([
-            (info_extra, 'nacionalidad'),
-            (solicitante, 'nacionalidad')
-        ])
-        lugar_nacimiento = extraer_dato([
-            (info_extra, 'lugar_nacimiento'),
-            (solicitante, 'lugar_nacimiento')
-        ])
+        # Información adicional del solicitante - acceso directo a info_extra
+        celular = info_extra.get('celular', 'No especificado')
+        telefono = info_extra.get('telefono', celular)
+        profesion = info_extra.get('profesion', 'No especificado')
+        nivel_estudios = info_extra.get('nivel_estudio', info_extra.get('nivel_estudios', 'No especificado'))
+        estado_civil = info_extra.get('estado_civil', 'No especificado')
+        nacionalidad = info_extra.get('nacionalidad', 'No especificado')
+        lugar_nacimiento = info_extra.get('lugar_nacimiento', 'No especificado')
+        fecha_expedicion = info_extra.get('fecha_expedicion', 'No especificado')
+        personas_a_cargo = info_extra.get('personas_a_cargo', '0')
 
-        # Información de ubicación - buscar en múltiples fuentes
+        # Información de ubicación - acceso directo
         detalle_direccion = ubicacion.get('detalle_direccion', {})
-        direccion_residencia = extraer_dato([
-            (detalle_direccion, ['direccion_residencia', 'direccion']),
-            (ubicacion, ['direccion_residencia', 'direccion']),
-            (solicitante, ['direccion_residencia', 'direccion'])
-        ])
-        tipo_vivienda = extraer_dato([
-            (detalle_direccion, 'tipo_vivienda'),
-            (ubicacion, 'tipo_vivienda'),
-            (info_extra, 'tipo_vivienda')
-        ])
-        barrio = extraer_dato([
-            (detalle_direccion, 'barrio'),
-            (ubicacion, 'barrio'),
-            (info_extra, 'barrio')
-        ])
-        departamento_residencia = extraer_dato([
-            (ubicacion, 'departamento_residencia'),
-            (ubicacion, 'departamento'),
-            (solicitante, 'departamento_residencia')
-        ])
-        ciudad_residencia = extraer_dato([
-            (ubicacion, 'ciudad_residencia'),
-            (ubicacion, 'ciudad'),
-            (solicitante, 'ciudad_residencia')
-        ])
+        direccion_residencia = detalle_direccion.get('direccion_residencia', detalle_direccion.get('direccion', 'No especificado'))
+        tipo_vivienda = detalle_direccion.get('tipo_vivienda', 'No especificado')
+        barrio = detalle_direccion.get('barrio', 'No especificado')
+        departamento_residencia = ubicacion.get('departamento_residencia', ubicacion.get('departamento', 'No especificado'))
+        ciudad_residencia = ubicacion.get('ciudad_residencia', ubicacion.get('ciudad', 'No especificado'))
+        correspondencia = detalle_direccion.get('recibir_correspondencia', 'No especificado')
 
-        # Información de actividad económica - buscar en múltiples fuentes
+        # Información de actividad económica - acceso directo
         detalle_actividad = actividad_economica.get('detalle_actividad', {})
-        tipo_actividad = extraer_dato([
-            (detalle_actividad, ['tipo_actividad_economica', 'tipo_actividad']),
-            (actividad_economica, ['tipo_actividad_economica', 'tipo_actividad']),
-            (info_extra, ['tipo_actividad_economica', 'tipo_actividad'])
-        ])
-        empresa = extraer_dato([
-            (detalle_actividad, 'empresa'),
-            (actividad_economica, 'empresa'),
-            (info_extra, 'empresa')
-        ])
-        cargo = extraer_dato([
-            (detalle_actividad, 'cargo'),
-            (actividad_economica, 'cargo'),
-            (info_extra, 'cargo')
-        ])
-        salario_base = extraer_dato([
-            (detalle_actividad, 'salario_base'),
-            (actividad_economica, 'salario_base'),
-            (info_extra, 'salario_base')
-        ], '0')
+        tipo_actividad = detalle_actividad.get('tipo_actividad_economica', detalle_actividad.get('tipo_actividad', 'No especificado'))
+        empresa = detalle_actividad.get('empresa', 'No especificado')
+        cargo = detalle_actividad.get('cargo', 'No especificado')
+        salario_base = detalle_actividad.get('salario_base', '0')
 
-        # Información financiera - buscar en múltiples fuentes
+        # Información financiera - acceso directo
         detalle_financiera = informacion_financiera.get('detalle_financiera', {})
-        ingreso_basico = extraer_dato([
-            (detalle_financiera, 'ingreso_basico_mensual'),
-            (informacion_financiera, ['total_ingresos_mensuales', 'ingreso_basico_mensual']),
-            (info_extra, 'ingreso_basico_mensual')
-        ], '0')
-        ingreso_variable = extraer_dato([
-            (detalle_financiera, 'ingreso_variable_mensual'),
-            (informacion_financiera, 'ingreso_variable_mensual'),
-            (info_extra, 'ingreso_variable_mensual')
-        ], '0')
-        otros_ingresos = extraer_dato([
-            (detalle_financiera, 'otros_ingresos_mensuales'),
-            (informacion_financiera, 'otros_ingresos_mensuales'),
-            (info_extra, 'otros_ingresos_mensuales')
-        ], '0')
-        gastos_financieros = extraer_dato([
-            (detalle_financiera, 'gastos_financieros_mensuales'),
-            (informacion_financiera, 'gastos_financieros_mensuales')
-        ], '0')
-        gastos_personales = extraer_dato([
-            (detalle_financiera, 'gastos_personales_mensuales'),
-            (informacion_financiera, 'gastos_personales_mensuales')
-        ], '0')
-        total_activos = extraer_dato([
-            (informacion_financiera, 'total_activos'),
-            (detalle_financiera, 'total_activos')
-        ], '0')
-        total_pasivos = extraer_dato([
-            (informacion_financiera, 'total_pasivos'),
-            (detalle_financiera, 'total_pasivos')
-        ], '0')
+        ingreso_basico = detalle_financiera.get('ingreso_basico_mensual', '0')
+        ingreso_variable = detalle_financiera.get('ingreso_variable_mensual', '0')
+        otros_ingresos = detalle_financiera.get('otros_ingresos_mensuales', '0')
+        gastos_financieros = detalle_financiera.get('gastos_financieros_mensuales', '0')
+        gastos_personales = detalle_financiera.get('gastos_personales_mensuales', '0')
+        total_activos = informacion_financiera.get('total_activos', '0')
+        total_pasivos = informacion_financiera.get('total_pasivos', '0')
+        declara_renta = detalle_financiera.get('declara_renta', 'No especificado')
 
-        # Información del crédito
+        # Información del crédito - acceso directo
         tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
         credito_vehicular = detalle_credito.get('credito_vehicular', {})
         if credito_vehicular:
             valor_vehiculo = credito_vehicular.get('valor_vehiculo', 'N/A')
             cuota_inicial = credito_vehicular.get('cuota_inicial', 'N/A')
-            plazo_meses = credito_vehicular.get('plazo_meses', credito_vehicular.get('plazo_meses', 'N/A'))
+            plazo_meses = credito_vehicular.get('plazo_meses', 'N/A')
             monto_solicitado = credito_vehicular.get('monto_solicitado', 'N/A')
             estado_vehiculo = credito_vehicular.get('estado_vehiculo', 'N/A')
             tipo_credito_especifico = credito_vehicular.get('tipo_credito', tipo_credito)
         else:
             valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
 
-        # Referencias - buscar en referencias (plural) y referencia (singular)
-        ref_familiar_data = {}
-        ref_personal_data = {}
+        # Referencias - acceso directo y simplificado
+        ref_personal_nombre = 'No especificado'
+        ref_personal_telefono = 'No especificado'
+        ref_personal_ciudad = 'No especificado'
+        ref_personal_relacion = 'No especificado'
 
-        # Primero buscar en referencias (lista)
+        # Buscar referencias en la lista
         for ref in referencias:
             tipo_ref = ref.get('tipo_referencia', '').lower()
-            detalle_ref = ref.get('detalle_referencia', ref)  # Usar detalle_referencia si existe, sino el objeto completo
-
-            if 'familiar' in tipo_ref:
-                ref_familiar_data = detalle_ref
-            elif 'personal' in tipo_ref:
-                ref_personal_data = detalle_ref
-
-        # También buscar en el objeto 'referencia' singular (como en el JSON que muestras)
-        referencia_singular = data.get('referencia', {})
-        if referencia_singular:
-            tipo_ref = referencia_singular.get('tipo_referencia', '').lower()
-            detalle_ref = referencia_singular.get('detalle_referencia', referencia_singular)
-
-            if 'familiar' in tipo_ref:
-                ref_familiar_data = detalle_ref
-            elif 'personal' in tipo_ref:
-                ref_personal_data = detalle_ref
-
-        # Extraer datos de referencias con múltiples fuentes
-        ref_familiar_nombre = extraer_dato([
-            (ref_familiar_data, ['nombre_referencia', 'nombre_completo', 'nombre'])
-        ])
-        ref_familiar_telefono = extraer_dato([
-            (ref_familiar_data, ['celular_referencia', 'telefono', 'celular'])
-        ])
-        ref_familiar_relacion = extraer_dato([
-            (ref_familiar_data, ['relacion_referencia', 'parentesco', 'relacion'])
-        ])
-
-        ref_personal_nombre = extraer_dato([
-            (ref_personal_data, ['nombre_referencia', 'nombre_completo', 'nombre'])
-        ])
-        ref_personal_telefono = extraer_dato([
-            (ref_personal_data, ['celular_referencia', 'telefono', 'celular'])
-        ])
-        ref_personal_relacion = extraer_dato([
-            (ref_personal_data, ['relacion_referencia', 'parentesco', 'relacion'])
-        ])
-
-        # Debug para referencias
-        print(f"🔍 DEBUG REFERENCIAS:")
-        print(f"   - ref_familiar_data: {ref_familiar_data}")
-        print(f"   - ref_personal_data: {ref_personal_data}")
-        print(f"   - referencia_singular: {referencia_singular}")
+            detalle_ref = ref.get('detalle_referencia', ref)
+            
+            if 'personal' in tipo_ref:
+                ref_personal_nombre = detalle_ref.get('nombre_referencia', detalle_ref.get('nombre_completo', detalle_ref.get('nombre', 'No especificado')))
+                ref_personal_telefono = detalle_ref.get('celular_referencia', detalle_ref.get('telefono', detalle_ref.get('celular', 'No especificado')))
+                ref_personal_ciudad = detalle_ref.get('ciudad_referencia', 'No especificado')
+                ref_personal_relacion = detalle_ref.get('relacion_referencia', detalle_ref.get('parentesco', detalle_ref.get('relacion', 'No especificado')))
+                break
 
         # Formatear valores monetarios con separadores de miles
         def formatear_dinero(valor):
@@ -1004,55 +888,23 @@ def enviar_email_banco(email_settings, data):
             except:
                 return 'No reportado'
 
-        # Formatear género
-        genero_texto = "Masculino" if solicitante.get('datos_basicos', {}).get('genero', 'M') == 'M' else "Femenino"
+        # Debug para verificar datos extraídos
+        print(f"🔍 DEBUG DATOS EXTRAÍDOS PARA BANCO:")
+        print(f"   - nombres: '{nombres}' | apellidos: '{apellidos}'")
+        print(f"   - tipo_doc: '{tipo_doc}' | numero_doc: '{numero_doc}'")
+        print(f"   - celular: '{celular}' | profesion: '{profesion}'")
+        print(f"   - empresa: '{empresa}' | cargo: '{cargo}'")
+        print(f"   - direccion: '{direccion_residencia}' | ciudad: '{ciudad_residencia}'")
 
-        # Extraer datos adicionales con múltiples fuentes
-        fecha_expedicion = extraer_dato([
-            (info_extra, 'fecha_expedicion'),
-            (solicitante, 'fecha_expedicion')
-        ])
-        personas_a_cargo = extraer_dato([
-            (info_extra, 'personas_a_cargo'),
-            (solicitante, 'personas_a_cargo')
-        ], '0')
-        correspondencia = extraer_dato([
-            (detalle_direccion, 'recibir_correspondencia'),
-            (ubicacion, 'recibir_correspondencia'),
-            (info_extra, 'recibir_correspondencia')
-        ])
-        declara_renta = extraer_dato([
-            (detalle_financiera, 'declara_renta'),
-            (informacion_financiera, 'declara_renta'),
-            (info_extra, 'declara_renta')
-        ])
-
-        # Separar nombres y apellidos con extracción mejorada
-        nombres = extraer_dato([
-            (solicitante, 'nombres'),
-            (info_extra, 'nombres')
-        ])
-        primer_apellido = extraer_dato([
-            (solicitante, 'primer_apellido'),
-            (info_extra, 'primer_apellido')
-        ], '')
-        segundo_apellido = extraer_dato([
-            (solicitante, 'segundo_apellido'),
-            (info_extra, 'segundo_apellido')
-        ], '')
-        apellidos = f"{primer_apellido} {segundo_apellido}".strip() or 'No especificado'
-
-        # Debug para nombres
-        print(f"🔍 DEBUG NOMBRES:")
-        print(f"   - nombres: '{nombres}'")
-        print(f"   - primer_apellido: '{primer_apellido}'")
-        print(f"   - segundo_apellido: '{segundo_apellido}'")
-        print(f"   - apellidos final: '{apellidos}'")
-
+        # Obtener fecha y hora actual
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        
         # Cuerpo del mensaje mejorado para el banco
         body = f"""Buenos días,
 
 En Findii valoramos nuestra alianza y seguimos trabajando para que más clientes accedan a soluciones de financiamiento rápidas y efectivas. 🚀
+
+📅 Fecha y hora de envío: {fecha_hora_envio}
 
 Agradecemos su colaboración con la siguiente consulta para {solicitud['banco_nombre']}, relacionada con la radicación de un {tipo_credito_especifico.lower()}. Adjuntamos la documentación correspondiente para su revisión.
 
@@ -1115,7 +967,7 @@ Plazo: {plazo_meses} meses
 Personal:
   Nombre: {ref_personal_nombre}
   Celular: {ref_personal_telefono}
-  Ciudad: {ref_personal_data.get('ciudad_referencia', 'No especificado')}
+  Ciudad: {ref_personal_ciudad}
   Relación: {ref_personal_relacion}
 
 Quedamos atentos a su confirmación y a cualquier información adicional que requieran para agilizar el proceso.
