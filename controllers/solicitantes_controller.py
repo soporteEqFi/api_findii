@@ -15,10 +15,10 @@ from utils.email.sent_email import enviar_email_registro_completo
 import json
 import os
 import uuid
+import unicodedata
 from werkzeug.utils import secure_filename
 from data.supabase_conn import supabase
 from models.documentos_model import DocumentosModel
-import unicodedata
 
 
 class SolicitantesController:
@@ -444,6 +444,58 @@ class SolicitantesController:
                     print(f"   🏦 Banco extraído: {banco_nombre}")
                     print(f"   🏙️ Ciudad extraída: {ciudad}")
 
+                    # Procesar campos anidados de tipo de crédito (igual que en editar_registro_completo)
+                    tipo_credito = solicitud_data.get("tipo_credito")
+                    if tipo_credito:
+                        # Normalizar para evitar problemas por acentos/mayúsculas
+                        def _norm(s: str) -> str:
+                            try:
+                                return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii').lower()
+                            except Exception:
+                                return str(s).lower()
+
+                        detalle_credito["tipo_credito"] = tipo_credito
+
+                        credit_type_mappings = {
+                            "Credito hipotecario": "credito_hipotecario",
+                            "Credito de consumo": "credito_consumo",
+                            "Credito comercial": "credito_comercial",
+                            "Microcredito": "microcredito",
+                            "Credito educativo": "credito_educativo",
+                            "Credito vehicular": "credito_vehicular",
+                            # Alias comunes
+                            "Credito de vehiculo": "credito_vehicular",
+                            "Credito de vehículo": "credito_vehicular",
+                        }
+
+                        tipo_norm = _norm(tipo_credito)
+                        detected_nested = None
+                        for credit_type, nested_field in credit_type_mappings.items():
+                            if _norm(credit_type) in tipo_norm or (nested_field == "credito_vehicular" and "vehicul" in tipo_norm):
+                                detected_nested = nested_field
+                                # Solo agregar el subobjeto si no existe ya en detalle_credito
+                                if nested_field in solicitud_data and nested_field not in detalle_credito:
+                                    detalle_credito[nested_field] = solicitud_data[nested_field]
+                                elif isinstance(detalle_credito, dict) and nested_field in detalle_credito:
+                                    # Ya viene dentro de detalle_credito, mantenerlo
+                                    pass
+                                print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
+                                break
+
+                    # Copiar cualquier subobjeto de crédito conocido aunque no coincida tipo_credito
+                    # Solo si no existe ya en detalle_credito para preservar la estructura original
+                    known_nested_fields = [
+                        "credito_hipotecario",
+                        "credito_consumo",
+                        "credito_comercial",
+                        "microcredito",
+                        "credito_educativo",
+                        "credito_vehicular",
+                    ]
+                    for nf in known_nested_fields:
+                        if nf in solicitud_data and nf not in detalle_credito:
+                            detalle_credito[nf] = solicitud_data[nf]
+
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")
                     correo_asesor = body.get("correo_asesor", "")
@@ -665,8 +717,8 @@ class SolicitantesController:
             if datos_solicitante:
                 print(f"\n1️⃣ ACTUALIZANDO SOLICITANTE...")
                 solicitante_actualizado = self.model.update(
-                    id=solicitante_id, 
-                    empresa_id=empresa_id, 
+                    id=solicitante_id,
+                    empresa_id=empresa_id,
                     updates=datos_solicitante
                 )
                 print(f"   ✅ Solicitante actualizado")
@@ -677,11 +729,11 @@ class SolicitantesController:
             ubicaciones_actualizadas = []
             if datos_ubicaciones:
                 print(f"\n2️⃣ ACTUALIZANDO UBICACIONES...")
-                
+
                 # Obtener ubicaciones existentes del solicitante
                 ubicaciones_existentes = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
                 print(f"   📍 Ubicaciones existentes encontradas: {len(ubicaciones_existentes)}")
-                
+
                 for idx, ubicacion_data in enumerate(datos_ubicaciones):
                     # Procesar campos dinámicos
                     detalle_direccion = ubicacion_data.get("detalle_direccion", {})
@@ -699,17 +751,17 @@ class SolicitantesController:
                     # Buscar ubicación existente para actualizar
                     ubicacion_id = ubicacion_data.get("id")
                     ubicacion_existente = None
-                    
+
                     # Si hay ID específico, buscar por ID
                     if ubicacion_id and str(ubicacion_id).strip() and str(ubicacion_id) != "0":
                         ubicacion_existente = next((u for u in ubicaciones_existentes if u["id"] == int(ubicacion_id)), None)
                         print(f"   🔍 Buscando ubicación por ID {ubicacion_id}: {'Encontrada' if ubicacion_existente else 'No encontrada'}")
-                    
+
                     # Si no hay ID o no se encontró, usar ubicación existente por índice
                     if not ubicacion_existente and idx < len(ubicaciones_existentes):
                         ubicacion_existente = ubicaciones_existentes[idx]
                         print(f"   🔄 Usando ubicación existente por índice {idx}, ID: {ubicacion_existente['id']}")
-                    
+
                     # Actualizar o crear según corresponda
                     if ubicacion_existente:
                         print(f"   ✏️ ACTUALIZANDO ubicación ID: {ubicacion_existente['id']}")
@@ -724,7 +776,7 @@ class SolicitantesController:
                         ubicacion_data["empresa_id"] = empresa_id
                         ubicacion_data["solicitante_id"] = solicitante_id
                         ubicacion_actualizada = self.ubicaciones_model.create(**ubicacion_data)
-                    
+
                     ubicaciones_actualizadas.append(ubicacion_actualizada)
 
             # 3. ACTUALIZAR ACTIVIDAD ECONÓMICA
@@ -846,7 +898,7 @@ class SolicitantesController:
 
             # 6. ACTUALIZAR SOLICITUDES
             solicitudes_actualizadas = []
-            
+
             if datos_solicitudes:
                 print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
                 user_id = request.headers.get("X-User-Id")
@@ -859,7 +911,7 @@ class SolicitantesController:
 
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     detalle_credito = solicitud_data.get("detalle_credito", {})
-                    
+
                     # Procesar campos anidados de tipo de crédito
                     tipo_credito = solicitud_data.get("tipo_credito")
                     if tipo_credito:
@@ -889,8 +941,8 @@ class SolicitantesController:
                         for credit_type, nested_field in credit_type_mappings.items():
                             if _norm(credit_type) in tipo_norm or (nested_field == "credito_vehicular" and "vehicul" in tipo_norm):
                                 detected_nested = nested_field
-                                # Aceptar el subobjeto tanto en la raíz como dentro de detalle_credito
-                                if nested_field in solicitud_data:
+                                # Solo agregar el subobjeto si no existe ya en detalle_credito
+                                if nested_field in solicitud_data and nested_field not in detalle_credito:
                                     detalle_credito[nested_field] = solicitud_data[nested_field]
                                 elif isinstance(detalle_credito, dict) and nested_field in detalle_credito:
                                     # Ya viene dentro de detalle_credito, mantenerlo
@@ -899,6 +951,7 @@ class SolicitantesController:
                                 break
 
                     # Copiar cualquier subobjeto de crédito conocido aunque no coincida tipo_credito
+                    # Solo si no existe ya en detalle_credito para preservar la estructura original
                     known_nested_fields = [
                         "credito_hipotecario",
                         "credito_consumo",
@@ -908,9 +961,9 @@ class SolicitantesController:
                         "credito_vehicular",
                     ]
                     for nf in known_nested_fields:
-                        if nf in solicitud_data:
+                        if nf in solicitud_data and nf not in detalle_credito:
                             detalle_credito[nf] = solicitud_data[nf]
-                    
+
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")
                     correo_asesor = body.get("correo_asesor", "")
@@ -929,7 +982,7 @@ class SolicitantesController:
                         detalle_credito["nombre_banco_usuario"] = nombre_banco_usuario
                     if correo_banco_usuario:
                         detalle_credito["correo_banco_usuario"] = correo_banco_usuario
-                    
+
                     datos_para_modelo = {
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
@@ -943,26 +996,26 @@ class SolicitantesController:
                     # Buscar solicitud existente para actualizar
                     solicitud_id = solicitud_data.get("id")
                     solicitud_existente = None
-                    
+
                     # Si hay ID específico, buscar por ID
                     if solicitud_id and str(solicitud_id).strip() and str(solicitud_id) != "0":
                         solicitud_existente = next((s for s in solicitudes_existentes if s["id"] == int(solicitud_id)), None)
                         print(f"   🔍 Buscando por ID {solicitud_id}: {'Encontrada' if solicitud_existente else 'No encontrada'}")
-                    
+
                     # Si no hay ID o no se encontró, usar la primera solicitud existente
                     if not solicitud_existente and solicitudes_existentes:
                         solicitud_existente = solicitudes_existentes[0]
                         print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
-                    
-                    
+
+
                     # Actualizar o crear según corresponda
                     if solicitud_existente:
                         print(f"   ✏️ ACTUALIZANDO solicitud ID: {solicitud_existente['id']}")
-                        
+
                         # Separar detalle_credito de otros campos base
                         detalle_credito = datos_para_modelo.pop("detalle_credito", {})
                         base_updates = datos_para_modelo if datos_para_modelo else None
-                        
+
                         solicitud_actualizada = self.solicitudes_model.update(
                             id=solicitud_existente["id"],
                             empresa_id=empresa_id,
@@ -979,7 +1032,7 @@ class SolicitantesController:
                             "assigned_to_user_id": int(user_id)
                         })
                         solicitud_actualizada = self.solicitudes_model.create(**datos_para_modelo)
-                    
+
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
             # 7. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
@@ -997,7 +1050,7 @@ class SolicitantesController:
                         "solicitudes": solicitudes_actualizadas
                     }
                 }
-                
+
                 # Pasar el JSON original para extraer correos de forma robusta
                 email_enviado = enviar_email_registro_completo(response_data_temp, body)
                 emails_enviados_exitosamente = email_enviado
