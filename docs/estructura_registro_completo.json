@@ -1,0 +1,359 @@
+{
+  "EJEMPLO_CREAR_REGISTRO_COMPLETO": {
+    "descripcion": "Estructura JSON completa para crear un registro de solicitante con todos los datos relacionados",
+    "metodo": "POST /api/solicitantes/registro-completo",
+    "headers": {
+      "X-Empresa-Id": "1",
+      "X-User-Id": "123",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "solicitante": {
+        "nombres": "Juan Carlos",
+        "primer_apellido": "Pérez",
+        "segundo_apellido": "García",
+        "tipo_identificacion": "CC",
+        "numero_documento": "1234567890",
+        "fecha_nacimiento": "1990-05-15",
+        "genero": "Masculino",
+        "correo": "juan.perez@email.com",
+        "info_extra": {
+          "celular": "3001234567",
+          "telefono": "6011234567",
+          "estado_civil": "Casado",
+          "nivel_educativo": "Universitario",
+          "profesion": "Ingeniero",
+          "lugar_nacimiento": "Bogotá",
+          "nacionalidad": "Colombiana"
+        }
+      },
+      "ubicaciones": [
+        {
+          "ciudad_residencia": "Bogotá",
+          "departamento_residencia": "Cundinamarca",
+          "detalle_direccion": {
+            "direccion": "Calle 123 # 45-67",
+            "barrio": "Chapinero",
+            "estrato": "3",
+            "tipo_vivienda": "Apartamento",
+            "paga_arriendo": "Si",
+            "valor_mensual_arriendo": 1500000,
+            "telefono": "6011234567",
+            "celular": "3001234567",
+            "recibir_correspondencia": "Si"
+          }
+        }
+      ],
+      "actividad_economica": {
+        "detalle_actividad": {
+          "tipo_actividad": "Empleado",
+          "tipo_actividad_economica": "Servicios Profesionales",
+          "nombre_empresa": "Tech Solutions SAS",
+          "cargo": "Ingeniero Senior",
+          "antiguedad_laboral": "5 años",
+          "direccion_empresa": "Cra 7 # 100-20",
+          "telefono_empresa": "6017654321",
+          "ciudad_empresa": "Bogotá",
+          "sector_economico": "Tecnología"
+        }
+      },
+      "informacion_financiera": {
+        "total_ingresos_mensuales": 5000000,
+        "total_egresos_mensuales": 3000000,
+        "total_activos": 150000000,
+        "total_pasivos": 50000000,
+        "detalle_financiera": {
+          "ingreso_basico_mensual": 4000000,
+          "ingreso_variable_mensual": 1000000,
+          "otros_ingresos_mensuales": 0,
+          "gastos_financieros_mensuales": 800000,
+          "gastos_personales_mensuales": 2200000,
+          "declara_renta": "Si",
+          "detalle_otros_ingresos": "Ninguno"
+        }
+      },
+      "referencias": [
+        {
+          "nombre_completo": "María López",
+          "telefono": "6019876543",
+          "celular_referencia": "3109876543",
+          "relacion_referencia": "Familiar",
+          "ciudad": "Bogotá",
+          "departamento": "Cundinamarca",
+          "direccion": "Calle 80 # 10-20",
+          "tipo_referencia": "Personal"
+        },
+        {
+          "nombre_completo": "Carlos Martínez",
+          "telefono": "6015554444",
+          "celular_referencia": "3205554444",
+          "relacion_referencia": "Amigo",
+          "ciudad": "Medellín",
+          "departamento": "Antioquia",
+          "direccion": "Carrera 43A # 1-50",
+          "tipo_referencia": "Personal"
+        }
+      ],
+      "solicitudes": [
+        {
+          "banco_nombre": "Banco de Bogotá",
+          "ciudad_solicitud": "Bogotá",
+          "estado": "Pendiente",
+          "tipo_credito": "Credito hipotecario",
+          "detalle_credito": {
+            "tipo_credito": "Credito hipotecario",
+            "monto_solicitado": 200000000,
+            "plazo_meses": 240,
+            "destino_credito": "Compra de vivienda",
+            "credito_hipotecario": {
+              "tipo_inmueble": "Apartamento",
+              "valor_inmueble": 250000000,
+              "ubicacion_inmueble": "Bogotá, Chapinero",
+              "uso_inmueble": "Vivienda",
+              "metros_cuadrados": 85,
+              "antiguedad_inmueble": "Nuevo"
+            }
+          }
+        }
+      ],
+      "nombre_asesor": "Pedro Ramírez",
+      "correo_asesor": "pedro.ramirez@empresa.com",
+      "nombre_banco_usuario": "Ana Gómez",
+      "correo_banco_usuario": "ana.gomez@banco.com"
+    }
+  },
+  "EJEMPLO_EDITAR_REGISTRO_COMPLETO": {
+    "descripcion": "Estructura JSON para actualizar un registro existente",
+    "metodo": "PUT /api/solicitantes/{solicitante_id}/registro-completo",
+    "headers": {
+      "X-Empresa-Id": "1",
+      "X-User-Id": "123",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "solicitante": {
+        "correo": "nuevo.correo@email.com",
+        "info_extra": {
+          "celular": "3009876543",
+          "estado_civil": "Soltero"
+        }
+      },
+      "ubicaciones": [
+        {
+          "id": 45,
+          "ciudad_residencia": "Medellín",
+          "departamento_residencia": "Antioquia",
+          "detalle_direccion": {
+            "direccion": "Carrera 50 # 20-30",
+            "barrio": "El Poblado",
+            "estrato": "4",
+            "valor_mensual_arriendo": 2000000
+          }
+        }
+      ],
+      "actividad_economica": {
+        "detalle_actividad": {
+          "cargo": "Gerente de Proyectos",
+          "antiguedad_laboral": "6 años"
+        }
+      },
+      "informacion_financiera": {
+        "total_ingresos_mensuales": 6000000,
+        "total_egresos_mensuales": 3500000,
+        "total_activos": 180000000,
+        "total_pasivos": 45000000,
+        "detalle_financiera": {
+          "ingreso_basico_mensual": 5000000,
+          "ingreso_variable_mensual": 1000000
+        }
+      },
+      "referencias": [
+        {
+          "referencia_id": 1,
+          "celular_referencia": "3119876543",
+          "ciudad": "Medellín"
+        },
+        {
+          "nombre_completo": "Luis Fernández",
+          "telefono": "6047778888",
+          "celular_referencia": "3147778888",
+          "relacion_referencia": "Compañero de trabajo",
+          "ciudad": "Medellín",
+          "departamento": "Antioquia",
+          "tipo_referencia": "Laboral"
+        }
+      ],
+      "solicitudes": [
+        {
+          "id": 67,
+          "estado": "En Proceso",
+          "detalle_credito": {
+            "monto_solicitado": 250000000,
+            "observaciones": "Cliente ha mejorado su capacidad de pago"
+          }
+        }
+      ],
+      "nombre_asesor": "Pedro Ramírez",
+      "correo_asesor": "pedro.ramirez@empresa.com",
+      "nombre_banco_usuario": "Ana Gómez",
+      "correo_banco_usuario": "ana.gomez@banco.com"
+    }
+  },
+  "TIPOS_DE_CREDITO_SOPORTADOS": {
+    "descripcion": "Cada tipo de crédito puede tener campos específicos anidados",
+    "tipos": [
+      {
+        "nombre": "Credito hipotecario",
+        "campo_anidado": "credito_hipotecario",
+        "campos_especificos": {
+          "tipo_inmueble": "string",
+          "valor_inmueble": "number",
+          "ubicacion_inmueble": "string",
+          "uso_inmueble": "string",
+          "metros_cuadrados": "number",
+          "antiguedad_inmueble": "string"
+        }
+      },
+      {
+        "nombre": "Credito de consumo",
+        "campo_anidado": "credito_consumo",
+        "campos_especificos": {
+          "destino": "string",
+          "tiene_codeudor": "boolean",
+          "nombre_codeudor": "string"
+        }
+      },
+      {
+        "nombre": "Credito comercial",
+        "campo_anidado": "credito_comercial",
+        "campos_especificos": {
+          "nombre_negocio": "string",
+          "nit_negocio": "string",
+          "actividad_economica": "string",
+          "tiempo_operacion": "string"
+        }
+      },
+      {
+        "nombre": "Microcredito",
+        "campo_anidado": "microcredito",
+        "campos_especificos": {
+          "destino_recursos": "string",
+          "garantia": "string"
+        }
+      },
+      {
+        "nombre": "Credito educativo",
+        "campo_anidado": "credito_educativo",
+        "campos_especificos": {
+          "institucion": "string",
+          "programa": "string",
+          "semestre": "number"
+        }
+      },
+      {
+        "nombre": "Credito vehicular",
+        "campo_anidado": "credito_vehicular",
+        "campos_especificos": {
+          "marca": "string",
+          "modelo": "string",
+          "año": "number",
+          "valor_vehiculo": "number",
+          "tipo_vehiculo": "string"
+        }
+      }
+    ]
+  },
+  "NOTAS_IMPORTANTES": {
+    "campos_obligatorios_solicitante": [
+      "nombres",
+      "primer_apellido",
+      "segundo_apellido",
+      "tipo_identificacion",
+      "numero_documento",
+      "fecha_nacimiento",
+      "genero",
+      "correo"
+    ],
+    "campos_obligatorios_ubicacion": [
+      "ciudad_residencia",
+      "departamento_residencia"
+    ],
+    "campos_obligatorios_informacion_financiera": [
+      "total_ingresos_mensuales",
+      "total_egresos_mensuales",
+      "total_activos",
+      "total_pasivos"
+    ],
+    "campos_obligatorios_solicitud": [
+      "estado (default: Pendiente)"
+    ],
+    "headers_requeridos": [
+      "X-Empresa-Id",
+      "X-User-Id"
+    ],
+    "campos_dinamicos": {
+      "descripcion": "Los siguientes campos se mueven automáticamente a sus respectivos JSON",
+      "ubicacion": "Campos adicionales van a detalle_direccion",
+      "actividad_economica": "Campos adicionales van a detalle_actividad",
+      "informacion_financiera": "Campos adicionales van a detalle_financiera",
+      "solicitud": "Campos adicionales van a detalle_credito"
+    },
+    "limpieza_campos_duplicados": {
+      "descripcion": "IMPORTANTE: Los campos específicos del tipo de crédito NO deben enviarse duplicados",
+      "ejemplo_incorrecto": {
+        "tipo_cuenta": "Ahorros",
+        "plazo_tiempo": "12",
+        "tipo_credito": "Crédito hipotecario",
+        "credito_hipotecario": {
+          "tipo_cuenta": "Ahorros",
+          "plazo_tiempo": "12"
+        }
+      },
+      "ejemplo_correcto": {
+        "tipo_credito": "Crédito hipotecario",
+        "credito_hipotecario": {
+          "tipo_cuenta": "Ahorros",
+          "plazo_tiempo": "12"
+        }
+      },
+      "nota": "Si se envían duplicados, el sistema automáticamente limpia los campos de la raíz que existan en el objeto anidado, manteniendo solo la versión del objeto anidado"
+    },
+    "referencias": {
+      "crear": "No enviar 'referencia_id' o 'id' para crear nuevas referencias",
+      "editar": "Enviar 'referencia_id' o 'id' para actualizar referencias existentes"
+    },
+    "emails": {
+      "descripcion": "Se envían 3 correos automáticamente",
+      "correos": [
+        "Email al solicitante (correo del solicitante)",
+        "Email al asesor (correo_asesor en raíz del JSON)",
+        "Email al banco (correo_banco_usuario en raíz del JSON)"
+      ]
+    },
+    "multipart": {
+      "descripcion": "Para subir documentos, usar multipart/form-data",
+      "campos": {
+        "payload": "JSON con toda la estructura",
+        "documentos": "Archivos a subir (pueden ser múltiples)"
+      }
+    }
+  },
+  "EJEMPLO_CON_MULTIPART": {
+    "descripcion": "Estructura para crear registro con documentos adjuntos",
+    "metodo": "POST /api/solicitantes/registro-completo",
+    "headers": {
+      "X-Empresa-Id": "1",
+      "X-User-Id": "123",
+      "Content-Type": "multipart/form-data"
+    },
+    "form_data": {
+      "payload": "{ ... todo el JSON del ejemplo anterior ... }",
+      "documentos": [
+        "cedula_frente.pdf",
+        "cedula_atras.pdf",
+        "certificado_laboral.pdf",
+        "extractos_bancarios.pdf"
+      ]
+    }
+  }
+}

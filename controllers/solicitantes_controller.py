@@ -364,11 +364,20 @@ class SolicitantesController:
                 # Actualizar datos_financiera con detalle_financiera procesado
                 datos_financiera["detalle_financiera"] = detalle_financiera
 
-                print(f"   Datos procesados: {datos_financiera}")
-                datos_financiera["empresa_id"] = empresa_id
-                datos_financiera["solicitante_id"] = solicitante_id
+                # Preparar campos obligatorios (con valores por defecto si no están presentes)
+                datos_para_modelo = {
+                    "empresa_id": empresa_id,
+                    "solicitante_id": solicitante_id,
+                    "total_ingresos_mensuales": float(datos_financiera.get("total_ingresos_mensuales", 0)),
+                    "total_egresos_mensuales": float(datos_financiera.get("total_egresos_mensuales", 0)),
+                    "total_activos": float(datos_financiera.get("total_activos", 0)),
+                    "total_pasivos": float(datos_financiera.get("total_pasivos", 0)),
+                    "detalle_financiera": detalle_financiera
+                }
 
-                financiera_creada = self.financiera_model.create(**datos_financiera)
+                print(f"   Datos procesados: {datos_para_modelo}")
+
+                financiera_creada = self.financiera_model.create(**datos_para_modelo)
                 print(f"   ✅ Información financiera creada con ID: {financiera_creada['id']}")
             else:
                 print(f"\n4️⃣ INFORMACIÓN FINANCIERA: No hay datos para crear")
@@ -444,7 +453,7 @@ class SolicitantesController:
                     print(f"   🏦 Banco extraído: {banco_nombre}")
                     print(f"   🏙️ Ciudad extraída: {ciudad}")
 
-                    # Procesar campos anidados de tipo de crédito (igual que en editar_registro_completo)
+                    # Procesar campos anidados de tipo de crédito
                     tipo_credito = solicitud_data.get("tipo_credito")
                     if tipo_credito:
                         # Normalizar para evitar problemas por acentos/mayúsculas
@@ -495,6 +504,21 @@ class SolicitantesController:
                     for nf in known_nested_fields:
                         if nf in solicitud_data and nf not in detalle_credito:
                             detalle_credito[nf] = solicitud_data[nf]
+
+                    # LIMPIAR campos duplicados: eliminar de la raíz de detalle_credito
+                    # los campos que ya están dentro de los objetos anidados
+                    for nested_field in known_nested_fields:
+                        if nested_field in detalle_credito and isinstance(detalle_credito[nested_field], dict):
+                            nested_obj = detalle_credito[nested_field]
+                            # Eliminar de la raíz todos los campos que existen en el objeto anidado
+                            campos_a_eliminar = []
+                            for campo in list(detalle_credito.keys()):
+                                if campo != nested_field and campo in nested_obj:
+                                    campos_a_eliminar.append(campo)
+                            
+                            for campo in campos_a_eliminar:
+                                detalle_credito.pop(campo, None)
+                                print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
 
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")
@@ -830,9 +854,17 @@ class SolicitantesController:
                         updates=datos_financiera
                     )
                 else:
-                    datos_financiera["empresa_id"] = empresa_id
-                    datos_financiera["solicitante_id"] = solicitante_id
-                    financiera_actualizada = self.financiera_model.create(**datos_financiera)
+                    # Crear nueva - preparar campos obligatorios
+                    datos_para_modelo = {
+                        "empresa_id": empresa_id,
+                        "solicitante_id": solicitante_id,
+                        "total_ingresos_mensuales": float(datos_financiera.get("total_ingresos_mensuales", 0)),
+                        "total_egresos_mensuales": float(datos_financiera.get("total_egresos_mensuales", 0)),
+                        "total_activos": float(datos_financiera.get("total_activos", 0)),
+                        "total_pasivos": float(datos_financiera.get("total_pasivos", 0)),
+                        "detalle_financiera": detalle_financiera
+                    }
+                    financiera_actualizada = self.financiera_model.create(**datos_para_modelo)
 
             # 5. ACTUALIZAR REFERENCIAS (JSON en una sola fila por solicitante)
             referencias_actualizadas = []
@@ -963,6 +995,21 @@ class SolicitantesController:
                     for nf in known_nested_fields:
                         if nf in solicitud_data and nf not in detalle_credito:
                             detalle_credito[nf] = solicitud_data[nf]
+
+                    # LIMPIAR campos duplicados: eliminar de la raíz de detalle_credito
+                    # los campos que ya están dentro de los objetos anidados
+                    for nested_field in known_nested_fields:
+                        if nested_field in detalle_credito and isinstance(detalle_credito[nested_field], dict):
+                            nested_obj = detalle_credito[nested_field]
+                            # Eliminar de la raíz todos los campos que existen en el objeto anidado
+                            campos_a_eliminar = []
+                            for campo in list(detalle_credito.keys()):
+                                if campo != nested_field and campo in nested_obj:
+                                    campos_a_eliminar.append(campo)
+                            
+                            for campo in campos_a_eliminar:
+                                detalle_credito.pop(campo, None)
+                                print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
 
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")

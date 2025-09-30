@@ -7,8 +7,7 @@ import uuid
 from datetime import datetime
 
 from dotenv import load_dotenv
-load_dotenv(os.path.expanduser("~/api_findii/.env"))
-# load_dotenv()
+load_dotenv()  # Cargar .env del directorio del proyecto
 
 def config_email():
     smtp_server = "smtp.zoho.com"
@@ -27,47 +26,47 @@ def config_email():
 
 def test_email_connection():
     """
-    Función para probar la conexión SMTP con Zoho
+    Funcion para probar la conexion SMTP con Zoho
     """
     try:
         email_settings = config_email()
 
         if not email_settings["sender_password"]:
-            print("❌ No se encontró EMAIL_PASSWORD en las variables de entorno")
+            print("ERROR: No se encontro EMAIL_PASSWORD en las variables de entorno")
             return False
 
-        print("🧪 Probando conexión SMTP con Zoho...")
-        print(f"   📧 Servidor: {email_settings['smtp_server']}")
-        print(f"   🔌 Puerto: {email_settings['smtp_port']}")
-        print(f"   👤 Email: {email_settings['sender_email']}")
-        print(f"   🔑 Contraseña: {'*' * len(email_settings['sender_password'])}")
+        print("Probando conexion SMTP con Zoho...")
+        print(f"   Servidor: {email_settings['smtp_server']}")
+        print(f"   Puerto: {email_settings['smtp_port']}")
+        print(f"   Email: {email_settings['sender_email']}")
+        print(f"   Contrasena: {'*' * len(email_settings['sender_password'])}")
 
-        # Probar conexión SSL
+        # Probar conexion SSL
         server = smtplib.SMTP_SSL(email_settings["smtp_server"], email_settings["smtp_port"])
         server.set_debuglevel(1)  # Debug detallado
 
-        print("   🔐 Probando autenticación...")
+        print("   Probando autenticacion...")
         server.login(email_settings["sender_email"], email_settings["sender_password"])
 
         server.quit()
-        print("   ✅ Conexión exitosa!")
+        print("   CONEXION EXITOSA!")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
-        print(f"   ❌ Error de autenticación: {str(e)}")
-        print("   💡 Soluciones:")
+        print(f"   ERROR de autenticacion: {str(e)}")
+        print("   Soluciones:")
         print("      1. Verifica que tengas 2FA habilitado en Zoho")
-        print("      2. Genera una contraseña de aplicación específica")
-        print("      3. Usa la contraseña de aplicación, NO tu contraseña normal")
+        print("      2. Genera una contrasena de aplicacion especifica")
+        print("      3. Usa la contrasena de aplicacion, NO tu contrasena normal")
         return False
 
     except smtplib.SMTPConnectError as e:
-        print(f"   ❌ Error de conexión: {str(e)}")
-        print("   💡 Verifica tu conexión a internet")
+        print(f"   ERROR de conexion: {str(e)}")
+        print("   Verifica tu conexion a internet")
         return False
 
     except Exception as e:
-        print(f"   ❌ Error inesperado: {str(e)}")
+        print(f"   ERROR inesperado: {str(e)}")
         return False
 
 def formatear_campos_dinamicos(campos_dict, titulo="", nivel_indentacion=1):
@@ -635,8 +634,8 @@ def enviar_email_solicitante(email_settings, data):
         celular = info_extra.get('celular', 'N/A')
         profesion = info_extra.get('profesion', 'N/A')
 
-        # Obtener fecha y hora actual
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        # Obtener fecha y hora actual en formato 12 horas
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
         
         # Cuerpo del mensaje para el solicitante
         body = f"""Hola {solicitante['nombre_completo']},
@@ -722,8 +721,8 @@ def enviar_email_asesor(email_settings, data):
         profesion = info_extra.get('profesion', 'N/A')
         estado_civil = info_extra.get('estado_civil', 'N/A')
 
-        # Obtener fecha y hora actual
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        # Obtener fecha y hora actual en formato 12 horas
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
         
         # Cuerpo del mensaje para el asesor
         body = f"""Hola {data['asesor']['nombre']},
@@ -893,8 +892,8 @@ def enviar_email_banco(email_settings, data):
 
      
 
-        # Obtener fecha y hora actual
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %H:%M:%S")
+        # Obtener fecha y hora actual en formato 12 horas
+        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
         
         # Cuerpo del mensaje mejorado para el banco
         body = f"""Buenos días,
