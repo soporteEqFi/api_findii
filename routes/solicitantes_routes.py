@@ -55,3 +55,10 @@ def crear_registro_completo():
 def editar_registro_completo(id: int):
     """Editar un registro completo con todas las entidades relacionadas"""
     return con_solicitantes.editar_registro_completo(id)
+
+
+@solicitantes.route("/descargar-ventas", methods=["GET", "POST"])
+@cross_origin()
+def descargar_ventas_excel():
+    """Descargar todos los solicitantes en formato Excel"""
+    return con_solicitantes.descargar_ventas_excel()

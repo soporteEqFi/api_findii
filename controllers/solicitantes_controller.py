@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from models.solicitantes_model import SolicitantesModel
 from models.ubicaciones_model import UbicacionesModel
 from models.actividad_economica_model import ActividadEconomicaModel
@@ -16,9 +16,13 @@ import json
 import os
 import uuid
 import unicodedata
+import io
+from datetime import datetime, timezone, timedelta
 from werkzeug.utils import secure_filename
 from data.supabase_conn import supabase
 from models.documentos_model import DocumentosModel
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
 
 
 class SolicitantesController:
@@ -115,6 +119,167 @@ class SolicitantesController:
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:
             return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def descargar_ventas_excel(self):
+        """Exportar todos los solicitantes a Excel (.xlsx) con columnas configurables"""
+        try:
+            empresa_id = self._empresa_id()
+            print(f"\n📥 DESCARGANDO VENTAS EXCEL - Empresa ID: {empresa_id}")
+            
+            # Obtener todos los datos sin límite
+            data = self.model.list(empresa_id=empresa_id, limit=10000, offset=0)
+            print(f"   📊 Total de registros: {len(data)}")
+            
+            # CONFIGURACIÓN DE COLUMNAS - Orden exacto del frontend
+            # Formato: ("Nombre en Excel", función_transformación)
+            columnas_config = [
+                ("Nombres", lambda item: f"{item.get('nombres', '')} {item.get('primer_apellido', '')} {item.get('segundo_apellido', '')}".strip()),
+                ("Identificación", lambda item: item.get("tipo_identificacion", "")),
+                ("Fecha", lambda item: self._extraer_fecha(item.get("created_at", ""))),
+                ("Hora", lambda item: self._extraer_hora(item.get("created_at", ""))),
+                ("Número Documento", lambda item: item.get("numero_documento", "")),
+                ("Ciudad Residencia", lambda item: item.get("ciudad_residencia", "")),
+                ("Correo", lambda item: item.get("correo", "")),
+                ("Celular", lambda item: item.get("celular", "")),
+                ("Tipo Crédito", lambda item: item.get("tipo_credito", "")),
+                ("Banco", lambda item: item.get("banco_nombre", "")),
+                ("Estado", lambda item: item.get("estado_solicitud", "")),
+                ("Creado por", lambda item: item.get("created_by_user_name", "")),
+                ("Supervisor", lambda item: item.get("created_by_supervisor_name", "")),
+                # AGREGAR MÁS COLUMNAS AQUÍ:
+                # ("Nueva Columna", lambda item: item.get("nuevo_campo", "")),
+            ]
+            
+            # Crear libro de Excel
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Ventas"
+            
+            # Estilo para encabezados
+            header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF", size=11)
+            header_alignment = Alignment(horizontal="center", vertical="center")
+            
+            # Escribir encabezados
+            headers = [col[0] for col in columnas_config]
+            for col_idx, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = header_alignment
+            
+            print(f"   📋 Columnas exportadas: {', '.join(headers)}")
+            
+            # Escribir datos
+            for row_idx, item in enumerate(data, start=2):
+                for col_idx, (_, extractor) in enumerate(columnas_config, start=1):
+                    try:
+                        value = extractor(item)
+                        # Convertir None a string vacío
+                        if value is None:
+                            value = ""
+                        # Asegurar que sea string
+                        value = str(value) if value else ""
+                        cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                        cell.alignment = Alignment(horizontal="left", vertical="center")
+                    except Exception as e:
+                        print(f"   ⚠️ Error extrayendo valor en fila {row_idx}, col {col_idx}: {e}")
+                        ws.cell(row=row_idx, column=col_idx, value="")
+            
+            # Ajustar ancho de columnas basado en el contenido real
+            for col_idx, header in enumerate(headers, start=1):
+                column_letter = ws.cell(row=1, column=col_idx).column_letter
+                
+                # Calcular el ancho máximo basado en el contenido
+                max_length = len(str(header))  # Empezar con el largo del encabezado
+                
+                # Revisar todas las filas para encontrar el valor más largo
+                for row_idx in range(2, len(data) + 2):
+                    cell_value = ws.cell(row=row_idx, column=col_idx).value
+                    if cell_value:
+                        cell_length = len(str(cell_value))
+                        if cell_length > max_length:
+                            max_length = cell_length
+                
+                # Ajustar el ancho con un margen adicional (máximo 50 para evitar columnas muy anchas)
+                adjusted_width = min(max_length + 3, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
+            
+            # Guardar en memoria con manejo de errores
+            output = io.BytesIO()
+            try:
+                wb.save(output)
+                output.seek(0)
+                excel_data = output.getvalue()
+                print(f"   💾 Archivo Excel guardado en memoria: {len(excel_data)} bytes")
+            except Exception as save_error:
+                print(f"   ❌ Error al guardar Excel: {save_error}")
+                raise
+            finally:
+                output.close()
+            
+            # Preparar respuesta
+            response = make_response(excel_data)
+            filename = f"ventas_{empresa_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            
+            # Headers optimizados para descarga de Excel
+            response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+            response.headers["Content-Length"] = str(len(excel_data))
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            
+            print(f"   ✅ Excel generado exitosamente con {len(columnas_config)} columnas y {len(data)} registros")
+            return response
+            
+        except ValueError as ve:
+            log_error(ve, "ERROR DE VALIDACIÓN EN DESCARGA EXCEL")
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            log_error(ex, "ERROR INESPERADO EN DESCARGA EXCEL")
+            return jsonify({"ok": False, "error": str(ex)}), 500
+    
+    def _extraer_fecha(self, created_at: str) -> str:
+        """Extrae la fecha en formato DD/MM/YYYY del timestamp, convertido a zona horaria de Colombia (UTC-5)"""
+        if not created_at:
+            return ""
+        try:
+            # Parsear el timestamp UTC
+            dt_utc = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            
+            # Convertir a zona horaria de Colombia (UTC-5)
+            colombia_tz = timezone(timedelta(hours=-5))
+            dt_colombia = dt_utc.astimezone(colombia_tz)
+            
+            return dt_colombia.strftime("%d/%m/%Y")
+        except Exception as e:
+            try:
+                return created_at.split("T")[0] if "T" in str(created_at) else str(created_at)
+            except:
+                return ""
+    
+    def _extraer_hora(self, created_at: str) -> str:
+        """Extrae la hora en formato 12 horas (hh:mm:ss AM/PM) del timestamp, convertido a zona horaria de Colombia (UTC-5)"""
+        if not created_at:
+            return ""
+        try:
+            # Parsear el timestamp UTC
+            dt_utc = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            
+            # Convertir a zona horaria de Colombia (UTC-5)
+            colombia_tz = timezone(timedelta(hours=-5))
+            dt_colombia = dt_utc.astimezone(colombia_tz)
+            
+            # Formato 12 horas con AM/PM
+            return dt_colombia.strftime("%I:%M:%S %p")
+        except Exception as e:
+            try:
+                if "T" in str(created_at):
+                    return created_at.split("T")[1].split(".")[0]
+                return ""
+            except:
+                return ""
 
     def update(self, id: int):
         try:
