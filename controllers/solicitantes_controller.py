@@ -121,33 +121,122 @@ class SolicitantesController:
             return jsonify({"ok": False, "error": str(ex)}), 500
 
     def descargar_ventas_excel(self):
-        """Exportar todos los solicitantes a Excel (.xlsx) con columnas configurables"""
+        """Exportar todos los solicitantes a Excel (.xlsx) con TODA la información"""
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📥 DESCARGANDO VENTAS EXCEL - Empresa ID: {empresa_id}")
+            print(f"\n📥 DESCARGANDO VENTAS EXCEL COMPLETO - Empresa ID: {empresa_id}")
             
-            # Obtener todos los datos sin límite
-            data = self.model.list(empresa_id=empresa_id, limit=10000, offset=0)
-            print(f"   📊 Total de registros: {len(data)}")
+            # Obtener todos los datos completos sin límite
+            try:
+                data = self.model.list_completo_para_excel(empresa_id=empresa_id, limit=10000, offset=0)
+                print(f"   📊 Total de registros: {len(data)}")
+                
+                # Debug: Mostrar estructura del primer registro
+                if data and len(data) > 0:
+                    primer_registro = data[0]
+                    print(f"\n   🔍 DEBUG - Estructura del primer registro:")
+                    print(f"      - info_extra keys: {list(primer_registro.get('info_extra', {}).keys())}")
+                    if primer_registro.get('ubicaciones'):
+                        print(f"      - ubicaciones[0] keys: {list(primer_registro['ubicaciones'][0].keys())}")
+                        if primer_registro['ubicaciones'][0].get('detalle_direccion'):
+                            print(f"      - detalle_direccion keys: {list(primer_registro['ubicaciones'][0]['detalle_direccion'].keys())}")
+                    if primer_registro.get('actividad_economica'):
+                        print(f"      - actividad_economica[0] keys: {list(primer_registro['actividad_economica'][0].keys()) if primer_registro['actividad_economica'] else 'None'}")
+                    if primer_registro.get('informacion_financiera'):
+                        print(f"      - informacion_financiera[0] keys: {list(primer_registro['informacion_financiera'][0].keys()) if primer_registro['informacion_financiera'] else 'None'}")
+                    print()
+                    
+            except Exception as model_error:
+                print(f"   ❌ Error al obtener datos del modelo: {model_error}")
+                import traceback
+                traceback.print_exc()
+                raise ValueError(f"Error al obtener datos: {str(model_error)}")
             
-            # CONFIGURACIÓN DE COLUMNAS - Orden exacto del frontend
-            # Formato: ("Nombre en Excel", función_transformación)
+            # CONFIGURACIÓN DE COLUMNAS - TODAS las columnas del registro completo
             columnas_config = [
+                # === DATOS BÁSICOS ===
                 ("Nombres", lambda item: f"{item.get('nombres', '')} {item.get('primer_apellido', '')} {item.get('segundo_apellido', '')}".strip()),
-                ("Identificación", lambda item: item.get("tipo_identificacion", "")),
-                ("Fecha", lambda item: self._extraer_fecha(item.get("created_at", ""))),
-                ("Hora", lambda item: self._extraer_hora(item.get("created_at", ""))),
+                ("Tipo Identificación", lambda item: item.get("tipo_identificacion", "")),
                 ("Número Documento", lambda item: item.get("numero_documento", "")),
-                ("Ciudad Residencia", lambda item: item.get("ciudad_residencia", "")),
+                ("Fecha Nacimiento", lambda item: item.get("fecha_nacimiento", "")),
+                ("Género", lambda item: item.get("genero", "")),
                 ("Correo", lambda item: item.get("correo", "")),
-                ("Celular", lambda item: item.get("celular", "")),
-                ("Tipo Crédito", lambda item: item.get("tipo_credito", "")),
-                ("Banco", lambda item: item.get("banco_nombre", "")),
-                ("Estado", lambda item: item.get("estado_solicitud", "")),
+                ("Fecha Creación", lambda item: self._extraer_fecha(item.get("created_at", ""))),
+                ("Hora Creación", lambda item: self._extraer_hora(item.get("created_at", ""))),
+                
+                # === INFO EXTRA ===
+                ("Celular", lambda item: self._extraer_info_extra(item, "celular")),
+                ("Teléfono", lambda item: self._extraer_info_extra(item, "telefono")),
+                ("Estado Civil", lambda item: self._extraer_info_extra(item, "estado_civil")),
+                ("Nivel Educativo", lambda item: self._extraer_info_extra(item, "nivel_educativo")),
+                ("Profesión", lambda item: self._extraer_info_extra(item, "profesion")),
+                ("Personas a Cargo", lambda item: self._extraer_info_extra(item, "personas_a_cargo")),
+                ("Lugar Nacimiento", lambda item: self._extraer_info_extra(item, "lugar_nacimiento")),
+                ("Nacionalidad", lambda item: self._extraer_info_extra(item, "nacionalidad")),
+                
+                # === UBICACIÓN ===
+                ("Dirección", lambda item: self._extraer_ubicacion(item, "direccion")),
+                ("Ciudad Residencia", lambda item: self._extraer_ubicacion(item, "ciudad_residencia")),
+                ("Departamento Residencia", lambda item: self._extraer_ubicacion(item, "departamento_residencia")),
+                ("Barrio", lambda item: self._extraer_ubicacion(item, "barrio")),
+                ("Estrato", lambda item: self._extraer_ubicacion(item, "estrato")),
+                ("Tipo Vivienda", lambda item: self._extraer_ubicacion(item, "tipo_vivienda")),
+                ("Paga Arriendo", lambda item: self._extraer_ubicacion(item, "paga_arriendo")),
+                ("Valor Arriendo", lambda item: self._extraer_ubicacion(item, "valor_mensual_arriendo")),
+                
+                # === ACTIVIDAD ECONÓMICA ===
+                ("Tipo Actividad", lambda item: self._extraer_actividad(item, "tipo_actividad")),
+                ("Tipo Actividad Económica", lambda item: self._extraer_actividad(item, "tipo_actividad_economica")),
+                ("Ocupación", lambda item: self._extraer_actividad(item, "ocupacion")),
+                ("Nombre Empresa", lambda item: self._extraer_actividad(item, "nombre_empresa")),
+                ("Cargo", lambda item: self._extraer_actividad(item, "cargo")),
+                ("Antigüedad Laboral", lambda item: self._extraer_actividad(item, "antiguedad_laboral")),
+                ("Tipo Contrato", lambda item: self._extraer_actividad(item, "tipo_contrato")),
+                ("Dirección Empresa", lambda item: self._extraer_actividad(item, "direccion_empresa")),
+                ("Teléfono Empresa", lambda item: self._extraer_actividad(item, "telefono_empresa")),
+                ("Ciudad Empresa", lambda item: self._extraer_actividad(item, "ciudad_empresa")),
+                ("Sector Económico", lambda item: self._extraer_actividad(item, "sector_economico")),
+                
+                # === INFORMACIÓN FINANCIERA ===
+                ("Total Ingresos Mensuales", lambda item: self._extraer_financiera(item, "total_ingresos_mensuales")),
+                ("Total Egresos Mensuales", lambda item: self._extraer_financiera(item, "total_egresos_mensuales")),
+                ("Total Activos", lambda item: self._extraer_financiera(item, "total_activos")),
+                ("Total Pasivos", lambda item: self._extraer_financiera(item, "total_pasivos")),
+                ("Ingreso Básico Mensual", lambda item: self._extraer_financiera(item, "ingreso_basico_mensual")),
+                ("Ingreso Variable Mensual", lambda item: self._extraer_financiera(item, "ingreso_variable_mensual")),
+                ("Otros Ingresos Mensuales", lambda item: self._extraer_financiera(item, "otros_ingresos_mensuales")),
+                ("Gastos Financieros", lambda item: self._extraer_financiera(item, "gastos_financieros_mensuales")),
+                ("Gastos Personales", lambda item: self._extraer_financiera(item, "gastos_personales_mensuales")),
+                ("Declara Renta", lambda item: self._extraer_financiera(item, "declara_renta")),
+                
+                # === SOLICITUD ===
+                ("Tipo Crédito", lambda item: self._extraer_solicitud(item, "detalle_credito", "tipo_credito")),
+                ("Monto Solicitado", lambda item: self._extraer_solicitud(item, "detalle_credito", "monto_solicitado")),
+                ("Plazo", lambda item: self._extraer_solicitud(item, "detalle_credito", "plazo")),
+                ("Destino Crédito", lambda item: self._extraer_solicitud(item, "detalle_credito", "destino_credito")),
+                ("Banco", lambda item: self._extraer_solicitud(item, "banco_nombre")),
+                ("Ciudad Solicitud", lambda item: self._extraer_solicitud(item, "ciudad_solicitud")),
+                ("Estado", lambda item: self._extraer_solicitud(item, "estado")),
+                
+                # === REFERENCIAS ===
+                ("Referencia 1 - Nombre", lambda item: self._extraer_referencia(item, 0, "nombre_completo")),
+                ("Referencia 1 - Relación", lambda item: self._extraer_referencia(item, 0, "relacion_referencia")),
+                ("Referencia 1 - Teléfono", lambda item: self._extraer_referencia(item, 0, "telefono")),
+                ("Referencia 1 - Celular", lambda item: self._extraer_referencia(item, 0, "celular_referencia")),
+                ("Referencia 1 - Ciudad", lambda item: self._extraer_referencia(item, 0, "ciudad")),
+                ("Referencia 2 - Nombre", lambda item: self._extraer_referencia(item, 1, "nombre_completo")),
+                ("Referencia 2 - Relación", lambda item: self._extraer_referencia(item, 1, "relacion_referencia")),
+                ("Referencia 2 - Teléfono", lambda item: self._extraer_referencia(item, 1, "telefono")),
+                ("Referencia 2 - Celular", lambda item: self._extraer_referencia(item, 1, "celular_referencia")),
+                ("Referencia 2 - Ciudad", lambda item: self._extraer_referencia(item, 1, "ciudad")),
+                
+                # === DOCUMENTOS ===
+                ("Total Documentos", lambda item: self._contar_documentos(item)),
+                ("Documentos Cargados", lambda item: self._listar_documentos(item)),
+                
+                # === USUARIOS ===
                 ("Creado por", lambda item: item.get("created_by_user_name", "")),
                 ("Supervisor", lambda item: item.get("created_by_supervisor_name", "")),
-                # AGREGAR MÁS COLUMNAS AQUÍ:
-                # ("Nueva Columna", lambda item: item.get("nuevo_campo", "")),
             ]
             
             # Crear libro de Excel
@@ -170,9 +259,10 @@ class SolicitantesController:
             
             print(f"   📋 Columnas exportadas: {', '.join(headers)}")
             
-            # Escribir datos
+            # Escribir datos y verificar campos vacíos
+            campos_vacios = {}
             for row_idx, item in enumerate(data, start=2):
-                for col_idx, (_, extractor) in enumerate(columnas_config, start=1):
+                for col_idx, (header, extractor) in enumerate(columnas_config, start=1):
                     try:
                         value = extractor(item)
                         # Convertir None a string vacío
@@ -180,11 +270,20 @@ class SolicitantesController:
                             value = ""
                         # Asegurar que sea string
                         value = str(value) if value else ""
+                        
+                        # Contar campos vacíos para debugging
+                        if not value and row_idx == 2:  # Solo primera fila para debug
+                            campos_vacios[header] = campos_vacios.get(header, 0) + 1
+                        
                         cell = ws.cell(row=row_idx, column=col_idx, value=value)
                         cell.alignment = Alignment(horizontal="left", vertical="center")
                     except Exception as e:
-                        print(f"   ⚠️ Error extrayendo valor en fila {row_idx}, col {col_idx}: {e}")
+                        print(f"   ⚠️ Error extrayendo valor en fila {row_idx}, col {col_idx} ({header}): {e}")
                         ws.cell(row=row_idx, column=col_idx, value="")
+            
+            # Log de campos vacíos
+            if campos_vacios:
+                print(f"   📋 Campos vacíos en primer registro: {list(campos_vacios.keys())}")
             
             # Ajustar ancho de columnas basado en el contenido real
             for col_idx, header in enumerate(headers, start=1):
@@ -239,6 +338,106 @@ class SolicitantesController:
         except Exception as ex:
             log_error(ex, "ERROR INESPERADO EN DESCARGA EXCEL")
             return jsonify({"ok": False, "error": str(ex)}), 500
+    
+    def _extraer_info_extra(self, item: dict, campo: str) -> str:
+        """Extrae un campo de info_extra"""
+        try:
+            info_extra = item.get("info_extra", {})
+            valor = info_extra.get(campo, "") if info_extra else ""
+            return str(valor) if valor else ""
+        except Exception:
+            return ""
+    
+    def _extraer_ubicacion(self, item: dict, campo: str) -> str:
+        """Extrae un campo de la primera ubicación"""
+        try:
+            ubicaciones = item.get("ubicaciones", [])
+            if ubicaciones and len(ubicaciones) > 0:
+                ubicacion = ubicaciones[0]
+                detalle = ubicacion.get("detalle_direccion", {}) if ubicacion else {}
+                # Buscar en detalle_direccion primero, luego en el nivel superior
+                valor = detalle.get(campo) or ubicacion.get(campo)
+                return str(valor) if valor else ""
+            return ""
+        except Exception:
+            return ""
+    
+    def _extraer_actividad(self, item: dict, campo: str) -> str:
+        """Extrae un campo de la primera actividad económica"""
+        try:
+            actividades = item.get("actividad_economica", [])
+            if actividades and len(actividades) > 0:
+                actividad = actividades[0]
+                detalle = actividad.get("detalle_actividad", {}) if actividad else {}
+                # Buscar en detalle_actividad primero, luego en el nivel superior
+                valor = detalle.get(campo) or actividad.get(campo)
+                return str(valor) if valor else ""
+            return ""
+        except Exception:
+            return ""
+    
+    def _extraer_financiera(self, item: dict, campo: str) -> str:
+        """Extrae un campo de la primera información financiera"""
+        try:
+            financieras = item.get("informacion_financiera", [])
+            if financieras and len(financieras) > 0:
+                financiera = financieras[0]
+                detalle = financiera.get("detalle_financiera", {}) if financiera else {}
+                # Buscar en detalle_financiera primero, luego en el nivel superior
+                valor = detalle.get(campo) or financiera.get(campo)
+                return str(valor) if valor else ""
+            return ""
+        except Exception:
+            return ""
+    
+    def _extraer_solicitud(self, item: dict, *campos) -> str:
+        """Extrae un campo de la solicitud (puede ser anidado)"""
+        try:
+            solicitud = item.get("solicitud")
+            if not solicitud:
+                return ""
+            
+            valor = solicitud
+            for campo in campos:
+                if isinstance(valor, dict):
+                    valor = valor.get(campo)
+                else:
+                    return ""
+            
+            return str(valor) if valor else ""
+        except Exception:
+            return ""
+    
+    def _extraer_referencia(self, item: dict, index: int, campo: str) -> str:
+        """Extrae un campo de una referencia específica por índice"""
+        try:
+            referencias = item.get("referencias", [])
+            if referencias and len(referencias) > index:
+                referencia = referencias[index]
+                detalle = referencia.get("detalle_referencia", {}) if referencia else {}
+                # Buscar en detalle_referencia primero, luego en el nivel superior
+                valor = detalle.get(campo) or referencia.get(campo)
+                return str(valor) if valor else ""
+            return ""
+        except Exception:
+            return ""
+    
+    def _contar_documentos(self, item: dict) -> str:
+        """Cuenta el total de documentos"""
+        try:
+            documentos = item.get("documentos", [])
+            return str(len(documentos))
+        except Exception:
+            return "0"
+    
+    def _listar_documentos(self, item: dict) -> str:
+        """Lista los nombres de los documentos separados por coma"""
+        try:
+            documentos = item.get("documentos", [])
+            nombres = [doc.get("tipo_documento", "") for doc in documentos if doc.get("tipo_documento")]
+            return ", ".join(nombres) if nombres else ""
+        except Exception:
+            return ""
     
     def _extraer_fecha(self, created_at: str) -> str:
         """Extrae la fecha en formato DD/MM/YYYY del timestamp, convertido a zona horaria de Colombia (UTC-5)"""
@@ -672,13 +871,15 @@ class SolicitantesController:
 
                     # LIMPIAR campos duplicados: eliminar de la raíz de detalle_credito
                     # los campos que ya están dentro de los objetos anidados
+                    # EXCEPTO tipo_credito que SIEMPRE debe estar en la raíz
                     for nested_field in known_nested_fields:
                         if nested_field in detalle_credito and isinstance(detalle_credito[nested_field], dict):
                             nested_obj = detalle_credito[nested_field]
                             # Eliminar de la raíz todos los campos que existen en el objeto anidado
+                            # EXCEPTO tipo_credito que debe mantenerse en la raíz
                             campos_a_eliminar = []
                             for campo in list(detalle_credito.keys()):
-                                if campo != nested_field and campo in nested_obj:
+                                if campo != nested_field and campo != "tipo_credito" and campo in nested_obj:
                                     campos_a_eliminar.append(campo)
                             
                             for campo in campos_a_eliminar:
@@ -1163,13 +1364,15 @@ class SolicitantesController:
 
                     # LIMPIAR campos duplicados: eliminar de la raíz de detalle_credito
                     # los campos que ya están dentro de los objetos anidados
+                    # EXCEPTO tipo_credito que SIEMPRE debe estar en la raíz
                     for nested_field in known_nested_fields:
                         if nested_field in detalle_credito and isinstance(detalle_credito[nested_field], dict):
                             nested_obj = detalle_credito[nested_field]
                             # Eliminar de la raíz todos los campos que existen en el objeto anidado
+                            # EXCEPTO tipo_credito que debe mantenerse en la raíz
                             campos_a_eliminar = []
                             for campo in list(detalle_credito.keys()):
-                                if campo != nested_field and campo in nested_obj:
+                                if campo != nested_field and campo != "tipo_credito" and campo in nested_obj:
                                     campos_a_eliminar.append(campo)
                             
                             for campo in campos_a_eliminar:

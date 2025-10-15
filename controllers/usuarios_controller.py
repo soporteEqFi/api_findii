@@ -119,7 +119,7 @@ class UsuariosController:
                 return jsonify({"ok": False, "error": "No hay datos para actualizar"}), 400
 
             # Validar campos permitidos
-            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id"]
+            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id", "contraseña"]
             datos_validos = {}
 
             for campo in campos_permitidos:

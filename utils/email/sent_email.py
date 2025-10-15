@@ -368,12 +368,28 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # 3. Enviar email al banco
         email_banco = datos_email['banco']['correo_usuario']
-        if email_banco and email_banco.strip():
+        ciudad_solicitud = datos_email['solicitud'].get('ciudad_solicitud', '').strip()
+        banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
+        
+        # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
+        if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
+            print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
+            print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
+            print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+            # Sobrescribir el email del banco con el correo por defecto
+            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+        elif email_banco and email_banco.strip():
             print("📧 Enviando email al banco...")
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
         else:
             print("⚠️ WARNING: No se encontró email del banco o está vacío")
-            resultados["banco"] = False
+            print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+            # Enviar a comercial@findii.co como fallback
+            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
 
         # Verificar si al menos uno se envió exitosamente
         exito_general = any(resultados.values())
@@ -766,7 +782,7 @@ Plazo: {plazo} meses
 Estado: {solicitud['estado']}
 
 👉 Para continuar con la gestión, accede al portal de asesores aquí:
-Ingresar al portal de gestión
+https://updated-crm.netlify.app/
 
 Recuerda que tu acompañamiento es clave para agilizar la aprobación del crédito y garantizar una excelente experiencia al cliente.
 

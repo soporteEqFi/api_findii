@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
+import bcrypt
 from data.supabase_conn import supabase
 
 def _get_data(resp):
@@ -129,13 +130,17 @@ class UsuariosModel:
             if not usuario_actual:
                 return None
 
-            # Preparar datos para actualizar (excluir campos sensibles)
+            # Preparar datos para actualizar
             datos_actualizar = {}
-            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id"]
+            campos_permitidos = ["nombre", "cedula", "correo", "rol", "info_extra", "reports_to_id", "contraseña"]
 
             for campo in campos_permitidos:
                 if campo in kwargs:
-                    datos_actualizar[campo] = kwargs[campo]
+                    # Si es contraseña, hashearla antes de guardar
+                    if campo == "contraseña":
+                        datos_actualizar[campo] = self._hash_password(kwargs[campo])
+                    else:
+                        datos_actualizar[campo] = kwargs[campo]
 
             if not datos_actualizar:
                 return usuario_actual  # No hay cambios
@@ -296,4 +301,8 @@ class UsuariosModel:
         except Exception as e:
             print(f"Error al obtener miembros del equipo: {e}")
             return []
+
+    def _hash_password(self, password: str) -> str:
+        """Hashea una contraseña usando bcrypt."""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
