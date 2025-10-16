@@ -30,31 +30,31 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 # Middleware para logging de requests
-@app.before_request
-def log_request_info():
-    from flask import request
-    print(f"\n🔍 REQUEST RECIBIDA:")
-    print(f"   Method: {request.method}")
-    print(f"   URL: {request.url}")
-    print(f"   Path: {request.path}")
-    print(f"   Args: {dict(request.args)}")
+# @app.before_request
+# def log_request_info():
+#     from flask import request
+#     print(f"\n🔍 REQUEST RECIBIDA:")
+#     print(f"   Method: {request.method}")
+#     print(f"   URL: {request.url}")
+    # print(f"   Path: {request.path}")
+    # print(f"   Args: {dict(request.args)}")
     # print(f"   Headers: {dict(request.headers)}")
-    if request.method in ['POST', 'PUT', 'PATCH']:
-        try:
-            body = request.get_json(silent=True)
-            print(f"   Body: {body}")
-        except:
-            print(f"   Body: {request.get_data(as_text=True)}")
+    # if request.method in ['POST', 'PUT', 'PATCH']:
+        # try:
+            # body = request.get_json(silent=True)
+            # print(f"   Body: {body}")
+        # except:
+            # print(f"   Body: {request.get_data(as_text=True)}")
 
-@app.after_request
-def log_response_info(response):
-    print(f"📤 RESPONSE ENVIADA:")
-    print(f"   Status: {response.status_code}")
-    # print(f"   Headers: {dict(response.headers)}")
-    if response.status_code >= 400:
-        print(f"   ❌ ERROR {response.status_code} - {response.get_data(as_text=True)}")
-    print("="*50)
-    return response
+# @app.after_request
+# def log_response_info(response):
+#     print(f"📤 RESPONSE ENVIADA:")
+#     print(f"   Status: {response.status_code}")
+#     # print(f"   Headers: {dict(response.headers)}")
+#     if response.status_code >= 400:
+#         print(f"   ❌ ERROR {response.status_code} - {response.get_data(as_text=True)}")
+#     print("="*50)
+#     return response
 
 app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(json_fields, url_prefix="/json")

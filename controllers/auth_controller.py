@@ -17,12 +17,12 @@ class AuthController:
         """Endpoint de login."""
         try:
             # Debug: imprimir datos recibidos
-            print("=== DEBUG LOGIN ===")
-            print(f"Content-Type: {request.content_type}")
-            print(f"Raw data: {request.get_data()}")
+            # print("=== DEBUG LOGIN ===")
+            # print(f"Content-Type: {request.content_type}")
+            # print(f"Raw data: {request.get_data()}")
 
-            body = request.get_json(silent=True) or {}
-            print(f"Parsed JSON: {body}")
+            # body = request.get_json(silent=True) or {}
+            # print(f"Parsed JSON: {body}")
 
             # Validar campos requeridos
             correo = body.get("correo") or body.get("email")  # Soportar ambos nombres

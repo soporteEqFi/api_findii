@@ -27,26 +27,26 @@ class NotificacionesController:
             auth_header = request.headers.get("Authorization")
 
             if not auth_header or not auth_header.startswith("Bearer "):
-                print(f"   ❌ Authorization header inválido o faltante")
+                # print(f"   ❌ Authorization header inválido o faltante")
                 return None
 
             # Obtener user_id del header o query parameter
             user_id = request.headers.get("X-User-Id") or request.args.get("user_id")
 
             if not user_id:
-                print(f"   ❌ User ID faltante (header X-User-Id o query user_id)")
+                # print(f"   ❌ User ID faltante (header X-User-Id o query user_id)")
                 return None
 
             # Consultar la base de datos para obtener información completa del usuario
-            print(f"   🔍 Consultando usuario con ID: {user_id}")
+            # print(f"   🔍 Consultando usuario con ID: {user_id}")
             from data.supabase_conn import supabase
             user_response = supabase.table("usuarios").select("id, rol, info_extra").eq("id", int(user_id)).execute()
-            print(f"   📊 Respuesta de BD: {user_response.data}")
+            # print(f"   📊 Respuesta de BD: {user_response.data}")
 
             user_data = user_response.data[0] if user_response.data else None
 
             if not user_data:
-                print(f"   ❌ Usuario no encontrado en BD")
+                # print(f"   ❌ Usuario no encontrado en BD")
                 return None
 
             # Extraer banco_nombre y ciudad del info_extra del usuario
@@ -64,7 +64,7 @@ class NotificacionesController:
             return usuario_info
 
         except Exception as e:
-            print(f"   ❌ Error obteniendo usuario autenticado: {e}")
+            # print(f"   ❌ Error obteniendo usuario autenticado: {e}")
             return None
 
     def _verificar_permiso_notificacion(self, notificacion: dict, usuario_info: dict = None) -> bool:
@@ -131,8 +131,8 @@ class NotificacionesController:
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USUARIO INFO: {usuario_info}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USUARIO INFO: {usuario_info}")
 
             # Obtener filtros de query params
             filtros = {}
@@ -150,7 +150,7 @@ class NotificacionesController:
             # Obtener notificaciones con filtros de rol
             # Si no hay usuario autenticado, mostrar todas las notificaciones (comportamiento anterior)
             if usuario_info is None:
-                print("⚠️ Usuario no autenticado - mostrando todas las notificaciones")
+                # print("⚠️ Usuario no autenticado - mostrando todas las notificaciones")
                 notificaciones = self.model.list(empresa_id, **filtros)
             else:
                 notificaciones = self.model.list(empresa_id, usuario_info, **filtros)
@@ -181,9 +181,9 @@ class NotificacionesController:
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USUARIO INFO: {usuario_info}")
-            print(f"🔔 NOTIFICACIÓN ID: {id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USUARIO INFO: {usuario_info}")
+            # print(f"🔔 NOTIFICACIÓN ID: {id}")
 
             # Obtener notificación específica
             notificacion = self.model.get_by_id(notificacion_id=id, empresa_id=empresa_id)
@@ -224,9 +224,9 @@ class NotificacionesController:
             usuario_info = self._obtener_usuario_autenticado()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USUARIO INFO: {usuario_info}")
-            print(f"📝 DATOS RECIBIDOS: {body}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USUARIO INFO: {usuario_info}")
+            # print(f"📝 DATOS RECIBIDOS: {body}")
 
             # Validar campos requeridos
             campos_requeridos = ["tipo", "titulo", "mensaje", "fecha_recordatorio"]
@@ -244,11 +244,11 @@ class NotificacionesController:
                     if body["usuario_id"] != usuario_autenticado_id:
                         log_error(f"Usuario ID enviado ({body['usuario_id']}) no coincide con usuario autenticado ({usuario_autenticado_id})", "ERROR DE VALIDACIÓN")
                         return jsonify({"ok": False, "error": "No puedes crear notificaciones para otros usuarios"}), 403
-                    print(f"✅ Usuario ID validado: {body['usuario_id']}")
+                    # print(f"✅ Usuario ID validado: {body['usuario_id']}")
                 else:
                     # Si no se envía usuario_id, asignar el del usuario autenticado
                     body["usuario_id"] = usuario_autenticado_id
-                    print(f"✅ Usuario ID asignado automáticamente: {usuario_autenticado_id}")
+                    # print(f"✅ Usuario ID asignado automáticamente: {usuario_autenticado_id}")
             else:
                 # Si no hay usuario autenticado, no se puede crear notificación
                 log_error("Usuario no autenticado", "ERROR DE AUTENTICACIÓN")
@@ -283,9 +283,9 @@ class NotificacionesController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"🔔 NOTIFICACIÓN ID: {id}")
-            print(f"📝 DATOS A ACTUALIZAR: {body}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"🔔 NOTIFICACIÓN ID: {id}")
+            # print(f"📝 DATOS A ACTUALIZAR: {body}")
 
             # Validar que hay datos para actualizar
             if not body:
@@ -319,8 +319,8 @@ class NotificacionesController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"🔔 NOTIFICACIÓN ID: {id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"🔔 NOTIFICACIÓN ID: {id}")
 
             # Eliminar notificación
             eliminada = self.model.delete(notificacion_id=id, empresa_id=empresa_id)
@@ -349,8 +349,8 @@ class NotificacionesController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"🔔 NOTIFICACIÓN ID: {id}")
+                # print(f"\n📋 EMPRESA ID: {empresa_id}")
+                # print(f"🔔 NOTIFICACIÓN ID: {id}")
 
             # Marcar como leída
             notificacion_actualizada = self.model.marcar_como_leida(notificacion_id=id, empresa_id=empresa_id)
@@ -382,10 +382,10 @@ class NotificacionesController:
             usuario_info = self._obtener_usuario_autenticado()
             usuario_id = request.args.get("usuario_id")
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USUARIO INFO: {usuario_info}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USUARIO INFO: {usuario_info}")
             if usuario_id:
-                print(f"👤 USUARIO ID (query): {usuario_id}")
+                # print(f"👤 USUARIO ID (query): {usuario_id}")
                 try:
                     usuario_id = int(usuario_id)
                 except ValueError:
@@ -394,7 +394,7 @@ class NotificacionesController:
             # Obtener notificaciones pendientes con filtros de rol
             # Si no hay usuario autenticado, mostrar todas las notificaciones pendientes (comportamiento anterior)
             if usuario_info is None:
-                print("⚠️ Usuario no autenticado - mostrando todas las notificaciones pendientes")
+                # print("⚠️ Usuario no autenticado - mostrando todas las notificaciones pendientes")
                 notificaciones = self.model.obtener_pendientes(empresa_id=empresa_id, usuario_id=usuario_id)
             else:
                 notificaciones = self.model.obtener_pendientes(empresa_id=empresa_id, usuario_info=usuario_info, usuario_id=usuario_id)

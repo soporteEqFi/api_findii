@@ -77,27 +77,27 @@ def create_field_definitions(entity: str, json_field: str):
 
     # IMPRIMIR TODO EL REQUEST
     print(f"📋 URL COMPLETA: {request.url}")
-    print(f"📋 PATH: {request.path}")
-    print(f"📋 ARGS: {dict(request.args)}")
+    # print(f"📋 PATH: {request.path}")
+    # print(f"📋 ARGS: {dict(request.args)}")
     print(f"📋 METHOD: {request.method}")
 
     # HEADERS
-    print(f"\n🔖 HEADERS RECIBIDOS:")
-    for header_name, header_value in request.headers:
-        print(f"   {header_name}: {header_value}")
+    # print(f"\n🔖 HEADERS RECIBIDOS:")
+    # for header_name, header_value in request.headers:
+    #     print(f"   {header_name}: {header_value}")
 
-    # QUERY PARAMS
-    print(f"\n🔍 QUERY PARAMS:")
-    for key, value in request.args.items():
-        print(f"   {key} = {value}")
+    # # QUERY PARAMS
+    # print(f"\n🔍 QUERY PARAMS:")
+    # for key, value in request.args.items():
+    #     print(f"   {key} = {value}")
 
     # BODY
-    print(f"\n📦 BODY RAW:")
-    try:
-        raw_data = request.get_data(as_text=True)
-        print(f"   Raw data: {raw_data}")
-    except Exception as e:
-        print(f"   Error leyendo raw data: {e}")
+    # print(f"\n📦 BODY RAW:")
+    # try:
+    #     raw_data = request.get_data(as_text=True)
+    #     print(f"   Raw data: {raw_data}")
+    # except Exception as e:
+    #     print(f"   Error leyendo raw data: {e}")
 
     print(f"\n📦 BODY JSON:")
     try:
@@ -131,11 +131,11 @@ def create_field_definitions(entity: str, json_field: str):
         body = request.get_json(silent=True) or {}
         definitions = body.get("definitions", [])
 
-        print(f"\n🏗️ DEFINITIONS:")
-        print(f"   Body completo: {body}")
-        print(f"   Definitions extraídas: {definitions}")
-        print(f"   Tipo definitions: {type(definitions)}")
-        print(f"   Cantidad de definitions: {len(definitions) if isinstance(definitions, list) else 'No es lista'}")
+        # print(f"\n🏗️ DEFINITIONS:")
+        # print(f"   Body completo: {body}")
+        # print(f"   Definitions extraídas: {definitions}")
+        # print(f"   Tipo definitions: {type(definitions)}")
+        # print(f"   Cantidad de definitions: {len(definitions) if isinstance(definitions, list) else 'No es lista'}")
 
         if isinstance(definitions, list):
             for idx, definition in enumerate(definitions):
@@ -415,24 +415,24 @@ def update_field_definition(definition_id: str):
 
     # IMPRIMIR TODO EL REQUEST
     print(f"📋 URL COMPLETA: {request.url}")
-    print(f"📋 PATH: {request.path}")
-    print(f"📋 ARGS: {dict(request.args)}")
+    # print(f"📋 PATH: {request.path}")
+    # print(f"📋 ARGS: {dict(request.args)}")
     print(f"📋 METHOD: {request.method}")
 
-    # HEADERS
-    print(f"\n🔖 HEADERS RECIBIDOS:")
-    for header_name, header_value in request.headers:
-        print(f"   {header_name}: {header_value}")
+    # # HEADERS
+    # print(f"\n🔖 HEADERS RECIBIDOS:")
+    # for header_name, header_value in request.headers:
+    #     print(f"   {header_name}: {header_value}")
 
-    # BODY
-    print(f"\n📦 BODY RAW:")
-    try:
-        raw_data = request.get_data(as_text=True)
-        print(f"   Raw data: {raw_data}")
-    except Exception as e:
-        print(f"   Error leyendo raw data: {e}")
+    # # BODY
+    # print(f"\n📦 BODY RAW:")
+    # try:
+    #     raw_data = request.get_data(as_text=True)
+    #     print(f"   Raw data: {raw_data}")
+    # except Exception as e:
+    #     print(f"   Error leyendo raw data: {e}")
 
-    print(f"\n📦 BODY JSON:")
+    # print(f"\n📦 BODY JSON:")
     try:
         body = request.get_json(silent=True) or {}
         print(f"   Parsed JSON: {body}")

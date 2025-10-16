@@ -60,13 +60,13 @@ class SolicitudesController:
             banco_nombre = info_extra.get("banco_nombre")
             ciudad_solicitud = info_extra.get("ciudad")  # En la BD está como "ciudad"
 
-            print(f"🔍 INFO USUARIO:")
-            print(f"   👤 User ID: {user_data['id']}")
-            print(f"   🏷️ Rol: {user_data.get('rol', 'empresa')}")
-            print(f"   📋 Info Extra Raw: {info_extra_raw}")
-            print(f"   📋 Info Extra Parsed: {info_extra}")
-            print(f"   🏦 Banco extraído: {banco_nombre}")
-            print(f"   🏙️ Ciudad extraída: {ciudad_solicitud}")
+                # print(f"🔍 INFO USUARIO:")
+                # print(f"   👤 User ID: {user_data['id']}")
+                # print(f"   🏷️ Rol: {user_data.get('rol', 'empresa')}")
+                # print(f"   📋 Info Extra Raw: {info_extra_raw}")
+                # print(f"   📋 Info Extra Parsed: {info_extra}")
+                # print(f"   🏦 Banco extraído: {banco_nombre}")
+                # print(f"   🏙️ Ciudad extraída: {ciudad_solicitud}")
 
             return {
                 "id": user_data["id"],
@@ -102,9 +102,9 @@ class SolicitudesController:
             # Aplicar filtro de ciudad_solicitud si está disponible
             if ciudad_solicitud:
                 query = query.eq("ciudad_solicitud", ciudad_solicitud)
-                print(f"   🏙️ Aplicando filtro de ciudad_solicitud: {ciudad_solicitud}")
-            else:
-                print(f"   ⚠️ Usuario banco no tiene ciudad_solicitud asignada")
+                # print(f"   🏙️ Aplicando filtro de ciudad_solicitud: {ciudad_solicitud}")
+            # else:
+                # print(f"   ⚠️ Usuario banco no tiene ciudad_solicitud asignada")
 
             return query
         else:
@@ -121,7 +121,7 @@ class SolicitudesController:
                 categoria="bancos"
             )
 
-            print(f"   📋 Bancos encontrados: {bancos}")
+            # print(f"   📋 Bancos encontrados: {bancos}")
 
             return jsonify({
                 "ok": True,
@@ -147,7 +147,7 @@ class SolicitudesController:
                 categoria="ciudades"
             )
 
-            print(f"   📋 Ciudades encontradas: {ciudades}")
+            # print(f"   📋 Ciudades encontradas: {ciudades}")
 
             return jsonify({
                 "ok": True,
@@ -173,7 +173,7 @@ class SolicitudesController:
                 categoria="estados"
             )
 
-            print(f"   📋 Estados encontrados: {estados}")
+            # print(f"   📋 Estados encontrados: {estados}")
 
             return jsonify({
                 "ok": True,
@@ -211,23 +211,23 @@ class SolicitudesController:
             # Validar que el banco existe en los campos dinámicos (opcional)
             bancos_disponibles = self._obtener_bancos_validos(empresa_id)
 
-            if bancos_disponibles and banco_nombre not in bancos_disponibles:
-                print(f"   ⚠️ Banco '{banco_nombre}' no está en la lista de bancos disponibles")
-                print(f"   📋 Bancos válidos: {bancos_disponibles}")
+            # if bancos_disponibles and banco_nombre not in bancos_disponibles:
+                # print(f"   ⚠️ Banco '{banco_nombre}' no está en la lista de bancos disponibles")
+                # print(f"   📋 Bancos válidos: {bancos_disponibles}")
 
             # Validar que la ciudad existe en los campos dinámicos (opcional)
             ciudades_disponibles = self._obtener_ciudades_validas(empresa_id)
 
-            if ciudades_disponibles and ciudad not in ciudades_disponibles:
-                print(f"   ⚠️ Ciudad '{ciudad}' no está en la lista de ciudades disponibles")
-                print(f"   📋 Ciudades válidas: {ciudades_disponibles}")
+            # if ciudades_disponibles and ciudad not in ciudades_disponibles:
+                # print(f"   ⚠️ Ciudad '{ciudad}' no está en la lista de ciudades disponibles")
+                # print(f"   📋 Ciudades válidas: {ciudades_disponibles}")
 
-            print(f"\n📝 CREANDO SOLICITUD:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🏦 Banco: {banco_nombre}")
-            print(f"   🏙️ Ciudad: {ciudad}")
-            if observacion_inicial:
-                print(f"   📝 Observación inicial: {observacion_inicial[:50]}...")
+            # print(f"\n📝 CREANDO SOLICITUD:")
+            # print(f"   📋 Empresa ID: {empresa_id}")
+            # print(f"   🏦 Banco: {banco_nombre}")
+            # print(f"   🏙️ Ciudad: {ciudad}")
+            # if observacion_inicial:
+                # print(f"   📝 Observación inicial: {observacion_inicial[:50]}...")
 
             data = self.model.create(
                 empresa_id=empresa_id,
@@ -242,7 +242,7 @@ class SolicitudesController:
                 usuario_info=usuario_info
             )
 
-            print(f"   ✅ Solicitud creada con ID: {data.get('id')}")
+            # print(f"   ✅ Solicitud creada con ID: {data.get('id')}")
             return jsonify({"ok": True, "data": data}), 201
         except ValueError as ve:
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -317,7 +317,7 @@ class SolicitudesController:
                     data[key] = url
 
                 except Exception as e:
-                    print(f"Error procesando archivo {key}: {str(e)}")
+                    # print(f"Error procesando archivo {key}: {str(e)}")
                     data[key] = None
 
             # Si el valor es un diccionario o lista, procesar recursivamente
@@ -361,10 +361,10 @@ class SolicitudesController:
             # Obtener información del usuario autenticado
             usuario_info = self._obtener_usuario_autenticado()
 
-            print(f"\n📋 LISTANDO SOLICITUDES:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario: {usuario_info}")
-            print(f"   🔍 Filtros: estado={estado}, solicitante_id={solicitante_id}")
+            # print(f"\n📋 LISTANDO SOLICITUDES:")
+            # print(f"   📋 Empresa ID: {empresa_id}")
+            # print(f"   👤 Usuario: {usuario_info}")
+            # print(f"   🔍 Filtros: estado={estado}, solicitante_id={solicitante_id}")
 
             # Aplicar filtros de permisos por rol (incluye filtro de ciudad automáticamente)
             data = self.model.list_con_filtros_rol(
@@ -376,7 +376,7 @@ class SolicitudesController:
                 offset=offset,
             )
 
-            print(f"   📄 Solicitudes encontradas: {len(data)}")
+            # print(f"   📄 Solicitudes encontradas: {len(data)}")
             return jsonify({"ok": True, "data": data})
         except ValueError as ve:
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -401,11 +401,11 @@ class SolicitudesController:
                 if field in body:
                     base_updates[field] = body[field]
 
-            print(f"\n📝 ACTUALIZANDO SOLICITUD {id}:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🔄 Campos a actualizar: {list(base_updates.keys())}")
-            if observaciones:
-                print(f"   📝 Incluye {len(observaciones)} observaciones")
+            # print(f"\n📝 ACTUALIZANDO SOLICITUD {id}:")
+            # print(f"   📋 Empresa ID: {empresa_id}")
+            # print(f"   🔄 Campos a actualizar: {list(base_updates.keys())}")
+            # if observaciones:
+                # print(f"   📝 Incluye {len(observaciones)} observaciones")
 
             detalle_credito_merge = body.get("detalle_credito")
 
@@ -429,7 +429,7 @@ class SolicitudesController:
                 detalle_credito_merge=detalle_credito_merge,
             )
 
-            print(f"   ✅ Solicitud actualizada")
+            # print(f"   ✅ Solicitud actualizada")
             return jsonify({"ok": True, "data": data})
         except ValueError as ve:
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -440,12 +440,12 @@ class SolicitudesController:
         """Eliminar solicitud y todos los registros relacionados del solicitante"""
         try:
             empresa_id = self._empresa_id()
-            print(f"🗑️ DELETE request para solicitud: id={id}, empresa_id={empresa_id}")
+            # print(f"🗑️ DELETE request para solicitud: id={id}, empresa_id={empresa_id}")
 
             # Verificar que la solicitud existe antes de eliminar
             solicitud_existente = self.model.get_by_id(id=id, empresa_id=empresa_id)
             if not solicitud_existente:
-                print(f"❌ Solicitud {id} no encontrada en empresa {empresa_id}")
+                # print(f"❌ Solicitud {id} no encontrada en empresa {empresa_id}")
                 return jsonify({
                     "ok": False,
                     "error": f"Solicitud {id} no encontrada",
@@ -453,8 +453,8 @@ class SolicitudesController:
                 }), 404
 
             solicitante_id = solicitud_existente.get('solicitante_id')
-            print(f"✅ Solicitud encontrada: estado={solicitud_existente.get('estado')}, banco={solicitud_existente.get('banco_nombre')}")
-            print(f"📋 Eliminando solicitante_id: {solicitante_id}")
+            # print(f"✅ Solicitud encontrada: estado={solicitud_existente.get('estado')}, banco={solicitud_existente.get('banco_nombre')}")
+            # print(f"📋 Eliminando solicitante_id: {solicitante_id}")
 
             # Importar modelos para eliminar registros relacionados
             from models.documentos_model import DocumentosModel
@@ -479,39 +479,39 @@ class SolicitudesController:
                 # 1. Eliminar documentos
                 documentos_model = DocumentosModel()
                 eliminados["documentos"] = documentos_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
-                print(f"   📄 Documentos eliminados: {eliminados['documentos']}")
+                # print(f"   📄 Documentos eliminados: {eliminados['documentos']}")
 
                 # 2. Eliminar referencias
                 referencias_model = ReferenciasModel()
                 eliminados["referencias"] = referencias_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
-                print(f"   👥 Referencias eliminadas: {eliminados['referencias']}")
+                # print(f"   👥 Referencias eliminadas: {eliminados['referencias']}")
 
                 # 3. Eliminar información financiera
                 info_financiera_model = InformacionFinancieraModel()
                 eliminados["informacion_financiera"] = info_financiera_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
-                print(f"   💰 Información financiera eliminada: {eliminados['informacion_financiera']}")
+                # print(f"   💰 Información financiera eliminada: {eliminados['informacion_financiera']}")
 
                 # 4. Eliminar actividad económica
                 actividad_model = ActividadEconomicaModel()
                 eliminados["actividad_economica"] = actividad_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
-                print(f"   🏢 Actividad económica eliminada: {eliminados['actividad_economica']}")
+                # print(f"   🏢 Actividad económica eliminada: {eliminados['actividad_economica']}")
 
                 # 5. Eliminar ubicaciones
                 ubicaciones_model = UbicacionesModel()
                 eliminados["ubicaciones"] = ubicaciones_model.delete_by_solicitante(solicitante_id=solicitante_id, empresa_id=empresa_id)
-                print(f"   📍 Ubicaciones eliminadas: {eliminados['ubicaciones']}")
+                # print(f"   📍 Ubicaciones eliminadas: {eliminados['ubicaciones']}")
 
                 # 6. Eliminar la solicitud
                 eliminados["solicitud"] = self.model.delete(id=id, empresa_id=empresa_id)
-                print(f"   📋 Solicitud eliminada: {eliminados['solicitud']}")
+                # print(f"   📋 Solicitud eliminada: {eliminados['solicitud']}")
 
                 # 7. Eliminar el solicitante
                 solicitantes_model = SolicitantesModel()
                 eliminados["solicitante"] = solicitantes_model.delete(id=solicitante_id, empresa_id=empresa_id)
-                print(f"   👤 Solicitante eliminado: {eliminados['solicitante']}")
+                # print(f"   👤 Solicitante eliminado: {eliminados['solicitante']}")
 
                 total_eliminados = sum(eliminados.values())
-                print(f"✅ Eliminación completa: {total_eliminados} registros eliminados")
+                # print(f"✅ Eliminación completa: {total_eliminados} registros eliminados")
 
                 return jsonify({
                     "ok": True,
@@ -527,7 +527,7 @@ class SolicitudesController:
                 })
 
             except Exception as e:
-                print(f"❌ Error durante eliminación en cascada: {e}")
+                # print(f"❌ Error durante eliminación en cascada: {e}")
                 return jsonify({
                     "ok": False,
                     "error": f"Error durante eliminación: {str(e)}",
@@ -587,9 +587,9 @@ class SolicitudesController:
             if not fecha_creacion:
                 return jsonify({"ok": False, "error": "La fecha de creación es requerida"}), 400
 
-            print(f"\n📝 AGREGANDO OBSERVACIÓN A SOLICITUD {id}:")
-            print(f"   📝 Observación: {observacion[:50]}...")
-            print(f"   📅 Fecha creación: {fecha_creacion}")
+                # print(f"\n📝 AGREGANDO OBSERVACIÓN A SOLICITUD {id}:")
+                # print(f"   📝 Observación: {observacion[:50]}...")
+                # print(f"   📅 Fecha creación: {fecha_creacion}")
 
             # Estructura simplificada que se guardará directamente
             nueva_observacion = {
@@ -631,22 +631,22 @@ class SolicitudesController:
             nuevo_estado = body["estado"]
             observacion = body.get("observacion")
 
-            print(f"\n🔄 ACTUALIZANDO ESTADO DE SOLICITUD:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🆔 Solicitud ID: {solicitud_id}")
-            print(f"   📊 Nuevo estado: {nuevo_estado}")
-            if observacion:
-                print(f"   📝 Incluye observación: {observacion[:50]}...")
+            # print(f"\n🔄 ACTUALIZANDO ESTADO DE SOLICITUD:")
+            # print(f"   📋 Empresa ID: {empresa_id}")
+            # print(f"   🆔 Solicitud ID: {solicitud_id}")
+            # print(f"   📊 Nuevo estado: {nuevo_estado}")
+            # if observacion:
+            #     print(f"   📝 Incluye observación: {observacion[:50]}...")
 
             # Verificar si la solicitud existe antes de actualizar
-            print(f"\n🔍 VERIFICANDO EXISTENCIA DE SOLICITUD...")
+            # print(f"\n🔍 VERIFICANDO EXISTENCIA DE SOLICITUD...")
             solicitud_existente = self.model.get_by_id(id=solicitud_id, empresa_id=empresa_id)
             if not solicitud_existente:
-                print(f"   ❌ Solicitud {solicitud_id} no encontrada en empresa {empresa_id}")
+                # print(f"   ❌ Solicitud {solicitud_id} no encontrada en empresa {empresa_id}")
                 return jsonify({"ok": False, "error": f"Solicitud {solicitud_id} no encontrada"}), 404
 
             estado_anterior = solicitud_existente.get('estado', 'N/A')
-            print(f"   ✅ Solicitud encontrada: {estado_anterior}")
+            # print(f"   ✅ Solicitud encontrada: {estado_anterior}")
 
             # Usar el método que maneja observaciones
             data = self.model.actualizar_con_observacion(
@@ -659,10 +659,10 @@ class SolicitudesController:
             )
 
             if not data:
-                print(f"   ❌ Error al actualizar la solicitud")
+                # print(f"   ❌ Error al actualizar la solicitud")
                 return jsonify({"ok": False, "error": "Error al actualizar la solicitud"}), 500
 
-            print(f"   ✅ Estado actualizado exitosamente")
+            # print(f"   ✅ Estado actualizado exitosamente")
 
             response_data = {
                 "ok": True,
@@ -696,10 +696,10 @@ class SolicitudesController:
             solicitud_id = int(body["id"])
             banco_nombre = body["banco_nombre"]
 
-            print(f"\n🏦 ASIGNANDO BANCO A SOLICITUD:")
-            print(f"   📋 Empresa ID: {empresa_id}")
-            print(f"   🆔 Solicitud ID: {solicitud_id}")
-            print(f"   🏦 Banco: {banco_nombre}")
+            # print(f"\n🏦 ASIGNANDO BANCO A SOLICITUD:")
+            # print(f"   📋 Empresa ID: {empresa_id}")
+            # print(f"   🆔 Solicitud ID: {solicitud_id}")
+            # print(f"   🏦 Banco: {banco_nombre}")
 
             # Verificar si la solicitud existe
             solicitud_existente = self.model.get_by_id(id=solicitud_id, empresa_id=empresa_id)
@@ -717,7 +717,7 @@ class SolicitudesController:
             if not data:
                 return jsonify({"ok": False, "error": "Error al asignar banco"}), 500
 
-            print(f"   ✅ Banco asignado exitosamente")
+            # print(f"   ✅ Banco asignado exitosamente")
 
             response_data = {
                 "ok": True,

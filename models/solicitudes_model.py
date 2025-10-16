@@ -275,9 +275,9 @@ class SolicitudesModel:
         resp = q.execute()
         data = _get_data(resp)
 
-        print(f"🔍 DEBUG JOIN - Datos recibidos: {len(data) if data else 0} registros")
-        if data and len(data) > 0:
-            print(f"🔍 DEBUG JOIN - Primer registro: {data[0]}")
+        # print(f"🔍 DEBUG JOIN - Datos recibidos: {len(data) if data else 0} registros")
+        # if data and len(data) > 0:
+        #     print(f"🔍 DEBUG JOIN - Primer registro: {data[0]}")
 
         # Obtener todos los IDs de usuarios únicos
         user_ids = set()
@@ -287,7 +287,7 @@ class SolicitudesModel:
             if item.get("assigned_to_user_id"):
                 user_ids.add(item["assigned_to_user_id"])
 
-        print(f"🔍 DEBUG JOIN - IDs de usuarios encontrados: {user_ids}")
+        # print(f"🔍 DEBUG JOIN - IDs de usuarios encontrados: {user_ids}")
 
         # Consultar usuarios para obtener nombres y supervisores
         usuarios_map = {}
@@ -310,8 +310,8 @@ class SolicitudesModel:
                 supervisores_data = _get_data(supervisores_resp) or []
                 supervisores_map = {supervisor["id"]: supervisor["nombre"] for supervisor in supervisores_data}
 
-            print(f"🔍 DEBUG JOIN - Mapa de usuarios: {usuarios_map}")
-            print(f"🔍 DEBUG JOIN - Mapa de supervisores: {supervisores_map}")
+                # print(f"🔍 DEBUG JOIN - Mapa de usuarios: {usuarios_map}")
+                # print(f"🔍 DEBUG JOIN - Mapa de supervisores: {supervisores_map}")
 
         # Procesar datos para agregar created_by_user_name y created_by_supervisor_name
         processed_data = []
@@ -330,7 +330,7 @@ class SolicitudesModel:
                         created_by_supervisor_name = supervisores_map.get(supervisor_id)
                         break
 
-            print(f"🔍 DEBUG JOIN - ID: {created_by_user_id}, Nombre: {created_by_user_name}, Supervisor: {created_by_supervisor_name}")
+            # print(f"🔍 DEBUG JOIN - ID: {created_by_user_id}, Nombre: {created_by_user_name}, Supervisor: {created_by_supervisor_name}")
 
             # Crear nuevo objeto con los campos agregados
             processed_item = {**item}

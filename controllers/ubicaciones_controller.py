@@ -28,25 +28,25 @@ class UbicacionesController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
 
             # Campos requeridos
             required_fields = ["solicitante_id", "ciudad_residencia", "departamento_residencia"]
 
             # Validar campos requeridos
-            print(f"\n🔍 VERIFICANDO SOLICITANTE_ID:")
-            print(f"   solicitante_id en body: {body.get('solicitante_id')}")
-            print(f"   Tipo: {type(body.get('solicitante_id'))}")
+            # print(f"\n🔍 VERIFICANDO SOLICITANTE_ID:")
+            # print(f"   solicitante_id en body: {body.get('solicitante_id')}")
+            # print(f"   Tipo: {type(body.get('solicitante_id'))}")
 
             if not log_validation_results(required_fields, body):
-                print(f"\n❌ CAMPOS FALTANTES DETECTADOS:")
+                # print(f"\n❌ CAMPOS FALTANTES DETECTADOS:")
                 for field in required_fields:
                     value = body.get(field)
-                    if not value:
-                        print(f"   ❌ {field}: {value}")
+                    # if not value:
+                        # print(f"   ❌ {field}: {value}")
                 raise ValueError("Faltan campos requeridos")
 
-            print(f"\n✅ VALIDACIÓN EXITOSA - Todos los campos presentes")
+            # print(f"\n✅ VALIDACIÓN EXITOSA - Todos los campos presentes")
 
             # Preparar datos para guardar
             datos_a_guardar = {

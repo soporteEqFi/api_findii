@@ -21,9 +21,9 @@ class DashboardController:
                 return None
 
             # Consultar la base de datos para obtener información completa del usuario
-            print(f"   🔍 Consultando usuario con ID: {user_id}")
+            # print(f"   🔍 Consultando usuario con ID: {user_id}")
             user_response = supabase.table("usuarios").select("id, rol, info_extra").eq("id", int(user_id)).execute()
-            print(f"   📊 Respuesta de BD: {user_response.data}")
+            # print(f"   📊 Respuesta de BD: {user_response.data}")
 
             user_data = user_response.data[0] if user_response.data else None
 
@@ -83,10 +83,10 @@ class DashboardController:
             solicitud = type('obj', (object,), {'data': solicitud_data})()
             ubicacion = supabase.table('ubicacion').select('*').eq('empresa_id', empresa_id).execute()
 
-            print(f"   📄 Solicitudes encontradas: {len(solicitud.data) if solicitud.data else 0}")
-            if solicitud.data:
-                for s in solicitud.data:
-                    print(f"      - ID: {s.get('id')}, Estado: {s.get('estado')}, Banco: {s.get('banco_nombre')}, Solicitante: {s.get('solicitante_id')}")
+            # # print(f"   📄 Solicitudes encontradas: {len(solicitud.data) if solicitud.data else 0}")
+            # if solicitud.data:
+            #     for s in solicitud.data:
+            #         print(f"      - ID: {s.get('id')}, Estado: {s.get('estado')}, Banco: {s.get('banco_nombre')}, Solicitante: {s.get('solicitante_id')}")
 
             # Construir respuesta consolidada
             response_data = []
@@ -122,10 +122,9 @@ class DashboardController:
                         ciudad_solicitante = soli.get('ciudad_solicitud')
 
                     if ciudad_solicitante and ciudad_solicitante != ciudad_usuario:
-                        print(f"   🏙️ Saltando solicitante {sol_id} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")
+                        # print(f"   🏙️ Saltando solicitante {sol_id} (ciudad: {ciudad_solicitante}, usuario: {ciudad_usuario})")
                         continue
-                    else:
-                        print(f"   🏙️ Ciudad coincidente: {ciudad_solicitante}")
+                        # print(f"   🏙️ Ciudad coincidente: {ciudad_solicitante}")
 
                 response_data.append({
                     "solicitante": sol,

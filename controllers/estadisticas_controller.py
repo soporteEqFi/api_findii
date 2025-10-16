@@ -23,20 +23,20 @@ class EstadisticasController:
             auth_header = request.headers.get("Authorization")
 
             if not auth_header or not auth_header.startswith("Bearer "):
-                print(f"   ❌ Authorization header inválido o faltante")
+                # print(f"   ❌ Authorization header inválido o faltante")
                 return None
 
             # Obtener user_id del header o query parameter
             user_id = request.headers.get("X-User-Id") or request.args.get("user_id")
 
             if not user_id:
-                print(f"   ❌ User ID faltante (header X-User-Id o query user_id)")
+                # print(f"   ❌ User ID faltante (header X-User-Id o query user_id)")
                 return None
 
             # Consultar la base de datos para obtener información completa del usuario
-            print(f"   🔍 Consultando usuario con ID: {user_id}")
+            # print(f"   🔍 Consultando usuario con ID: {user_id}")
             user_response = supabase.table("usuarios").select("id, rol, info_extra").eq("id", int(user_id)).execute()
-            print(f"   📊 Respuesta de BD: {user_response.data}")
+            # print(f"   📊 Respuesta de BD: {user_response.data}")
 
             user_data = user_response.data[0] if user_response.data else None
 
@@ -59,25 +59,25 @@ class EstadisticasController:
             return usuario_info
 
         except Exception as e:
-            print(f"   ❌ Error obteniendo usuario autenticado: {e}")
+            # print(f"   ❌ Error obteniendo usuario autenticado: {e}")
             return None
 
     def estadisticas_generales(self):
         """Endpoint para obtener estadísticas generales"""
         try:
-            print(f"\n📊 OBTENIENDO ESTADÍSTICAS GENERALES")
-            
+            # print(f"\n📊 OBTENIENDO ESTADÍSTICAS GENERALES")
+
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
-            
-            print(f"   🏢 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario info: {usuario_info}")
-            
+
+            # print(f"   🏢 Empresa ID: {empresa_id}")
+            # print(f"   👤 Usuario info: {usuario_info}")
+
             # Obtener estadísticas del modelo
             estadisticas = self.model.estadisticas_generales(empresa_id, usuario_info)
-            
-            print(f"   📈 Estadísticas obtenidas: {estadisticas}")
-            
+
+            # print(f"   📈 Estadísticas obtenidas: {estadisticas}")
+
             response_data = {
                 "ok": True,
                 "data": {
@@ -87,9 +87,9 @@ class EstadisticasController:
                     "estadisticas": estadisticas
                 }
             }
-            
+
             return jsonify(response_data)
-            
+
         except ValueError as ve:
             print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -101,22 +101,22 @@ class EstadisticasController:
         """Endpoint para obtener estadísticas de rendimiento"""
         try:
             print(f"\n⚡ OBTENIENDO ESTADÍSTICAS DE RENDIMIENTO")
-            
+
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
-            
+
             # Obtener parámetro de días (por defecto 30)
             dias = int(request.args.get("dias", 30))
-            
-            print(f"   🏢 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario info: {usuario_info}")
-            print(f"   📅 Período: {dias} días")
-            
+
+            # print(f"   🏢 Empresa ID: {empresa_id}")
+            # print(f"   👤 Usuario info: {usuario_info}")
+            # print(f"   📅 Período: {dias} días")
+
             # Obtener estadísticas del modelo
             estadisticas = self.model.estadisticas_rendimiento(empresa_id, usuario_info, dias)
-            
-            print(f"   📈 Estadísticas obtenidas: {estadisticas}")
-            
+
+            # print(f"   📈 Estadísticas obtenidas: {estadisticas}")
+
             response_data = {
                 "ok": True,
                 "data": {
@@ -127,9 +127,9 @@ class EstadisticasController:
                     "estadisticas": estadisticas
                 }
             }
-            
+
             return jsonify(response_data)
-            
+
         except ValueError as ve:
             print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -140,19 +140,19 @@ class EstadisticasController:
     def estadisticas_financieras(self):
         """Endpoint para obtener estadísticas financieras y de calidad"""
         try:
-            print(f"\n💰 OBTENIENDO ESTADÍSTICAS FINANCIERAS")
-            
+            # print(f"\n💰 OBTENIENDO ESTADÍSTICAS FINANCIERAS")
+
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
-            
-            print(f"   🏢 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario info: {usuario_info}")
-            
+
+            # print(f"   🏢 Empresa ID: {empresa_id}")
+            # print(f"   👤 Usuario info: {usuario_info}")
+
             # Obtener estadísticas del modelo
             estadisticas = self.model.estadisticas_financieras(empresa_id, usuario_info)
-            
-            print(f"   📈 Estadísticas obtenidas: {estadisticas}")
-            
+
+            # print(f"   📈 Estadísticas obtenidas: {estadisticas}")
+
             response_data = {
                 "ok": True,
                 "data": {
@@ -162,9 +162,9 @@ class EstadisticasController:
                     "estadisticas": estadisticas
                 }
             }
-            
+
             return jsonify(response_data)
-            
+
         except ValueError as ve:
             print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -175,19 +175,19 @@ class EstadisticasController:
     def estadisticas_usuarios(self):
         """Endpoint para obtener estadísticas de usuarios"""
         try:
-            print(f"\n👥 OBTENIENDO ESTADÍSTICAS DE USUARIOS")
-            
+            # print(f"\n👥 OBTENIENDO ESTADÍSTICAS DE USUARIOS")
+
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
-            
-            print(f"   🏢 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario info: {usuario_info}")
-            
+
+            # print(f"   🏢 Empresa ID: {empresa_id}")
+            # print(f"   👤 Usuario info: {usuario_info}")
+
             # Obtener estadísticas del modelo
             estadisticas = self.model.estadisticas_usuarios(empresa_id, usuario_info)
-            
-            print(f"   📈 Estadísticas obtenidas: {estadisticas}")
-            
+
+            # print(f"   📈 Estadísticas obtenidas: {estadisticas}")
+
             response_data = {
                 "ok": True,
                 "data": {
@@ -197,9 +197,9 @@ class EstadisticasController:
                     "estadisticas": estadisticas
                 }
             }
-            
+
             return jsonify(response_data)
-            
+
         except ValueError as ve:
             print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400
@@ -210,24 +210,24 @@ class EstadisticasController:
     def estadisticas_completas(self):
         """Endpoint para obtener todas las estadísticas en una sola llamada"""
         try:
-            print(f"\n🎯 OBTENIENDO ESTADÍSTICAS COMPLETAS")
-            
+            # print(f"\n🎯 OBTENIENDO ESTADÍSTICAS COMPLETAS")
+
             empresa_id = self._empresa_id()
             usuario_info = self._obtener_usuario_autenticado()
-            
+
             # Obtener parámetro de días para rendimiento
             dias = int(request.args.get("dias", 30))
-            
-            print(f"   🏢 Empresa ID: {empresa_id}")
-            print(f"   👤 Usuario info: {usuario_info}")
-            print(f"   📅 Período: {dias} días")
-            
+
+                # print(f"   🏢 Empresa ID: {empresa_id}")
+                # print(f"   👤 Usuario info: {usuario_info}")
+                # print(f"   📅 Período: {dias} días")
+
             # Obtener todas las estadísticas
             estadisticas_generales = self.model.estadisticas_generales(empresa_id, usuario_info)
             estadisticas_rendimiento = self.model.estadisticas_rendimiento(empresa_id, usuario_info, dias)
             estadisticas_financieras = self.model.estadisticas_financieras(empresa_id, usuario_info)
             estadisticas_usuarios = self.model.estadisticas_usuarios(empresa_id, usuario_info)
-            
+
             response_data = {
                 "ok": True,
                 "data": {
@@ -243,11 +243,11 @@ class EstadisticasController:
                     }
                 }
             }
-            
-            print(f"   ✅ Todas las estadísticas obtenidas exitosamente")
-            
+
+            # print(f"   ✅ Todas las estadísticas obtenidas exitosamente")
+
             return jsonify(response_data)
-            
+
         except ValueError as ve:
             print(f"❌ Error de validación: {ve}")
             return jsonify({"ok": False, "error": str(ve)}), 400

@@ -51,7 +51,7 @@ class SolicitantesController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
 
             # Campos requeridos
             required_fields = [
@@ -125,33 +125,33 @@ class SolicitantesController:
         try:
             empresa_id = self._empresa_id()
             print(f"\n📥 DESCARGANDO VENTAS EXCEL COMPLETO - Empresa ID: {empresa_id}")
-            
+
             # Obtener todos los datos completos sin límite
             try:
                 data = self.model.list_completo_para_excel(empresa_id=empresa_id, limit=10000, offset=0)
                 print(f"   📊 Total de registros: {len(data)}")
-                
+
                 # Debug: Mostrar estructura del primer registro
                 if data and len(data) > 0:
                     primer_registro = data[0]
-                    print(f"\n   🔍 DEBUG - Estructura del primer registro:")
-                    print(f"      - info_extra keys: {list(primer_registro.get('info_extra', {}).keys())}")
-                    if primer_registro.get('ubicaciones'):
-                        print(f"      - ubicaciones[0] keys: {list(primer_registro['ubicaciones'][0].keys())}")
-                        if primer_registro['ubicaciones'][0].get('detalle_direccion'):
-                            print(f"      - detalle_direccion keys: {list(primer_registro['ubicaciones'][0]['detalle_direccion'].keys())}")
-                    if primer_registro.get('actividad_economica'):
-                        print(f"      - actividad_economica[0] keys: {list(primer_registro['actividad_economica'][0].keys()) if primer_registro['actividad_economica'] else 'None'}")
-                    if primer_registro.get('informacion_financiera'):
-                        print(f"      - informacion_financiera[0] keys: {list(primer_registro['informacion_financiera'][0].keys()) if primer_registro['informacion_financiera'] else 'None'}")
+                    # # print(f"\n   🔍 DEBUG - Estructura del primer registro:")
+                    # # print(f"      - info_extra keys: {list(primer_registro.get('info_extra', {}).keys())}")
+                    # if primer_registro.get('ubicaciones'):
+                    #     # print(f"      - ubicaciones[0] keys: {list(primer_registro['ubicaciones'][0].keys())}")
+                    #     if primer_registro['ubicaciones'][0].get('detalle_direccion'):
+                    #         # print(f"      - detalle_direccion keys: {list(primer_registro['ubicaciones'][0]['detalle_direccion'].keys())}")
+                    # if primer_registro.get('actividad_economica'):
+                    #     # print(f"      - actividad_economica[0] keys: {list(primer_registro['actividad_economica'][0].keys()) if primer_registro['actividad_economica'] else 'None'}")
+                    # if primer_registro.get('informacion_financiera'):
+                        # print(f"      - informacion_financiera[0] keys: {list(primer_registro['informacion_financiera'][0].keys()) if primer_registro['informacion_financiera'] else 'None'}")
                     print()
-                    
+
             except Exception as model_error:
                 print(f"   ❌ Error al obtener datos del modelo: {model_error}")
                 import traceback
                 traceback.print_exc()
                 raise ValueError(f"Error al obtener datos: {str(model_error)}")
-            
+
             # CONFIGURACIÓN DE COLUMNAS - TODAS las columnas del registro completo
             columnas_config = [
                 # === DATOS BÁSICOS ===
@@ -163,7 +163,7 @@ class SolicitantesController:
                 ("Correo", lambda item: item.get("correo", "")),
                 ("Fecha Creación", lambda item: self._extraer_fecha(item.get("created_at", ""))),
                 ("Hora Creación", lambda item: self._extraer_hora(item.get("created_at", ""))),
-                
+
                 # === INFO EXTRA ===
                 ("Celular", lambda item: self._extraer_info_extra(item, "celular")),
                 ("Teléfono", lambda item: self._extraer_info_extra(item, "telefono")),
@@ -173,7 +173,7 @@ class SolicitantesController:
                 ("Personas a Cargo", lambda item: self._extraer_info_extra(item, "personas_a_cargo")),
                 ("Lugar Nacimiento", lambda item: self._extraer_info_extra(item, "lugar_nacimiento")),
                 ("Nacionalidad", lambda item: self._extraer_info_extra(item, "nacionalidad")),
-                
+
                 # === UBICACIÓN ===
                 ("Dirección", lambda item: self._extraer_ubicacion(item, "direccion")),
                 ("Ciudad Residencia", lambda item: self._extraer_ubicacion(item, "ciudad_residencia")),
@@ -183,7 +183,7 @@ class SolicitantesController:
                 ("Tipo Vivienda", lambda item: self._extraer_ubicacion(item, "tipo_vivienda")),
                 ("Paga Arriendo", lambda item: self._extraer_ubicacion(item, "paga_arriendo")),
                 ("Valor Arriendo", lambda item: self._extraer_ubicacion(item, "valor_mensual_arriendo")),
-                
+
                 # === ACTIVIDAD ECONÓMICA ===
                 ("Tipo Actividad", lambda item: self._extraer_actividad(item, "tipo_actividad")),
                 ("Tipo Actividad Económica", lambda item: self._extraer_actividad(item, "tipo_actividad_economica")),
@@ -196,7 +196,7 @@ class SolicitantesController:
                 ("Teléfono Empresa", lambda item: self._extraer_actividad(item, "telefono_empresa")),
                 ("Ciudad Empresa", lambda item: self._extraer_actividad(item, "ciudad_empresa")),
                 ("Sector Económico", lambda item: self._extraer_actividad(item, "sector_economico")),
-                
+
                 # === INFORMACIÓN FINANCIERA ===
                 ("Total Ingresos Mensuales", lambda item: self._extraer_financiera(item, "total_ingresos_mensuales")),
                 ("Total Egresos Mensuales", lambda item: self._extraer_financiera(item, "total_egresos_mensuales")),
@@ -208,7 +208,7 @@ class SolicitantesController:
                 ("Gastos Financieros", lambda item: self._extraer_financiera(item, "gastos_financieros_mensuales")),
                 ("Gastos Personales", lambda item: self._extraer_financiera(item, "gastos_personales_mensuales")),
                 ("Declara Renta", lambda item: self._extraer_financiera(item, "declara_renta")),
-                
+
                 # === SOLICITUD ===
                 ("Tipo Crédito", lambda item: self._extraer_solicitud(item, "detalle_credito", "tipo_credito")),
                 ("Monto Solicitado", lambda item: self._extraer_solicitud(item, "detalle_credito", "monto_solicitado")),
@@ -217,7 +217,7 @@ class SolicitantesController:
                 ("Banco", lambda item: self._extraer_solicitud(item, "banco_nombre")),
                 ("Ciudad Solicitud", lambda item: self._extraer_solicitud(item, "ciudad_solicitud")),
                 ("Estado", lambda item: self._extraer_solicitud(item, "estado")),
-                
+
                 # === REFERENCIAS ===
                 ("Referencia 1 - Nombre", lambda item: self._extraer_referencia(item, 0, "nombre_completo")),
                 ("Referencia 1 - Relación", lambda item: self._extraer_referencia(item, 0, "relacion_referencia")),
@@ -229,26 +229,26 @@ class SolicitantesController:
                 ("Referencia 2 - Teléfono", lambda item: self._extraer_referencia(item, 1, "telefono")),
                 ("Referencia 2 - Celular", lambda item: self._extraer_referencia(item, 1, "celular_referencia")),
                 ("Referencia 2 - Ciudad", lambda item: self._extraer_referencia(item, 1, "ciudad")),
-                
+
                 # === DOCUMENTOS ===
                 ("Total Documentos", lambda item: self._contar_documentos(item)),
                 ("Documentos Cargados", lambda item: self._listar_documentos(item)),
-                
+
                 # === USUARIOS ===
                 ("Creado por", lambda item: item.get("created_by_user_name", "")),
                 ("Supervisor", lambda item: item.get("created_by_supervisor_name", "")),
             ]
-            
+
             # Crear libro de Excel
             wb = Workbook()
             ws = wb.active
             ws.title = "Ventas"
-            
+
             # Estilo para encabezados
             header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
             header_font = Font(bold=True, color="FFFFFF", size=11)
             header_alignment = Alignment(horizontal="center", vertical="center")
-            
+
             # Escribir encabezados
             headers = [col[0] for col in columnas_config]
             for col_idx, header in enumerate(headers, start=1):
@@ -256,9 +256,9 @@ class SolicitantesController:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = header_alignment
-            
-            print(f"   📋 Columnas exportadas: {', '.join(headers)}")
-            
+
+            # print(f"   📋 Columnas exportadas: {', '.join(headers)}")
+
             # Escribir datos y verificar campos vacíos
             campos_vacios = {}
             for row_idx, item in enumerate(data, start=2):
@@ -270,28 +270,28 @@ class SolicitantesController:
                             value = ""
                         # Asegurar que sea string
                         value = str(value) if value else ""
-                        
+
                         # Contar campos vacíos para debugging
                         if not value and row_idx == 2:  # Solo primera fila para debug
                             campos_vacios[header] = campos_vacios.get(header, 0) + 1
-                        
+
                         cell = ws.cell(row=row_idx, column=col_idx, value=value)
                         cell.alignment = Alignment(horizontal="left", vertical="center")
                     except Exception as e:
                         print(f"   ⚠️ Error extrayendo valor en fila {row_idx}, col {col_idx} ({header}): {e}")
                         ws.cell(row=row_idx, column=col_idx, value="")
-            
+
             # Log de campos vacíos
-            if campos_vacios:
-                print(f"   📋 Campos vacíos en primer registro: {list(campos_vacios.keys())}")
-            
+            # if campos_vacios:
+                # print(f"   📋 Campos vacíos en primer registro: {list(campos_vacios.keys())}")
+
             # Ajustar ancho de columnas basado en el contenido real
             for col_idx, header in enumerate(headers, start=1):
                 column_letter = ws.cell(row=1, column=col_idx).column_letter
-                
+
                 # Calcular el ancho máximo basado en el contenido
                 max_length = len(str(header))  # Empezar con el largo del encabezado
-                
+
                 # Revisar todas las filas para encontrar el valor más largo
                 for row_idx in range(2, len(data) + 2):
                     cell_value = ws.cell(row=row_idx, column=col_idx).value
@@ -299,28 +299,28 @@ class SolicitantesController:
                         cell_length = len(str(cell_value))
                         if cell_length > max_length:
                             max_length = cell_length
-                
+
                 # Ajustar el ancho con un margen adicional (máximo 50 para evitar columnas muy anchas)
                 adjusted_width = min(max_length + 3, 50)
                 ws.column_dimensions[column_letter].width = adjusted_width
-            
+
             # Guardar en memoria con manejo de errores
             output = io.BytesIO()
             try:
                 wb.save(output)
                 output.seek(0)
                 excel_data = output.getvalue()
-                print(f"   💾 Archivo Excel guardado en memoria: {len(excel_data)} bytes")
+                # print(f"   💾 Archivo Excel guardado en memoria: {len(excel_data)} bytes")
             except Exception as save_error:
                 print(f"   ❌ Error al guardar Excel: {save_error}")
                 raise
             finally:
                 output.close()
-            
+
             # Preparar respuesta
             response = make_response(excel_data)
             filename = f"ventas_{empresa_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            
+
             # Headers optimizados para descarga de Excel
             response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             response.headers["Content-Disposition"] = f"attachment; filename={filename}"
@@ -328,17 +328,17 @@ class SolicitantesController:
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
-            
-            print(f"   ✅ Excel generado exitosamente con {len(columnas_config)} columnas y {len(data)} registros")
+
+            # print(f"   ✅ Excel generado exitosamente con {len(columnas_config)} columnas y {len(data)} registros")
             return response
-            
+
         except ValueError as ve:
             log_error(ve, "ERROR DE VALIDACIÓN EN DESCARGA EXCEL")
             return jsonify({"ok": False, "error": str(ve)}), 400
         except Exception as ex:
             log_error(ex, "ERROR INESPERADO EN DESCARGA EXCEL")
             return jsonify({"ok": False, "error": str(ex)}), 500
-    
+
     def _extraer_info_extra(self, item: dict, campo: str) -> str:
         """Extrae un campo de info_extra"""
         try:
@@ -347,7 +347,7 @@ class SolicitantesController:
             return str(valor) if valor else ""
         except Exception:
             return ""
-    
+
     def _extraer_ubicacion(self, item: dict, campo: str) -> str:
         """Extrae un campo de la primera ubicación"""
         try:
@@ -361,7 +361,7 @@ class SolicitantesController:
             return ""
         except Exception:
             return ""
-    
+
     def _extraer_actividad(self, item: dict, campo: str) -> str:
         """Extrae un campo de la primera actividad económica"""
         try:
@@ -375,7 +375,7 @@ class SolicitantesController:
             return ""
         except Exception:
             return ""
-    
+
     def _extraer_financiera(self, item: dict, campo: str) -> str:
         """Extrae un campo de la primera información financiera"""
         try:
@@ -389,25 +389,25 @@ class SolicitantesController:
             return ""
         except Exception:
             return ""
-    
+
     def _extraer_solicitud(self, item: dict, *campos) -> str:
         """Extrae un campo de la solicitud (puede ser anidado)"""
         try:
             solicitud = item.get("solicitud")
             if not solicitud:
                 return ""
-            
+
             valor = solicitud
             for campo in campos:
                 if isinstance(valor, dict):
                     valor = valor.get(campo)
                 else:
                     return ""
-            
+
             return str(valor) if valor else ""
         except Exception:
             return ""
-    
+
     def _extraer_referencia(self, item: dict, index: int, campo: str) -> str:
         """Extrae un campo de una referencia específica por índice"""
         try:
@@ -421,7 +421,7 @@ class SolicitantesController:
             return ""
         except Exception:
             return ""
-    
+
     def _contar_documentos(self, item: dict) -> str:
         """Cuenta el total de documentos"""
         try:
@@ -429,7 +429,7 @@ class SolicitantesController:
             return str(len(documentos))
         except Exception:
             return "0"
-    
+
     def _listar_documentos(self, item: dict) -> str:
         """Lista los nombres de los documentos separados por coma"""
         try:
@@ -438,7 +438,7 @@ class SolicitantesController:
             return ", ".join(nombres) if nombres else ""
         except Exception:
             return ""
-    
+
     def _extraer_fecha(self, created_at: str) -> str:
         """Extrae la fecha en formato DD/MM/YYYY del timestamp, convertido a zona horaria de Colombia (UTC-5)"""
         if not created_at:
@@ -446,18 +446,18 @@ class SolicitantesController:
         try:
             # Parsear el timestamp UTC
             dt_utc = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-            
+
             # Convertir a zona horaria de Colombia (UTC-5)
             colombia_tz = timezone(timedelta(hours=-5))
             dt_colombia = dt_utc.astimezone(colombia_tz)
-            
+
             return dt_colombia.strftime("%d/%m/%Y")
         except Exception as e:
             try:
                 return created_at.split("T")[0] if "T" in str(created_at) else str(created_at)
             except:
                 return ""
-    
+
     def _extraer_hora(self, created_at: str) -> str:
         """Extrae la hora en formato 12 horas (hh:mm:ss AM/PM) del timestamp, convertido a zona horaria de Colombia (UTC-5)"""
         if not created_at:
@@ -465,11 +465,11 @@ class SolicitantesController:
         try:
             # Parsear el timestamp UTC
             dt_utc = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-            
+
             # Convertir a zona horaria de Colombia (UTC-5)
             colombia_tz = timezone(timedelta(hours=-5))
             dt_colombia = dt_utc.astimezone(colombia_tz)
-            
+
             # Formato 12 horas con AM/PM
             return dt_colombia.strftime("%I:%M:%S %p")
         except Exception as e:
@@ -514,12 +514,12 @@ class SolicitantesController:
             # Soportar JSON puro y multipart/form-data con 'payload' + archivos
             content_type = request.content_type or ""
             if "multipart/form-data" in content_type:
-                print(f"   📨 Content-Type recibido: {content_type}")
-                try:
-                    print(f"   📝 Form keys: {list(request.form.keys())}")
-                    print(f"   📁 Files keys: {list(request.files.keys())}")
-                except Exception as _e:
-                    print(f"   ⚠️ No se pudieron listar keys de form/files: {_e}")
+                # print(f"   📨 Content-Type recibido: {content_type}")
+                # try:
+                #     # print(f"   📝 Form keys: {list(request.form.keys())}")
+                #     # print(f"   📁 Files keys: {list(request.files.keys())}")
+                # except Exception as _e:
+                #     print(f"   ⚠️ No se pudieron listar keys de form/files: {_e}")
                 raw_payload = request.form.get("payload")
                 body = json.loads(raw_payload) if raw_payload else {}
                 # Recolectar posibles campos de archivos enviados
@@ -530,22 +530,22 @@ class SolicitantesController:
                     if key in request.files:
                         # getlist también funciona para una sola entrada
                         files_list.extend(request.files.getlist(key))
-                print(f"   📎 Archivos recibidos (multipart): {len(files_list)}")
+                # print(f"   📎 Archivos recibidos (multipart): {len(files_list)}")
             else:
-                print(f"   📨 Content-Type recibido: {content_type} (sin multipart, no hay archivos)")
+                # print(f"   📨 Content-Type recibido: {content_type} (sin multipart, no hay archivos)")
                 body = request.get_json(silent=True) or {}
                 files_list = []
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"\n📦 DATOS RECIBIDOS:")
-            print(f"   Claves principales: {list(body.keys())}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"\n📦 DATOS RECIBIDOS:")
+            # print(f"   Claves principales: {list(body.keys())}")
 
             # Extraer datos de cada entidad
             datos_solicitante = body.get("solicitante", {})
-            print(f"   🔍 Body completo: {body}")
-            print(f"   🔍 Claves en body: {list(body.keys())}")
-            print(f"   🔍 datos_solicitante: {datos_solicitante}")
-            print(f"   🔍 Tipo datos_solicitante: {type(datos_solicitante)}")
+            # print(f"   🔍 Body completo: {body}")
+            # print(f"   🔍 Claves en body: {list(body.keys())}")
+            # print(f"   🔍 datos_solicitante: {datos_solicitante}")
+            # print(f"   🔍 Tipo datos_solicitante: {type(datos_solicitante)}")
 
             # Manejar ubicaciones (puede ser objeto o lista)
             ubicacion_obj = body.get("ubicacion", {})
@@ -565,21 +565,21 @@ class SolicitantesController:
             solicitudes_list = body.get("solicitudes", [])
             datos_solicitudes = [solicitud_obj] if solicitud_obj else solicitudes_list
 
-            print(f"\n🔍 DATOS EXTRAÍDOS:")
-            print(f"   Solicitante: {len(datos_solicitante)} campos")
-            print(f"   Ubicaciones: {len(datos_ubicaciones)} registros")
-            print(f"   Actividad económica: {'✅ Presente' if datos_actividad else '❌ Vacío'}")
-            print(f"   Info financiera: {'✅ Presente' if datos_financiera else '❌ Vacío'}")
-            print(f"   Referencias: {len(datos_referencias)} registros")
-            print(f"   Solicitudes: {len(datos_solicitudes)} registros")
+            # print(f"\n🔍 DATOS EXTRAÍDOS:")
+            # print(f"   Solicitante: {len(datos_solicitante)} campos")
+            # print(f"   Ubicaciones: {len(datos_ubicaciones)} registros")
+            # print(f"   Actividad económica: {'✅ Presente' if datos_actividad else '❌ Vacío'}")
+            # print(f"   Info financiera: {'✅ Presente' if datos_financiera else '❌ Vacío'}")
+            # print(f"   Referencias: {len(datos_referencias)} registros")
+            # print(f"   Solicitudes: {len(datos_solicitudes)} registros")
 
             # Debug: mostrar qué se encontró
-            if ubicacion_obj:
-                print(f"   📍 Ubicación encontrada como objeto")
-            if referencia_obj:
-                print(f"   👥 Referencia encontrada como objeto")
-            if solicitud_obj:
-                print(f"   📋 Solicitud encontrada como objeto")
+            # if ubicacion_obj:
+            #     print(f"   📍 Ubicación encontrada como objeto")
+            # if referencia_obj:
+            #     print(f"   👥 Referencia encontrada como objeto")
+            # if solicitud_obj:
+            #     print(f"   📋 Solicitud encontrada como objeto")
 
             # 1. CREAR SOLICITANTE
             print(f"\n1️⃣ CREANDO SOLICITANTE...")
@@ -587,16 +587,16 @@ class SolicitantesController:
                 raise ValueError("Datos del solicitante son requeridos")
 
             datos_solicitante["empresa_id"] = empresa_id
-            print(f"   Datos a guardar: {datos_solicitante}")
+            # print(f"   Datos a guardar: {datos_solicitante}")
 
             solicitante_creado = self.model.create(**datos_solicitante)
             solicitante_id = solicitante_creado["id"]
-            print(f"   ✅ Solicitante creado con ID: {solicitante_id}")
+            # print(f"   ✅ Solicitante creado con ID: {solicitante_id}")
 
             # 1.b SUBIR DOCUMENTOS (si vinieron en multipart)
             documentos_creados = []
             if files_list:
-                print(f"\n1️⃣b SUBIENDO DOCUMENTOS ({len(files_list)})...")
+                # print(f"\n1️⃣b SUBIENDO DOCUMENTOS ({len(files_list)})...")
                 storage = supabase.storage.from_("document")
                 for idx, file in enumerate(files_list):
                     try:
@@ -635,17 +635,17 @@ class SolicitantesController:
                             solicitante_id=solicitante_id,
                         )
                         documentos_creados.append(doc_saved)
-                        print(f"   ✅ Documento subido: {original_name}")
+                        # print(f"   ✅ Documento subido: {original_name}")
                     except Exception as e:
                         print(f"   ❌ Error subiendo documento {idx+1}: {e}")
-                print(f"   📊 Total documentos subidos y guardados: {len(documentos_creados)}")
+                # print(f"   📊 Total documentos subidos y guardados: {len(documentos_creados)}")
 
             # 2. CREAR UBICACIONES
             ubicaciones_creadas = []
             if datos_ubicaciones:
-                print(f"\n2️⃣ CREANDO UBICACIONES...")
+                # print(f"\n2️⃣ CREANDO UBICACIONES...")
                 for idx, ubicacion_data in enumerate(datos_ubicaciones):
-                    print(f"   Ubicación {idx + 1} original: {ubicacion_data}")
+                    # print(f"   Ubicación {idx + 1} original: {ubicacion_data}")
 
                     # Procesar campos dinámicos para ubicaciones
                     detalle_direccion = ubicacion_data.get("detalle_direccion", {})
@@ -661,26 +661,26 @@ class SolicitantesController:
                     for campo in campos_para_mover:
                         if campo in ubicacion_data:
                             detalle_direccion[campo] = ubicacion_data.pop(campo)
-                            print(f"   🔄 Movido '{campo}' a detalle_direccion")
+                            # print(f"   🔄 Movido '{campo}' a detalle_direccion")
 
                     # Actualizar ubicacion_data con detalle_direccion procesado
                     ubicacion_data["detalle_direccion"] = detalle_direccion
 
-                    print(f"   Ubicación {idx + 1} procesada: {ubicacion_data}")
+                    # print(f"   Ubicación {idx + 1} procesada: {ubicacion_data}")
                     ubicacion_data["empresa_id"] = empresa_id
                     ubicacion_data["solicitante_id"] = solicitante_id
 
                     ubicacion_creada = self.ubicaciones_model.create(**ubicacion_data)
                     ubicaciones_creadas.append(ubicacion_creada)
-                    print(f"   ✅ Ubicación {idx + 1} creada con ID: {ubicacion_creada['id']}")
-            else:
-                print(f"\n2️⃣ UBICACIONES: No hay datos para crear")
+                    # print(f"   ✅ Ubicación {idx + 1} creada con ID: {ubicacion_creada['id']}")
+            # else:
+                # print(f"\n2️⃣ UBICACIONES: No hay datos para crear")
 
             # 3. CREAR ACTIVIDAD ECONÓMICA
             actividad_creada = None
             if datos_actividad:
-                print(f"\n3️⃣ CREANDO ACTIVIDAD ECONÓMICA...")
-                print(f"   Datos originales: {datos_actividad}")
+                # print(f"\n3️⃣ CREANDO ACTIVIDAD ECONÓMICA...")
+                # print(f"   Datos originales: {datos_actividad}")
 
                 # Procesar campos dinámicos para actividad económica
                 detalle_actividad = datos_actividad.get("detalle_actividad", {})
@@ -690,25 +690,25 @@ class SolicitantesController:
                 for campo in campos_para_mover:
                     if campo in datos_actividad:
                         detalle_actividad[campo] = datos_actividad.pop(campo)
-                        print(f"   🔄 Movido '{campo}' a detalle_actividad")
+                        # print(f"   🔄 Movido '{campo}' a detalle_actividad")
 
                 # Actualizar datos_actividad con detalle_actividad procesado
                 datos_actividad["detalle_actividad"] = detalle_actividad
 
-                print(f"   Datos procesados: {datos_actividad}")
+                # print(f"   Datos procesados: {datos_actividad}")
                 datos_actividad["empresa_id"] = empresa_id
                 datos_actividad["solicitante_id"] = solicitante_id
 
                 actividad_creada = self.actividad_model.create(**datos_actividad)
-                print(f"   ✅ Actividad económica creada con ID: {actividad_creada['id']}")
-            else:
-                print(f"\n3️⃣ ACTIVIDAD ECONÓMICA: No hay datos para crear")
+                # print(f"   ✅ Actividad económica creada con ID: {actividad_creada['id']}")
+            # else:
+                # print(f"\n3️⃣ ACTIVIDAD ECONÓMICA: No hay datos para crear")
 
             # 4. CREAR INFORMACIÓN FINANCIERA
             financiera_creada = None
             if datos_financiera:
-                print(f"\n4️⃣ CREANDO INFORMACIÓN FINANCIERA...")
-                print(f"   Datos originales: {datos_financiera}")
+                # print(f"\n4️⃣ CREANDO INFORMACIÓN FINANCIERA...")
+                # print(f"   Datos originales: {datos_financiera}")
 
                 # Procesar campos dinámicos para información financiera
                 detalle_financiera = datos_financiera.get("detalle_financiera", {})
@@ -723,7 +723,7 @@ class SolicitantesController:
                 for campo in campos_para_mover:
                     if campo in datos_financiera:
                         detalle_financiera[campo] = datos_financiera.pop(campo)
-                        print(f"   🔄 Movido '{campo}' a detalle_financiera")
+                        # print(f"   🔄 Movido '{campo}' a detalle_financiera")
 
                 # Actualizar datos_financiera con detalle_financiera procesado
                 datos_financiera["detalle_financiera"] = detalle_financiera
@@ -739,19 +739,19 @@ class SolicitantesController:
                     "detalle_financiera": detalle_financiera
                 }
 
-                print(f"   Datos procesados: {datos_para_modelo}")
+                # print(f"   Datos procesados: {datos_para_modelo}")
 
                 financiera_creada = self.financiera_model.create(**datos_para_modelo)
-                print(f"   ✅ Información financiera creada con ID: {financiera_creada['id']}")
-            else:
-                print(f"\n4️⃣ INFORMACIÓN FINANCIERA: No hay datos para crear")
+                # print(f"   ✅ Información financiera creada con ID: {financiera_creada['id']}")
+            # else:
+                # print(f"\n4️⃣ INFORMACIÓN FINANCIERA: No hay datos para crear")
 
             # 5. CREAR REFERENCIAS (JSON en una sola fila por solicitante)
             referencias_creadas = []
             if datos_referencias:
-                print(f"\n5️⃣ CREANDO REFERENCIAS (JSON)...")
+                # print(f"\n5️⃣ CREANDO REFERENCIAS (JSON)...")
                 for idx, referencia_data in enumerate(datos_referencias):
-                    print(f"   Referencia {idx + 1} original: {referencia_data}")
+                    # print(f"   Referencia {idx + 1} original: {referencia_data}")
 
                     # La referencia se almacena como objeto dentro de detalle_referencia.referencias
                     # Se admite tanto que los campos vengan en la raíz como en una subclave.
@@ -798,24 +798,24 @@ class SolicitantesController:
                         referencia=cleaned
                     )
                     referencias_creadas.append(agregado)
-                print(f"   ✅ Total referencias agregadas: {len(referencias_creadas)}")
-            else:
-                print(f"\n5️⃣ REFERENCIAS: No hay datos para crear")
+                # print(f"   ✅ Total referencias agregadas: {len(referencias_creadas)}")
+            # else:
+                # print(f"\n5️⃣ REFERENCIAS: No hay datos para crear")
 
             # 6. CREAR SOLICITUDES
             solicitudes_creadas = []
             if datos_solicitudes:
-                print(f"\n6️⃣ CREANDO SOLICITUDES...")
+                # print(f"\n6️⃣ CREANDO SOLICITUDES...")
                 for idx, solicitud_data in enumerate(datos_solicitudes):
-                    print(f"   Solicitud {idx + 1}: {solicitud_data}")
+                    # print(f"   Solicitud {idx + 1}: {solicitud_data}")
 
                     # Extraer banco y ciudad desde campos fijos (raíz del objeto solicitud)
                     detalle_credito = solicitud_data.get("detalle_credito", {})
                     banco_nombre = solicitud_data.get("banco_nombre")  # Campo fijo en la raíz
                     ciudad = solicitud_data.get("ciudad_solicitud")    # Campo fijo en la raíz
 
-                    print(f"   🏦 Banco extraído: {banco_nombre}")
-                    print(f"   🏙️ Ciudad extraída: {ciudad}")
+                    # print(f"   🏦 Banco extraído: {banco_nombre}")
+                    # print(f"   🏙️ Ciudad extraída: {ciudad}")
 
                     # Procesar campos anidados de tipo de crédito
                     tipo_credito = solicitud_data.get("tipo_credito")
@@ -852,7 +852,7 @@ class SolicitantesController:
                                 elif isinstance(detalle_credito, dict) and nested_field in detalle_credito:
                                     # Ya viene dentro de detalle_credito, mantenerlo
                                     pass
-                                print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
+                                # print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
                                 break
 
                     # Copiar cualquier subobjeto de crédito conocido aunque no coincida tipo_credito
@@ -881,10 +881,10 @@ class SolicitantesController:
                             for campo in list(detalle_credito.keys()):
                                 if campo != nested_field and campo != "tipo_credito" and campo in nested_obj:
                                     campos_a_eliminar.append(campo)
-                            
+
                             for campo in campos_a_eliminar:
                                 detalle_credito.pop(campo, None)
-                                print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
+                                # print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
 
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")
@@ -892,8 +892,8 @@ class SolicitantesController:
                     nombre_banco_usuario = body.get("nombre_banco_usuario", "")
                     correo_banco_usuario = body.get("correo_banco_usuario", "")
 
-                    print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
-                    print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
+                    # print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
+                    # print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
 
                     # Agregar estos datos al detalle_credito para que se guarden
                     if nombre_asesor:
@@ -931,12 +931,12 @@ class SolicitantesController:
 
                     solicitud_creada = self.solicitudes_model.create(**datos_para_modelo)
                     solicitudes_creadas.append(solicitud_creada)
-                    print(f"   ✅ Solicitud {idx + 1} creada con ID: {solicitud_creada['id']}")
-            else:
-                print(f"\n6️⃣ SOLICITUDES: No hay datos para crear")
+                    # print(f"   ✅ Solicitud {idx + 1} creada con ID: {solicitud_creada['id']}")
+            # else:
+                # print(f"\n6️⃣ SOLICITUDES: No hay datos para crear")
 
             # 7. PREPARAR RESPUESTA
-            print(f"\n🔗 PREPARANDO RESPUESTA FINAL...")
+            # print(f"\n🔗 PREPARANDO RESPUESTA FINAL...")
             response_data = {
                 "ok": True,
                 "data": {
@@ -959,13 +959,13 @@ class SolicitantesController:
                 "message": f"Registro completo creado exitosamente. Solicitante ID: {solicitante_id}"
             }
 
-            print(f"\n📊 RESUMEN FINAL:")
-            print(f"   👤 Solicitante: {solicitante_id}")
-            print(f"   📍 Ubicaciones: {len(ubicaciones_creadas)}")
-            print(f"   💼 Actividad económica: {'✅' if actividad_creada else '❌'}")
-            print(f"   💰 Info financiera: {'✅' if financiera_creada else '❌'}")
-            print(f"   👥 Referencias: {len(referencias_creadas)}")
-            print(f"   📄 Solicitudes: {len(solicitudes_creadas)}")
+            # print(f"\n📊 RESUMEN FINAL:")
+            # print(f"   👤 Solicitante: {solicitante_id}")
+            # print(f"   📍 Ubicaciones: {len(ubicaciones_creadas)}")
+            # print(f"   💼 Actividad económica: {'✅' if actividad_creada else '❌'}")
+            # print(f"   💰 Info financiera: {'✅' if financiera_creada else '❌'}")
+            # print(f"   👥 Referencias: {len(referencias_creadas)}")
+            # print(f"   📄 Solicitudes: {len(solicitudes_creadas)}")
 
             # 8. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
             print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
@@ -1086,8 +1086,8 @@ class SolicitantesController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"📋 SOLICITANTE ID: {solicitante_id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"📋 SOLICITANTE ID: {solicitante_id}")
 
             # Verificar que el solicitante existe
             solicitante_existente = self.model.get_by_id(id=solicitante_id, empresa_id=empresa_id)
@@ -1105,24 +1105,24 @@ class SolicitantesController:
             # 1. ACTUALIZAR SOLICITANTE
             solicitante_actualizado = None
             if datos_solicitante:
-                print(f"\n1️⃣ ACTUALIZANDO SOLICITANTE...")
+                # print(f"\n1️⃣ ACTUALIZANDO SOLICITANTE...")
                 solicitante_actualizado = self.model.update(
                     id=solicitante_id,
                     empresa_id=empresa_id,
                     updates=datos_solicitante
                 )
-                print(f"   ✅ Solicitante actualizado")
+                # print(f"   ✅ Solicitante actualizado")
             else:
                 solicitante_actualizado = solicitante_existente
 
             # 2. ACTUALIZAR UBICACIONES
             ubicaciones_actualizadas = []
             if datos_ubicaciones:
-                print(f"\n2️⃣ ACTUALIZANDO UBICACIONES...")
+                # print(f"\n2️⃣ ACTUALIZANDO UBICACIONES...")
 
                 # Obtener ubicaciones existentes del solicitante
                 ubicaciones_existentes = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
-                print(f"   📍 Ubicaciones existentes encontradas: {len(ubicaciones_existentes)}")
+                # print(f"   📍 Ubicaciones existentes encontradas: {len(ubicaciones_existentes)}")
 
                 for idx, ubicacion_data in enumerate(datos_ubicaciones):
                     # Procesar campos dinámicos
@@ -1145,24 +1145,24 @@ class SolicitantesController:
                     # Si hay ID específico, buscar por ID
                     if ubicacion_id and str(ubicacion_id).strip() and str(ubicacion_id) != "0":
                         ubicacion_existente = next((u for u in ubicaciones_existentes if u["id"] == int(ubicacion_id)), None)
-                        print(f"   🔍 Buscando ubicación por ID {ubicacion_id}: {'Encontrada' if ubicacion_existente else 'No encontrada'}")
+                        # print(f"   🔍 Buscando ubicación por ID {ubicacion_id}: {'Encontrada' if ubicacion_existente else 'No encontrada'}")
 
                     # Si no hay ID o no se encontró, usar ubicación existente por índice
                     if not ubicacion_existente and idx < len(ubicaciones_existentes):
                         ubicacion_existente = ubicaciones_existentes[idx]
-                        print(f"   🔄 Usando ubicación existente por índice {idx}, ID: {ubicacion_existente['id']}")
+                        # print(f"   🔄 Usando ubicación existente por índice {idx}, ID: {ubicacion_existente['id']}")
 
                     # Actualizar o crear según corresponda
                     if ubicacion_existente:
-                        print(f"   ✏️ ACTUALIZANDO ubicación ID: {ubicacion_existente['id']}")
+                        # print(f"   ✏️ ACTUALIZANDO ubicación ID: {ubicacion_existente['id']}")
                         ubicacion_actualizada = self.ubicaciones_model.update(
                             id=ubicacion_existente["id"],
                             empresa_id=empresa_id,
                             updates={k: v for k, v in ubicacion_data.items() if k != "id"}
                         )
-                        print(f"   ✅ Ubicación {ubicacion_existente['id']} actualizada exitosamente")
+                        # print(f"   ✅ Ubicación {ubicacion_existente['id']} actualizada exitosamente")
                     else:
-                        print(f"   🆕 CREANDO nueva ubicación (no hay ubicaciones existentes para índice {idx})")
+                        # print(f"   🆕 CREANDO nueva ubicación (no hay ubicaciones existentes para índice {idx})")
                         ubicacion_data["empresa_id"] = empresa_id
                         ubicacion_data["solicitante_id"] = solicitante_id
                         ubicacion_actualizada = self.ubicaciones_model.create(**ubicacion_data)
@@ -1172,7 +1172,7 @@ class SolicitantesController:
             # 3. ACTUALIZAR ACTIVIDAD ECONÓMICA
             actividad_actualizada = None
             if datos_actividad:
-                print(f"\n3️⃣ ACTUALIZANDO ACTIVIDAD ECONÓMICA...")
+                # print(f"\n3️⃣ ACTUALIZANDO ACTIVIDAD ECONÓMICA...")
                 detalle_actividad = datos_actividad.get("detalle_actividad", {})
                 campos_para_mover = ["tipo_actividad", "tipo_actividad_economica"]
                 for campo in campos_para_mover:
@@ -1198,7 +1198,7 @@ class SolicitantesController:
             # 4. ACTUALIZAR INFORMACIÓN FINANCIERA
             financiera_actualizada = None
             if datos_financiera:
-                print(f"\n4️⃣ ACTUALIZANDO INFORMACIÓN FINANCIERA...")
+                #   print(f"\n4️⃣ ACTUALIZANDO INFORMACIÓN FINANCIERA...")
                 detalle_financiera = datos_financiera.get("detalle_financiera", {})
                 campos_para_mover = [
                     "ingreso_basico_mensual", "ingreso_variable_mensual", "otros_ingresos_mensuales",
@@ -1235,7 +1235,7 @@ class SolicitantesController:
             # 5. ACTUALIZAR REFERENCIAS (JSON en una sola fila por solicitante)
             referencias_actualizadas = []
             if datos_referencias:
-                print(f"\n5️⃣ ACTUALIZANDO REFERENCIAS (JSON)...")
+                # print(f"\n5️⃣ ACTUALIZANDO REFERENCIAS (JSON)...")
                 for idx, referencia_data in enumerate(datos_referencias):
                     # Si viene referencia_id (o alias id), actualizamos campos; si no, agregamos como nueva
                     ref_id = referencia_data.get("referencia_id") or referencia_data.get("id")
@@ -1271,7 +1271,7 @@ class SolicitantesController:
 
                     if ref_id is not None and str(ref_id).strip() != "":
                         if not cleaned:
-                            print(f"   ⚠️ Referencia {ref_id} con payload vacío tras limpiar, se omite actualización")
+                            # print(f"   ⚠️ Referencia {ref_id} con payload vacío tras limpiar, se omite actualización")
                             continue
                         actualizado = self.referencias_model.update_referencia_fields(
                             empresa_id=empresa_id,
@@ -1281,11 +1281,11 @@ class SolicitantesController:
                         )
                         if actualizado is not None:
                             referencias_actualizadas.append(actualizado)
-                        else:
-                            print(f"   ❌ Referencia no encontrada para actualizar. referencia_id solicitado: {ref_id}")
+                        # else:
+                            # print(f"   ❌ Referencia no encontrada para actualizar. referencia_id solicitado: {ref_id}")
                     else:
                         if only_tipo:
-                            print(f"   ⚠️ Referencia {idx+1}: no se crea porque solo trae 'tipo_referencia' sin campos informativos")
+                            # print(f"   ⚠️ Referencia {idx+1}: no se crea porque solo trae 'tipo_referencia' sin campos informativos")
                             continue
                         agregado = self.referencias_model.add_referencia(
                             empresa_id=empresa_id,
@@ -1298,14 +1298,14 @@ class SolicitantesController:
             solicitudes_actualizadas = []
 
             if datos_solicitudes:
-                print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
+                # print(f"\n6️⃣ ACTUALIZANDO SOLICITUDES...")
                 user_id = request.headers.get("X-User-Id")
                 if not user_id:
                     raise ValueError("X-User-Id header es requerido para actualizar solicitudes")
 
                 # Obtener solicitudes existentes del solicitante
                 solicitudes_existentes = self.solicitudes_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
-                print(f"   📋 Solicitudes existentes encontradas: {len(solicitudes_existentes)}")
+                # print(f"   📋 Solicitudes existentes encontradas: {len(solicitudes_existentes)}")
 
                 for idx, solicitud_data in enumerate(datos_solicitudes):
                     detalle_credito = solicitud_data.get("detalle_credito", {})
@@ -1345,7 +1345,7 @@ class SolicitantesController:
                                 elif isinstance(detalle_credito, dict) and nested_field in detalle_credito:
                                     # Ya viene dentro de detalle_credito, mantenerlo
                                     pass
-                                print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
+                                # print(f"   📋 Procesando campos anidados para {credit_type}: {nested_field}")
                                 break
 
                     # Copiar cualquier subobjeto de crédito conocido aunque no coincida tipo_credito
@@ -1374,10 +1374,10 @@ class SolicitantesController:
                             for campo in list(detalle_credito.keys()):
                                 if campo != nested_field and campo != "tipo_credito" and campo in nested_obj:
                                     campos_a_eliminar.append(campo)
-                            
+
                             for campo in campos_a_eliminar:
                                 detalle_credito.pop(campo, None)
-                                print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
+                                # print(f"   🧹 Eliminado campo duplicado '{campo}' de la raíz de detalle_credito")
 
                     # Extraer datos del asesor y banco desde el body principal (no desde solicitud_data)
                     nombre_asesor = body.get("nombre_asesor", "")
@@ -1385,8 +1385,8 @@ class SolicitantesController:
                     nombre_banco_usuario = body.get("nombre_banco_usuario", "")
                     correo_banco_usuario = body.get("correo_banco_usuario", "")
 
-                    print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
-                    print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
+                    # print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
+                    # print(f"   🏦 Usuario banco: {nombre_banco_usuario} ({correo_banco_usuario})")
 
                     # Agregar estos datos al detalle_credito para que se guarden
                     if nombre_asesor:
@@ -1415,17 +1415,17 @@ class SolicitantesController:
                     # Si hay ID específico, buscar por ID
                     if solicitud_id and str(solicitud_id).strip() and str(solicitud_id) != "0":
                         solicitud_existente = next((s for s in solicitudes_existentes if s["id"] == int(solicitud_id)), None)
-                        print(f"   🔍 Buscando por ID {solicitud_id}: {'Encontrada' if solicitud_existente else 'No encontrada'}")
+                        # print(f"   🔍 Buscando por ID {solicitud_id}: {'Encontrada' if solicitud_existente else 'No encontrada'}")
 
                     # Si no hay ID o no se encontró, usar la primera solicitud existente
                     if not solicitud_existente and solicitudes_existentes:
                         solicitud_existente = solicitudes_existentes[0]
-                        print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
+                        # print(f"   🔄 Usando primera solicitud existente ID: {solicitud_existente['id']}")
 
 
                     # Actualizar o crear según corresponda
                     if solicitud_existente:
-                        print(f"   ✏️ ACTUALIZANDO solicitud ID: {solicitud_existente['id']}")
+                        # print(f"   ✏️ ACTUALIZANDO solicitud ID: {solicitud_existente['id']}")
 
                         # Separar detalle_credito de otros campos base
                         detalle_credito = datos_para_modelo.pop("detalle_credito", {})
@@ -1437,9 +1437,9 @@ class SolicitantesController:
                             base_updates=base_updates,
                             detalle_credito_merge=detalle_credito
                         )
-                        print(f"   ✅ Solicitud {solicitud_existente['id']} actualizada exitosamente")
+                        # print(f"   ✅ Solicitud {solicitud_existente['id']} actualizada exitosamente")
                     else:
-                        print(f"   🆕 CREANDO nueva solicitud (no hay solicitudes existentes)")
+                        # print(f"   🆕 CREANDO nueva solicitud (no hay solicitudes existentes)")
                         datos_para_modelo.update({
                             "empresa_id": empresa_id,
                             "solicitante_id": solicitante_id,
@@ -1451,7 +1451,7 @@ class SolicitantesController:
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
             # 7. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
-            print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
+            # print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
             try:
                 # Preparar response_data temporal para el email
                 response_data_temp = {

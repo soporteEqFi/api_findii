@@ -77,8 +77,8 @@ class UsuariosController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USER ID: {id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USER ID: {id}")
 
             # Obtener usuario específico
             usuario = self.model.get_by_id(user_id=id, empresa_id=empresa_id)
@@ -109,9 +109,9 @@ class UsuariosController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USER ID: {id}")
-            print(f"📝 DATOS A ACTUALIZAR: {body}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USER ID: {id}")
+            # print(f"📝 DATOS A ACTUALIZAR: {body}")
 
             # Validar que hay datos para actualizar
             if not body:
@@ -159,8 +159,8 @@ class UsuariosController:
             empresa_id = self._empresa_id()
             body = request.get_json(silent=True) or {}
 
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"📝 DATOS RECIBIDOS: {body}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"📝 DATOS RECIBIDOS: {body}")
 
             # Validar campos requeridos
             campos_requeridos = ["nombre", "cedula", "correo", "contraseña", "rol"]
@@ -196,8 +196,8 @@ class UsuariosController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👤 USER ID: {id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👤 USER ID: {id}")
 
             # Eliminar usuario
             eliminado = self.model.delete(user_id=id, empresa_id=empresa_id)
@@ -226,8 +226,8 @@ class UsuariosController:
 
         try:
             empresa_id = self._empresa_id()
-            print(f"\n📋 EMPRESA ID: {empresa_id}")
-            print(f"👨‍💼 SUPERVISOR ID: {supervisor_id}")
+            # print(f"\n📋 EMPRESA ID: {empresa_id}")
+            # print(f"👨‍💼 SUPERVISOR ID: {supervisor_id}")
 
             # Obtener miembros del equipo
             team_members = self.model.get_team_members(supervisor_id, empresa_id)

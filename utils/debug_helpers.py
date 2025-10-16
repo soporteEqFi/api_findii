@@ -23,55 +23,55 @@ def log_request_details(endpoint_name: str, entity_name: str = ""):
     print(f"📋 METHOD: {request.method}")
     print(f"📋 PATH: {request.path}")
 
-    # HEADERS IMPORTANTES
-    print(f"\n🔖 HEADERS IMPORTANTES:")
-    important_headers = ['Content-Type', 'X-Empresa-Id', 'Origin', 'Authorization']
-    for header in important_headers:
-        value = request.headers.get(header)
-        if value:
-            print(f"   {header}: {value}")
+    # # HEADERS IMPORTANTES
+    # print(f"\n🔖 HEADERS IMPORTANTES:")
+    # important_headers = ['Content-Type', 'X-Empresa-Id', 'Origin', 'Authorization']
+    # for header in important_headers:
+    #     value = request.headers.get(header)
+    #     if value:
+    #         print(f"   {header}: {value}")
 
-    # QUERY PARAMS
-    if request.args:
-        print(f"\n🔍 QUERY PARAMS:")
-        for key, value in request.args.items():
-            print(f"   {key} = {value}")
+    # # QUERY PARAMS
+    # if request.args:
+    #     print(f"\n🔍 QUERY PARAMS:")
+    #     for key, value in request.args.items():
+    #         print(f"   {key} = {value}")
 
     # BODY RAW
-    print(f"\n📦 BODY RAW:")
-    try:
-        raw_data = request.get_data(as_text=True)
-        if raw_data:
-            print(f"   Raw data: {raw_data}")
-        else:
-            print(f"   (Sin body)")
-    except Exception as e:
-        print(f"   Error leyendo raw data: {e}")
+    # print(f"\n📦 BODY RAW:")
+    # try:
+    #     raw_data = request.get_data(as_text=True)
+    #     if raw_data:
+    #         print(f"   Raw data: {raw_data}")
+    #     else:
+    #         print(f"   (Sin body)")
+    # except Exception as e:
+    #     print(f"   Error leyendo raw data: {e}")
 
-    # BODY PARSEADO
-    print(f"\n📦 BODY PARSEADO:")
-    try:
-        body = request.get_json(silent=True) or {}
-        print(f"   Body completo: {body}")
-        print(f"   Tipo: {type(body)}")
+    # # BODY PARSEADO
+    # # print(f"\n📦 BODY PARSEADO:")
+    # # try:
+    #     body = request.get_json(silent=True) or {}
+    #     # print(f"   Body completo: {body}")
+    #     # print(f"   Tipo: {type(body)}")
 
-        if isinstance(body, dict):
-            if body:
-                print(f"   Claves recibidas: {list(body.keys())}")
-                for key, value in body.items():
-                    # Truncar valores muy largos para legibilidad
-                    display_value = str(value)[:100] + "..." if len(str(value)) > 100 else value
-                    print(f"   {key}: {display_value} (tipo: {type(value)})")
-            else:
-                print(f"   (Body vacío)")
-        elif isinstance(body, list):
-            print(f"   Lista con {len(body)} elementos")
-            for idx, item in enumerate(body[:3]):  # Solo mostrar primeros 3
-                print(f"   [{idx}]: {item}")
-            if len(body) > 3:
-                print(f"   ... y {len(body) - 3} elementos más")
-    except Exception as e:
-        print(f"   Error parseando JSON: {e}")
+    #     if isinstance(body, dict):
+    #         if body:
+    #             # print(f"   Claves recibidas: {list(body.keys())}")
+    #             for key, value in body.items():
+    #                 # Truncar valores muy largos para legibilidad
+    #                 display_value = str(value)[:100] + "..." if len(str(value)) > 100 else value
+    #                 # print(f"   {key}: {display_value} (tipo: {type(value)})")
+    #         else:
+    #             print(f"   (Body vacío)")
+    #     # elif isinstance(body, list):
+    #         # print(f"   Lista con {len(body)} elementos")
+    #         # for idx, item in enumerate(body[:3]):  # Solo mostrar primeros 3
+    #             # print(f"   [{idx}]: {item}")
+    #         # if len(body) > 3:
+                # print(f"   ... y {len(body) - 3} elementos más")
+    # except Exception as e:
+        # print(f"   Error parseando JSON: {e}")
 
 
 def log_validation_results(required_fields: list, body: dict):
@@ -82,21 +82,21 @@ def log_validation_results(required_fields: list, body: dict):
         required_fields: Lista de campos requeridos
         body: Diccionario con los datos recibidos
     """
-    print(f"\n🔍 VALIDANDO CAMPOS REQUERIDOS:")
+    # print(f"\n🔍 VALIDANDO CAMPOS REQUERIDOS:")
     missing_fields = []
 
     for field in required_fields:
         value = body.get(field)
         status = "✅ OK" if value else "❌ FALTA"
-        print(f"   {field}: {value} ({status})")
+        # print(f"   {field}: {value} ({status})")
         if not value:
             missing_fields.append(field)
 
     if missing_fields:
-        print(f"\n❌ CAMPOS FALTANTES: {missing_fields}")
+        # print(f"\n❌ CAMPOS FALTANTES: {missing_fields}")
         return False
     else:
-        print(f"\n✅ Todos los campos requeridos están presentes")
+        # print(f"\n✅ Todos los campos requeridos están presentes")
         return True
 
 
