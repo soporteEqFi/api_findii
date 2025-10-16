@@ -36,15 +36,15 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 #     print(f"\n🔍 REQUEST RECIBIDA:")
 #     print(f"   Method: {request.method}")
 #     print(f"   URL: {request.url}")
-    # print(f"   Path: {request.path}")
-    # print(f"   Args: {dict(request.args)}")
-    # print(f"   Headers: {dict(request.headers)}")
-    # if request.method in ['POST', 'PUT', 'PATCH']:
-        # try:
-            # body = request.get_json(silent=True)
-            # print(f"   Body: {body}")
-        # except:
-            # print(f"   Body: {request.get_data(as_text=True)}")
+#     print(f"   Path: {request.path}")
+#     print(f"   Args: {dict(request.args)}")
+#     print(f"   Headers: {dict(request.headers)}")
+#     if request.method in ['POST', 'PUT', 'PATCH']:
+#         try:
+#             body = request.get_json(silent=True)
+#             print(f"   Body: {body}")
+#         except:
+#             print(f"   Body: {request.get_data(as_text=True)}")
 
 # @app.after_request
 # def log_response_info(response):
