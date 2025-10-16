@@ -20,8 +20,8 @@ CREATE TABLE public.actividad_economica (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   empresa_id bigint,
   CONSTRAINT actividad_economica_pkey PRIMARY KEY (id),
-  CONSTRAINT actividad_economica_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
-  CONSTRAINT ACTIVIDAD_ECONOMICA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+  CONSTRAINT ACTIVIDAD_ECONOMICA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT actividad_economica_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
 );
 CREATE TABLE public.configuraciones (
   id integer NOT NULL DEFAULT nextval('configuraciones_id_seq'::regclass),
@@ -64,8 +64,8 @@ CREATE TABLE public.informacion_financiera (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   empresa_id bigint,
   CONSTRAINT informacion_financiera_pkey PRIMARY KEY (id),
-  CONSTRAINT informacion_financiera_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
-  CONSTRAINT INFORMACION_FINANCIERA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+  CONSTRAINT INFORMACION_FINANCIERA_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT informacion_financiera_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
 );
 CREATE TABLE public.json_field_definition (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -100,8 +100,9 @@ CREATE TABLE public.notificaciones (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT notificaciones_pkey PRIMARY KEY (id),
+  CONSTRAINT notificaciones_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
   CONSTRAINT notificaciones_solicitud_id_fkey FOREIGN KEY (solicitud_id) REFERENCES public.solicitudes(id),
-  CONSTRAINT notificaciones_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+  CONSTRAINT notificaciones_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.referencias (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -110,8 +111,8 @@ CREATE TABLE public.referencias (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   empresa_id bigint,
   CONSTRAINT referencias_pkey PRIMARY KEY (id),
-  CONSTRAINT referencias_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
-  CONSTRAINT REFERENCIAS_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+  CONSTRAINT REFERENCIAS_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT referencias_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
 );
 CREATE TABLE public.solicitantes (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -143,10 +144,10 @@ CREATE TABLE public.solicitudes (
   ciudad_solicitud text,
   observaciones jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT solicitudes_pkey PRIMARY KEY (id),
-  CONSTRAINT solicitudes_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.usuarios(id),
-  CONSTRAINT solicitudes_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id),
   CONSTRAINT SOLICITUDES_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
-  CONSTRAINT solicitudes_assigned_to_user_id_fkey FOREIGN KEY (assigned_to_user_id) REFERENCES public.usuarios(id)
+  CONSTRAINT solicitudes_assigned_to_user_id_fkey FOREIGN KEY (assigned_to_user_id) REFERENCES public.usuarios(id),
+  CONSTRAINT solicitudes_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.usuarios(id),
+  CONSTRAINT solicitudes_solicitante_id_fkey FOREIGN KEY (solicitante_id) REFERENCES public.solicitantes(id)
 );
 CREATE TABLE public.ubicacion (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -170,6 +171,7 @@ CREATE TABLE public.usuarios (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   info_extra jsonb,
   empresa_id bigint,
+  reports_to_id bigint,
   CONSTRAINT usuarios_pkey PRIMARY KEY (id),
   CONSTRAINT usuarios_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
 );
