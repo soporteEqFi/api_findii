@@ -21,7 +21,7 @@ class AuthController:
             # print(f"Content-Type: {request.content_type}")
             # print(f"Raw data: {request.get_data()}")
 
-            # body = request.get_json(silent=True) or {}
+            body = request.get_json(silent=True) or {}
             # print(f"Parsed JSON: {body}")
 
             # Validar campos requeridos
