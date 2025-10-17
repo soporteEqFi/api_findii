@@ -508,10 +508,10 @@ def send_email(email_settings, msg):
 
     for attempt in range(max_attempts):
         try:
-            print(f"🔧 Configurando conexión SMTP para Zoho...")
-            print(f"   📧 Servidor: {email_settings['smtp_server']}")
-            print(f"   🔌 Puerto: {email_settings['smtp_port']}")
-            print(f"   👤 Usuario: {email_settings['sender_email']}")
+            # print(f"🔧 Configurando conexión SMTP para Zoho...")
+            # print(f"   📧 Servidor: {email_settings['smtp_server']}")
+            # print(f"   🔌 Puerto: {email_settings['smtp_port']}")
+            # print(f"   👤 Usuario: {email_settings['sender_email']}")
 
             # Para Zoho con puerto 465, usar SMTP_SSL directamente
             if email_settings["smtp_port"] == 465:
@@ -659,32 +659,20 @@ def enviar_email_solicitante(email_settings, data):
 
 Aquí tienes un resumen de tu información registrada:
 
-📌 Datos del solicitante
-
+📌 DATOS DEL SOLICITANTE
 Nombre: {solicitante['nombre_completo']}
-
 Documento: {solicitante['datos_basicos']['tipo_identificacion']} {solicitante['datos_basicos']['numero_documento']}
-
 Email: {solicitante['correo_electronico']}
-
 Celular: {celular}
-
 Profesión: {profesion}
 
-📌 Detalles del crédito
-
+📌 DETALLES DEL CRÉDITO
 Banco seleccionado: {solicitud['banco_nombre']}
-
 Tipo de crédito: {tipo_credito}
-
 Valor del vehículo: ${valor_vehiculo}
-
 Monto solicitado: ${monto_solicitado}
-
 Plazo: {plazo} meses
-
 Cuota inicial: ${cuota_inicial}
-
 Estado actual: {solicitud['estado']}
 
 👉 Muy pronto uno de nuestros asesores se pondrá en contacto contigo para guiarte en el proceso y resolver cualquier inquietud.
@@ -742,36 +730,22 @@ Se ha registrado una nueva solicitud de crédito en Findii y está asignada a tu
 
 A continuación, encontrarás el resumen de la información para dar inicio al proceso:
 
-📌 Datos del cliente
-
+📌 DATOS DEL CLIENTE
 Nombre: {solicitante['nombre_completo']}
-
 Documento: {solicitante['datos_basicos']['tipo_identificacion']} {solicitante['datos_basicos']['numero_documento']}
-
 Teléfono: {celular}
-
 Email: {solicitante['correo_electronico']}
-
 Profesión: {profesion}
-
 Estado civil: {estado_civil}
 
-📌 Detalles de la solicitud
-
+📌 DETALLES DE LA SOLICITUD
 Banco destino: {solicitud['banco_nombre']}
-
 Ciudad: {solicitud['ciudad_solicitud']}
-
 Tipo de crédito: {tipo_credito}
-
 Valor del vehículo: ${valor_vehiculo}
-
 Monto solicitado: ${monto_solicitado}
-
 Cuota inicial: ${cuota_inicial}
-
 Plazo: {plazo} meses
-
 Estado: {solicitud['estado']}
 
 👉 Para continuar con la gestión, accede al portal de asesores aquí:
