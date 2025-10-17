@@ -349,8 +349,8 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # Delay entre envíos para evitar rate limiting de Zoho
         if resultados["solicitante"]:
-            print("⏳ Esperando 5 segundos antes del siguiente envío...")
-            std_time.sleep(5)
+            print("⏳ Esperando 3 segundos antes del siguiente envío...")
+            std_time.sleep(3)
 
         # 2. Enviar email al asesor
         email_asesor = datos_email['asesor']['correo']
@@ -363,8 +363,8 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # Delay entre envíos para evitar rate limiting de Zoho
         if resultados["asesor"]:
-            print("⏳ Esperando 5 segundos antes del siguiente envío...")
-            std_time.sleep(5)
+            print("⏳ Esperando 3 segundos antes del siguiente envío...")
+            std_time.sleep(3)
 
         # 3. Enviar email al banco
         email_banco = datos_email['banco']['correo_usuario']
