@@ -370,7 +370,7 @@ def enviar_email_registro_completo(response_data, original_json=None):
         email_banco = datos_email['banco']['correo_usuario']
         ciudad_solicitud = datos_email['solicitud'].get('ciudad_solicitud', '').strip()
         banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
-        
+
         # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
         if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
             print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
@@ -459,9 +459,6 @@ def email_body_and_send(email_settings, data):
         Estimado/a {data['solicitante']['nombre_completo']},
 
         ¡Gracias por confiar en Findii! Su solicitud ha sido registrada exitosamente.
-
-        Para hacer seguimiento a su solicitud, puede ingresar al siguiente enlace:
-        https://findii.co/seguimiento/{data['id_radicado']}
 
         A continuación encontrará el resumen de la información registrada:
 
@@ -591,7 +588,7 @@ def send_email(email_settings, msg):
             print(f"❌ Error de datos SMTP (intento {attempt+1}/{max_attempts}): {error_msg}")
             print(f"   🔍 Tipo de error: {type(e).__name__}")
             print(f"   📧 Tipo de msg: {type(msg)}")
-            
+
             # Detectar rate limiting específico de Zoho
             if "5.4.6" in error_msg and "Unusual sending activity" in error_msg:
                 rate_limit_delay = 10 + (attempt * 5)  # Incrementar delay progresivamente
@@ -652,17 +649,13 @@ def enviar_email_solicitante(email_settings, data):
 
         # Obtener fecha y hora actual en formato 12 horas
         fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
-        
+
         # Cuerpo del mensaje para el solicitante
         body = f"""Hola {solicitante['nombre_completo']},
 
 ¡Gracias por confiar en Findii! 🚀 Hemos recibido tu solicitud de crédito y ya está en proceso de validación.
 
 📅 Fecha y hora de envío: {fecha_hora_envio}
-
-Puedes hacer seguimiento en cualquier momento a través del siguiente enlace:
-👉 https://findii.co/seguimiento/{data['id_radicado']}.
-
 
 Aquí tienes un resumen de tu información registrada:
 
@@ -739,7 +732,7 @@ def enviar_email_asesor(email_settings, data):
 
         # Obtener fecha y hora actual en formato 12 horas
         fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
-        
+
         # Cuerpo del mensaje para el asesor
         body = f"""Hola {data['asesor']['nombre']},
 
@@ -817,12 +810,12 @@ def enviar_email_banco(email_settings, data):
         info_extra = solicitante.get('info_extra', {})
         actividad_economica = solicitante.get('actividad_economica', {})
         informacion_financiera = solicitante.get('informacion_financiera', {})
-       
+
 
         # EXTRAER DATOS DIRECTAMENTE COMO LO HACEN LOS OTROS EMAILS
         # Usar el mismo patrón que los emails del solicitante y asesor
         datos_basicos = solicitante.get('datos_basicos', {})
-        
+
         fecha_nacimiento = datos_basicos.get('fecha_nacimiento', 'No especificado')
         genero_texto = "Masculino" if datos_basicos.get('genero', 'M') == 'M' else "Femenino"
         correo_electronico = solicitante.get('correo_electronico', solicitante.get('correo', 'No especificado'))
@@ -877,7 +870,7 @@ def enviar_email_banco(email_settings, data):
         else:
             valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
 
-     
+
 
         # Formatear valores monetarios con separadores de miles
         def formatear_dinero(valor):
@@ -906,11 +899,11 @@ def enviar_email_banco(email_settings, data):
             except:
                 return 'No reportado'
 
-     
+
 
         # Obtener fecha y hora actual en formato 12 horas
         fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
-        
+
         # Cuerpo del mensaje mejorado para el banco
         body = f"""Buenos días,
 
@@ -977,8 +970,7 @@ Quedamos atentos a su confirmación y a cualquier información adicional que req
 
 Gracias por su apoyo y gestión. 😊
 
-Este mensaje se ha enviado automáticamente a través de nuestro portal de asesores. Para dar respuesta a la solicitud, utilice el portal web o el siguiente enlace:
-🔗 https://findii.co/seguimiento/{data['id_radicado']}
+Este mensaje se ha enviado automáticamente a través de nuestro portal de asesores.
 
 Responsable: {data['asesor']['nombre']}
 Correo del responsable: {data['asesor']['correo']}"""
