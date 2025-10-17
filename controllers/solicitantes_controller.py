@@ -1450,35 +1450,7 @@ class SolicitantesController:
 
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
-            # 7. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
-            # print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
-            try:
-                # Preparar response_data temporal para el email
-                response_data_temp = {
-                    "ok": True,
-                    "data": {
-                        "solicitante": solicitante_actualizado,
-                        "ubicaciones": ubicaciones_actualizadas,
-                        "actividad_economica": actividad_actualizada,
-                        "informacion_financiera": financiera_actualizada,
-                        "referencias": referencias_actualizadas,
-                        "solicitudes": solicitudes_actualizadas
-                    }
-                }
-
-                # Pasar el JSON original para extraer correos de forma robusta
-                email_enviado = enviar_email_registro_completo(response_data_temp, body)
-                emails_enviados_exitosamente = email_enviado
-                if email_enviado:
-                    print(f"   ✅ Emails enviados exitosamente")
-                else:
-                    print(f"   ⚠️ No se pudieron enviar todos los emails, pero la actualización se completó correctamente")
-            except Exception as email_error:
-                print(f"   ❌ Error enviando emails: {str(email_error)}")
-                emails_enviados_exitosamente = False
-                # No fallar la operación por error de email
-
-            # 8. PREPARAR RESPUESTA
+            # 7. PREPARAR RESPUESTA
             response_data = {
                 "ok": True,
                 "data": {
@@ -1497,8 +1469,7 @@ class SolicitantesController:
                         "total_solicitudes": len(solicitudes_actualizadas)
                     }
                 },
-                "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}",
-                "emails_enviados": emails_enviados_exitosamente  # Indicar si se enviaron emails
+                "message": f"Registro completo actualizado exitosamente. Solicitante ID: {solicitante_id}"
             }
 
             log_response(response_data)
