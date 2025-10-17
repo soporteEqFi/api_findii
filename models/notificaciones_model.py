@@ -159,7 +159,6 @@ class NotificacionesModel:
 
             resp = query.execute()
             notificaciones = _get_data(resp) or []
-            print(f"📊 [NotificacionesModel.list] Notificaciones obtenidas: {len(notificaciones)}")
             return notificaciones
 
         except Exception as e:

@@ -155,7 +155,6 @@ class NotificacionesController:
             else:
                 notificaciones = self.model.list(empresa_id, usuario_info, **filtros)
 
-            log_operation_result(notificaciones, f"NOTIFICACIONES OBTENIDAS: {len(notificaciones)}")
 
             response_data = {
                 "ok": True,
