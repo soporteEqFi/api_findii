@@ -156,18 +156,11 @@ class SolicitudesModel:
             print(f"❌ Solicitud no encontrada para eliminar: id={id}, empresa_id={empresa_id}")
             return 0
 
-        print(f"🗑️ Intentando eliminar solicitud: id={id}, empresa_id={empresa_id}")
-        print(f"   📋 Datos de la solicitud: estado={existing_record.get('estado')}, banco={existing_record.get('banco_nombre')}")
-
         # Intentar eliminar
         resp = supabase.table(self.TABLE).delete().eq("id", id).eq("empresa_id", empresa_id).execute()
         data = _get_data(resp)
 
         deleted_count = len(data) if isinstance(data, list) else 0
-        print(f"📊 Respuesta de eliminación de solicitud: {resp}")
-        print(f"📊 Datos eliminados: {data}")
-        print(f"📊 Cantidad eliminada: {deleted_count}")
-
         # Verificar que realmente se eliminó
         if deleted_count > 0:
             # Verificar que ya no existe
@@ -193,9 +186,6 @@ class SolicitudesModel:
         # Aplicar filtros de permisos por rol
         if usuario_info:
             rol = usuario_info.get("rol")
-            print(f"🔍 APLICANDO FILTROS POR ROL:")
-            print(f"   🏷️ Rol del usuario: {rol}")
-            print(f"   👤 Info completa del usuario: {usuario_info}")
 
             if rol == "admin":
                 # Admin ve todas las solicitudes de la empresa
@@ -206,12 +196,8 @@ class SolicitudesModel:
                 banco_nombre = usuario_info.get("banco_nombre")
                 ciudad_solicitud = usuario_info.get("ciudad_solicitud")
 
-                print(f"   🏦 Banco del usuario: {banco_nombre}")
-                print(f"   🏙️ Ciudad del usuario: {ciudad_solicitud}")
-
                 if banco_nombre:
                     q = q.eq("banco_nombre", banco_nombre)
-                    print(f"   ✅ Filtro banco aplicado: {banco_nombre}")
                 else:
                     # Si no tiene banco asignado, no ve nada
                     print(f"   ❌ Usuario sin banco asignado - retornando lista vacía")
@@ -224,10 +210,6 @@ class SolicitudesModel:
                 else:
                     print(f"   ⚠️ Usuario sin ciudad asignada - solo filtro por banco")
 
-                print(f"   🔍 FILTROS APLICADOS:")
-                print(f"      🏦 banco_nombre = {banco_nombre}")
-                print(f"      🏙️ ciudad_solicitud = {ciudad_solicitud}")
-                print(f"      📋 Query final: banco_nombre='{banco_nombre}' AND ciudad_solicitud='{ciudad_solicitud}'")
             elif rol == "empresa":
                 # Usuario empresa ve todas las solicitudes de su empresa
                 print(f"   ✅ Empresa - sin filtros aplicados")
