@@ -35,11 +35,11 @@ def test_email_connection():
             print("ERROR: No se encontro EMAIL_PASSWORD en las variables de entorno")
             return False
 
-        print("Probando conexion SMTP con Zoho...")
-        print(f"   Servidor: {email_settings['smtp_server']}")
-        print(f"   Puerto: {email_settings['smtp_port']}")
-        print(f"   Email: {email_settings['sender_email']}")
-        print(f"   Contrasena: {'*' * len(email_settings['sender_password'])}")
+        # print("Probando conexion SMTP con Zoho...")
+        # print(f"   Servidor: {email_settings['smtp_server']}")
+        # print(f"   Puerto: {email_settings['smtp_port']}")
+        # print(f"   Email: {email_settings['sender_email']}")
+        # print(f"   Contrasena: {'*' * len(email_settings['sender_password'])}")
 
         # Probar conexion SSL
         server = smtplib.SMTP_SSL(email_settings["smtp_server"], email_settings["smtp_port"])
