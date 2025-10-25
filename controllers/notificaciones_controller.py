@@ -398,7 +398,7 @@ class NotificacionesController:
             else:
                 notificaciones = self.model.obtener_pendientes(empresa_id=empresa_id, usuario_info=usuario_info, usuario_id=usuario_id)
 
-            log_operation_result(notificaciones, f"NOTIFICACIONES PENDIENTES: {len(notificaciones)}")
+            # log_operation_result(notificaciones, f"NOTIFICACIONES PENDIENTES: {len(notificaciones)}")
 
             response_data = {
                 "ok": True,

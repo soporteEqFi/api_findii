@@ -10,10 +10,12 @@ from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
 
 def config_email():
-    smtp_server = "smtp.zoho.com"
+    smtp_server = "smtp.gmail.com"
+    # smtp_server = "smtp.zoho.com"
     smtp_port = 465
-    sender_email = "credito@findii.co"
-    sender_password = os.getenv('EMAIL_PASSWORD')
+    sender_email = "equitisoporte@gmail.com"
+    # sender_email = "credito@findii.co"
+    sender_password = os.getenv('EMAIL_PASSWORD_BACK')
 
     email_settings = {
         "smtp_server": smtp_server,
@@ -155,9 +157,6 @@ def mapear_datos_para_email(response_data, original_json=None):
         correo_banco_usuario = ""
 
         if original_json:
-            print(f"🔍 DEBUG - Extrayendo correos desde JSON original:")
-            print(f"   📋 Claves en JSON original: {list(original_json.keys())}")
-
             # Extraer correo del solicitante (siempre en la raíz)
             correo_solicitante_original = original_json.get("correo", "")
             if correo_solicitante_original:
@@ -174,41 +173,35 @@ def mapear_datos_para_email(response_data, original_json=None):
             correo_banco_usuario = (original_json.get("correo_banco_usuario") or solicitud_original.get("correo_banco_usuario", "")).strip()
             nombre_banco_usuario = (original_json.get("nombre_banco_usuario") or solicitud_original.get("nombre_banco_usuario", "")).strip()
 
-            print(f"   👨‍💼 Asesor extraído: '{nombre_asesor}' ('{correo_asesor}')")
-            print(f"   🏦 Usuario banco extraído: '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
-
-            # Debug adicional: mostrar dónde se encontraron exactamente los datos
-            print(f"   🔍 DEBUG UBICACIÓN DE DATOS:")
-
             # Verificar correo_asesor
-            if original_json.get("correo_asesor"):
-                print(f"   📍 ✅ correo_asesor encontrado en RAÍZ: '{original_json.get('correo_asesor')}'")
-            elif solicitud_original.get("correo_asesor"):
-                print(f"   📍 ✅ correo_asesor encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_asesor')}'")
-            else:
-                print(f"   📍 ❌ correo_asesor NO encontrado en ninguna ubicación")
+            # if original_json.get("correo_asesor"):
+            #     print(f"   📍 ✅ correo_asesor encontrado en RAÍZ: '{original_json.get('correo_asesor')}'")
+            # elif solicitud_original.get("correo_asesor"):
+            #     print(f"   📍 ✅ correo_asesor encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_asesor')}'")
+            # else:
+            #     print(f"   📍 ❌ correo_asesor NO encontrado en ninguna ubicación")
 
             # Verificar correo_banco_usuario
-            if original_json.get("correo_banco_usuario"):
-                print(f"   📍 ✅ correo_banco_usuario encontrado en RAÍZ: '{original_json.get('correo_banco_usuario')}'")
-            elif solicitud_original.get("correo_banco_usuario"):
-                print(f"   📍 ✅ correo_banco_usuario encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_banco_usuario')}'")
-            else:
-                print(f"   📍 ❌ correo_banco_usuario NO encontrado en ninguna ubicación")
+            # if original_json.get("correo_banco_usuario"):
+            #     print(f"   📍 ✅ correo_banco_usuario encontrado en RAÍZ: '{original_json.get('correo_banco_usuario')}'")
+            # elif solicitud_original.get("correo_banco_usuario"):
+            #     print(f"   📍 ✅ correo_banco_usuario encontrado en SOLICITUDES[0]: '{solicitud_original.get('correo_banco_usuario')}'")
+            # else:
+            #     print(f"   📍 ❌ correo_banco_usuario NO encontrado en ninguna ubicación")
 
             # Mostrar estructura de solicitudes para debugging
-            print(f"   🔍 DEBUG ESTRUCTURA SOLICITUDES:")
-            if original_json.get("solicitudes"):
-                print(f"      - Cantidad de solicitudes: {len(original_json.get('solicitudes', []))}")
-                if solicitud_original:
-                    print(f"      - Claves en solicitudes[0]: {list(solicitud_original.keys())}")
-                    # Mostrar solo los campos relevantes
-                    campos_relevantes = ['nombre_asesor', 'correo_asesor', 'nombre_banco_usuario', 'correo_banco_usuario']
-                    for campo in campos_relevantes:
-                        valor = solicitud_original.get(campo, 'NO_ENCONTRADO')
-                        print(f"      - {campo}: '{valor}'")
-            else:
-                print(f"      - No hay solicitudes en el JSON")
+            # print(f"   🔍 DEBUG ESTRUCTURA SOLICITUDES:")
+            # if original_json.get("solicitudes"):
+            #     print(f"      - Cantidad de solicitudes: {len(original_json.get('solicitudes', []))}")
+            #     if solicitud_original:
+            #         print(f"      - Claves en solicitudes[0]: {list(solicitud_original.keys())}")
+            #         # Mostrar solo los campos relevantes
+            #         campos_relevantes = ['nombre_asesor', 'correo_asesor', 'nombre_banco_usuario', 'correo_banco_usuario']
+            #         for campo in campos_relevantes:
+            #             valor = solicitud_original.get(campo, 'NO_ENCONTRADO')
+            #             print(f"      - {campo}: '{valor}'")
+            # else:
+            #     print(f"      - No hay solicitudes en el JSON")
         else:
             # Fallback: usar datos del detalle_credito (método anterior)
             print(f"⚠️ WARNING - No se recibió JSON original, usando método fallback desde detalle_credito")
@@ -216,16 +209,16 @@ def mapear_datos_para_email(response_data, original_json=None):
             correo_asesor = detalle_credito.get("correo_asesor", "").strip()
             nombre_banco_usuario = detalle_credito.get("nombre_banco_usuario", "").strip()
             correo_banco_usuario = detalle_credito.get("correo_banco_usuario", "").strip()
-            print(f"   👨‍💼 Asesor (fallback): '{nombre_asesor}' ('{correo_asesor}')")
-            print(f"   🏦 Usuario banco (fallback): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
-            print(f"   📋 Claves disponibles en detalle_credito: {list(detalle_credito.keys())}")
+            # print(f"   👨‍💼 Asesor (fallback): '{nombre_asesor}' ('{correo_asesor}')")
+            # print(f"   🏦 Usuario banco (fallback): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
+            # print(f"   📋 Claves disponibles en detalle_credito: {list(detalle_credito.keys())}")
 
             # También intentar extraer desde la respuesta procesada
             if solicitudes and len(solicitudes) > 0:
                 primera_solicitud_procesada = solicitudes[0]
                 detalle_credito_procesado = primera_solicitud_procesada.get("detalle_credito", {})
-                print(f"   🔍 Intentando extraer desde solicitud procesada...")
-                print(f"   📋 Claves en detalle_credito procesado: {list(detalle_credito_procesado.keys())}")
+                # print(f"   🔍 Intentando extraer desde solicitud procesada...")
+                # print(f"   📋 Claves en detalle_credito procesado: {list(detalle_credito_procesado.keys())}")
 
                 # Usar datos procesados si no se encontraron en detalle_credito original
                 if not correo_asesor:
@@ -235,14 +228,14 @@ def mapear_datos_para_email(response_data, original_json=None):
                     correo_banco_usuario = detalle_credito_procesado.get("correo_banco_usuario", "").strip()
                     nombre_banco_usuario = detalle_credito_procesado.get("nombre_banco_usuario", "").strip()
 
-                print(f"   👨‍💼 Asesor (procesado): '{nombre_asesor}' ('{correo_asesor}')")
-                print(f"   🏦 Usuario banco (procesado): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
+                # print(f"   👨‍💼 Asesor (procesado): '{nombre_asesor}' ('{correo_asesor}')")
+                # print(f"   🏦 Usuario banco (procesado): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
 
         # Validar que los datos críticos no estén vacíos
-        print(f"\n🔍 VALIDACIÓN FINAL DE DATOS:")
-        print(f"   📧 Correo solicitante: '{correo_electronico}' - {'✅ Válido' if correo_electronico.strip() else '❌ Vacío'}")
-        print(f"   👨‍💼 Asesor: '{nombre_asesor}' / '{correo_asesor}' - {'✅ Válido' if correo_asesor.strip() else '❌ Vacío'}")
-        print(f"   🏦 Banco: '{nombre_banco_usuario}' / '{correo_banco_usuario}' - {'✅ Válido' if correo_banco_usuario.strip() else '❌ Vacío'}")
+        # print(f"\n🔍 VALIDACIÓN FINAL DE DATOS:")
+        # print(f"   📧 Correo solicitante: '{correo_electronico}' - {'✅ Válido' if correo_electronico.strip() else '❌ Vacío'}")
+        # print(f"   👨‍💼 Asesor: '{nombre_asesor}' / '{correo_asesor}' - {'✅ Válido' if correo_asesor.strip() else '❌ Vacío'}")
+        # print(f"   🏦 Banco: '{nombre_banco_usuario}' / '{correo_banco_usuario}' - {'✅ Válido' if correo_banco_usuario.strip() else '❌ Vacío'}")
 
         # Resumen de dónde se encontraron los datos
         if original_json:
@@ -288,12 +281,12 @@ def mapear_datos_para_email(response_data, original_json=None):
             }
         }
 
-        print(f"\n✅ DATOS MAPEADOS CORRECTAMENTE PARA ENVIO DE EMAILS:")
-        print(f"   🆔 ID Radicado: {id_radicado}")
-        print(f"   👤 Solicitante: {nombre_completo} ({correo_electronico})")
-        print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
-        print(f"   🏦 Banco: {nombre_banco_usuario} ({correo_banco_usuario})")
-        print(f"   📊 Estado de emails: Solicitante={bool(correo_electronico.strip())}, Asesor={bool(correo_asesor.strip())}, Banco={bool(correo_banco_usuario.strip())}")
+        # print(f"\n✅ DATOS MAPEADOS CORRECTAMENTE PARA ENVIO DE EMAILS:")
+        # print(f"   🆔 ID Radicado: {id_radicado}")
+        # print(f"   👤 Solicitante: {nombre_completo} ({correo_electronico})")
+        # print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
+        # print(f"   🏦 Banco: {nombre_banco_usuario} ({correo_banco_usuario})")
+        # print(f"   📊 Estado de emails: Solicitante={bool(correo_electronico.strip())}, Asesor={bool(correo_asesor.strip())}, Banco={bool(correo_banco_usuario.strip())}")
 
         return datos_mapeados
 
@@ -341,65 +334,64 @@ def enviar_email_registro_completo(response_data, original_json=None):
         # 1. Enviar email al solicitante
         email_solicitante = datos_email['solicitante']['correo_electronico']
         if email_solicitante and email_solicitante.strip():
-            print("📧 Enviando email al solicitante...")
             resultados["solicitante"] = enviar_email_solicitante(email_settings, datos_email)
         else:
             print("⚠️ WARNING: No se encontró email del solicitante o está vacío")
             resultados["solicitante"] = False
 
         # Delay entre envíos para evitar rate limiting de Zoho
-        if resultados["solicitante"]:
-            print("⏳ Esperando 3 segundos antes del siguiente envío...")
-            std_time.sleep(3)
+        # if resultados["solicitante"]:
+        #     print("⏳ Esperando 3 segundos antes del siguiente envío...")
+        #     std_time.sleep(3)
 
         # 2. Enviar email al asesor
-        email_asesor = datos_email['asesor']['correo']
-        if email_asesor and email_asesor.strip():
-            print("📧 Enviando email al asesor...")
-            resultados["asesor"] = enviar_email_asesor(email_settings, datos_email)
-        else:
-            print("⚠️ WARNING: No se encontró email del asesor o está vacío")
-            resultados["asesor"] = False
+        # email_asesor = datos_email['asesor']['correo']
+        # if email_asesor and email_asesor.strip():
+        #     print("📧 Enviando email al asesor...")
+        #     resultados["asesor"] = enviar_email_asesor(email_settings, datos_email)
+        # else:
+        #     print("⚠️ WARNING: No se encontró email del asesor o está vacío")
+        #     resultados["asesor"] = False
 
         # Delay entre envíos para evitar rate limiting de Zoho
-        if resultados["asesor"]:
-            print("⏳ Esperando 3 segundos antes del siguiente envío...")
-            std_time.sleep(3)
+        # if resultados["asesor"]:
+        #     print("⏳ Esperando 3 segundos antes del siguiente envío...")
+        #     std_time.sleep(3)
 
         # 3. Enviar email al banco
-        email_banco = datos_email['banco']['correo_usuario']
-        ciudad_solicitud = datos_email['solicitud'].get('ciudad_solicitud', '').strip()
-        banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
+        # email_banco = datos_email['banco']['correo_usuario']
+        # ciudad_solicitud = datos_email['solicitud'].get('ciudad_solicitud', '').strip()
+        # banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
 
-        # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
-        if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
-            print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
-            print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
-            print("   📧 Enviando email al correo por defecto: comercial@findii.co")
-            # Sobrescribir el email del banco con el correo por defecto
-            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
-        elif email_banco and email_banco.strip():
-            print("📧 Enviando email al banco...")
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
-        else:
-            print("⚠️ WARNING: No se encontró email del banco o está vacío")
-            print("   📧 Enviando email al correo por defecto: comercial@findii.co")
-            # Enviar a comercial@findii.co como fallback
-            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+        # # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
+        # if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
+        #     # print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
+        #     # print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
+        #     # print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+        #     # Sobrescribir el email del banco con el correo por defecto
+        #     datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+        #     datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+        #     resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+        # elif email_banco and email_banco.strip():
+        #     print("📧 Enviando email al banco...")
+        #     resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+        # else:
+        #     print("⚠️ WARNING: No se encontró email del banco o está vacío")
+        #     print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+        #     # Enviar a comercial@findii.co como fallback
+        #     datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+        #     datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+        #     resultados["banco"] = enviar_email_banco(email_settings, datos_email)
 
         # Verificar si al menos uno se envió exitosamente
         exito_general = any(resultados.values())
 
         # Resumen mejorado con emojis
-        print(f"\n📊 RESUMEN DE ENVÍOS DE CORREOS:")
-        print(f"   👤 Solicitante: {'✅ Enviado' if resultados['solicitante'] else '❌ Fallido/Sin email'}")
-        print(f"   👨‍💼 Asesor: {'✅ Enviado' if resultados['asesor'] else '❌ Fallido/Sin email'}")
-        print(f"   🏦 Banco: {'✅ Enviado' if resultados['banco'] else '❌ Fallido/Sin email'}")
-        print(f"   📊 Total exitosos: {sum(resultados.values())}/3")
+        # print(f"\n📊 RESUMEN DE ENVÍOS DE CORREOS:")
+        # print(f"   👤 Solicitante: {'✅ Enviado' if resultados['solicitante'] else '❌ Fallido/Sin email'}")
+        # print(f"   👨‍💼 Asesor: {'✅ Enviado' if resultados['asesor'] else '❌ Fallido/Sin email'}")
+        # print(f"   🏦 Banco: {'✅ Enviado' if resultados['banco'] else '❌ Fallido/Sin email'}")
+        # print(f"   📊 Total exitosos: {sum(resultados.values())}/3")
 
         return exito_general
 
@@ -515,19 +507,19 @@ def send_email(email_settings, msg):
 
             # Para Zoho con puerto 465, usar SMTP_SSL directamente
             if email_settings["smtp_port"] == 465:
-                print("   🔒 Usando SSL directo (puerto 465)")
+                # print("   🔒 Usando SSL directo (puerto 465)")
                 server = smtplib.SMTP_SSL(email_settings["smtp_server"], email_settings["smtp_port"])
             else:
-                print("   🔓 Usando STARTTLS")
+                # print("   🔓 Usando STARTTLS")
                 server = smtplib.SMTP(email_settings["smtp_server"], email_settings["smtp_port"])
                 server.starttls()
 
             # Configurar timeout y debug
             server.set_debuglevel(0)  # Cambiar a 1 para debug detallado
 
-            print("   🔐 Iniciando autenticación...")
+            # print("   🔐 Iniciando autenticación...")
             server.login(email_settings["sender_email"], email_settings["sender_password"])
-            print("   ✅ Autenticación exitosa")
+            # print("   ✅ Autenticación exitosa")
 
             # Verifica que msg sea un objeto EmailMessage o MIMEMultipart
             if isinstance(msg, dict):
@@ -548,15 +540,15 @@ def send_email(email_settings, msg):
                 email_msg.attach(MIMEText(body, 'html' if msg.get('html', False) else 'plain'))
 
                 # Enviar el mensaje correctamente formateado
-                print("   📤 Enviando mensaje...")
+                # print("   📤 Enviando mensaje...")
                 server.send_message(email_msg)
             else:
                 # Si ya es un objeto de mensaje correctamente formateado
-                print("   📤 Enviando mensaje...")
+                # print("   📤 Enviando mensaje...")
                 server.send_message(msg)
 
             server.quit()
-            print("   ✅ Correo enviado exitosamente")
+            # print("   ✅ Correo enviado exitosamente")
             return True
 
         except smtplib.SMTPAuthenticationError as e:
