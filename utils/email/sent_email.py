@@ -9,8 +9,6 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
 
-
-
 def config_email():
     ENVIRONMENT = os.getenv('ENVIRONMENT')
     if ENVIRONMENT == 'production':
