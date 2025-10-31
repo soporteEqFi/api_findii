@@ -9,17 +9,26 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
 
+
+
 def config_email():
-    # smtp_server = "smtp.gmail.com"
-    smtp_server = "smtp.zoho.com"
-    smtp_port = 465
-    # sender_email = "equitisoporte@gmail.com"
-    sender_email = "credito@findii.co"
-    sender_password = os.getenv('EMAIL_PASSWORD')
+    ENVIRONMENT = os.getenv('ENVIRONMENT')
+    if ENVIRONMENT == 'production':
+        smtp_server = "smtp.zoho.com"
+        sender_email = "credito@findii.co"
+        sender_password = os.getenv('EMAIL_PASSWORD')
+        EMAIL_DEFAULT = 'comercial@findii.co'
+        EMAIL_DEFAULT_NAME = 'Equipo Comercial Findii'
+    else:
+        smtp_server = "smtp.gmail.com"
+        sender_email = "equitisoporte@gmail.com"
+        sender_password = os.getenv('EMAIL_PASSWORD_BACK')
+        EMAIL_DEFAULT = 'equitisoporte@gmail.com'
+        EMAIL_DEFAULT_NAME = 'Equipo desarrollo Findii'
 
     email_settings = {
         "smtp_server": smtp_server,
-        "smtp_port": smtp_port,
+        "smtp_port": 465,
         "sender_email": sender_email,
         "sender_password": sender_password
     }
@@ -371,18 +380,20 @@ def enviar_email_registro_completo(response_data, original_json=None):
             # print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
             # print("   📧 Enviando email al correo por defecto: comercial@findii.co")
             # Sobrescribir el email del banco con el correo por defecto
-            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+            # datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
+            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME # produccion: Equipo Comercial Findii, desarrollo: Equipo desarrollo Findii
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
         elif email_banco and email_banco.strip():
             print("📧 Enviando email al banco...")
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
         else:
             print("⚠️ WARNING: No se encontró email del banco o está vacío")
-            print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+            print(f"   📧 Enviando email al correo por defecto: {EMAIL_DEFAULT}")
             # Enviar a comercial@findii.co como fallback
-            datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['nombre_usuario'] = 'Equipo Comercial Findii'
+            # datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
+            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
+            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME # produccion: Equipo Comercial Findii, desarrollo: Equipo desarrollo Findii
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
 
         # Verificar si al menos uno se envió exitosamente
@@ -690,7 +701,7 @@ def enviar_email_asesor(email_settings, data):
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
         # Enviar tanto al asesor como a comercial@findii.co
-        destinatarios = [data['asesor']['correo'], 'comercial@findii.co']
+        destinatarios = [data['asesor']['correo'], EMAIL_DEFAULT] # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
         msg['To'] = ', '.join(destinatarios)
         msg['Subject'] = f"Nueva solicitud asignada a tu gestión – Cliente: {data['solicitante']['nombre_completo']}"
 
