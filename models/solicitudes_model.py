@@ -447,7 +447,10 @@ class SolicitudesModel:
             id: ID de la solicitud
             observacion: Diccionario con la estructura {
                 'observacion': 'texto',
-                'fecha_creacion': 'fecha_iso'
+                'fecha_creacion': 'fecha_iso',
+                'tipo': 'comentario' (opcional),
+                'usuario_id': 123,
+                'usuario_nombre': 'Juan Pérez'
             }
 
         Returns:
@@ -466,12 +469,20 @@ class SolicitudesModel:
             observaciones = {'historial': []}
 
         # Agregar la nueva observación al historial
-        observaciones['historial'].append({
+        nueva_observacion = {
             'id': str(uuid.uuid4()),
-            'fecha': observacion['fecha_creacion'],
-            'tipo': 'comentario',
+            'fecha': observacion.get('fecha_creacion', datetime.utcnow().isoformat() + "Z"),
+            'tipo': observacion.get('tipo', 'comentario'),
             'observacion': observacion['observacion']
-        })
+        }
+
+        # Agregar usuario_id y usuario_nombre si están presentes
+        if 'usuario_id' in observacion:
+            nueva_observacion['usuario_id'] = observacion['usuario_id']
+        if 'usuario_nombre' in observacion:
+            nueva_observacion['usuario_nombre'] = observacion['usuario_nombre']
+
+        observaciones['historial'].append(nueva_observacion)
 
         # Actualizar la solicitud
         resp = (

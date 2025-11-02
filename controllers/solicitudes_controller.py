@@ -572,20 +572,19 @@ class SolicitudesController:
         Estructura esperada en el body:
         {
             "observacion": "Texto de la observación",
-            "fecha_creacion": "2025-09-01T20:30:00-05:00"
+            "fecha_creacion": "2025-09-01T20:30:00-05:00" (opcional),
+            "tipo": "comentario" (opcional),
+            "usuario_id": 123,
+            "usuario_nombre": "Juan Pérez"
         }
         """
         try:
             body = request.get_json(silent=True) or {}
 
             observacion = body.get("observacion")
-            fecha_creacion = body.get("fecha_creacion")
 
             if not observacion:
                 return jsonify({"ok": False, "error": "La observación es requerida"}), 400
-
-            if not fecha_creacion:
-                return jsonify({"ok": False, "error": "La fecha de creación es requerida"}), 400
 
                 # print(f"\n📝 AGREGANDO OBSERVACIÓN A SOLICITUD {id}:")
                 # print(f"   📝 Observación: {observacion[:50]}...")
@@ -593,9 +592,18 @@ class SolicitudesController:
 
             # Estructura simplificada que se guardará directamente
             nueva_observacion = {
-                "observacion": observacion,
-                "fecha_creacion": fecha_creacion
+                "observacion": observacion
             }
+
+            # Agregar campos opcionales si están presentes
+            if "fecha_creacion" in body:
+                nueva_observacion["fecha_creacion"] = body["fecha_creacion"]
+            if "tipo" in body:
+                nueva_observacion["tipo"] = body["tipo"]
+            if "usuario_id" in body:
+                nueva_observacion["usuario_id"] = body["usuario_id"]
+            if "usuario_nombre" in body:
+                nueva_observacion["usuario_nombre"] = body["usuario_nombre"]
 
             # Agregar la observación al array de observaciones
             data = self.model.agregar_observacion_simple(

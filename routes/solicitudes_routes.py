@@ -123,11 +123,21 @@ def agregar_observacion(id: int):
             observacion:
               type: string
               description: Texto de la observación
+            fecha_creacion:
+              type: string
+              format: date-time
+              description: Fecha de creación de la observación (opcional, se genera automáticamente si no se envía)
             tipo:
               type: string
               enum: [comentario, cambio_estado, sistema, advertencia]
               default: comentario
               description: Tipo de observación
+            usuario_id:
+              type: integer
+              description: ID del usuario que crea la observación
+            usuario_nombre:
+              type: string
+              description: Nombre del usuario que crea la observación
     responses:
       200:
         description: Observación agregada exitosamente
