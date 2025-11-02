@@ -11,18 +11,18 @@ load_dotenv()  # Cargar .env del directorio del proyecto
 
 def config_email():
     ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'production':
-        smtp_server = "smtp.zoho.com"
-        sender_email = "credito@findii.co"
-        sender_password = os.getenv('EMAIL_PASSWORD')
-        EMAIL_DEFAULT = 'comercial@findii.co'
-        EMAIL_DEFAULT_NAME = 'Equipo Comercial Findii'
-    else:
+    if ENVIRONMENT == 'development':
         smtp_server = "smtp.gmail.com"
         sender_email = "equitisoporte@gmail.com"
         sender_password = os.getenv('EMAIL_PASSWORD_BACK')
         EMAIL_DEFAULT = 'equitisoporte@gmail.com'
         EMAIL_DEFAULT_NAME = 'Equipo desarrollo Findii'
+    else:
+        smtp_server = "smtp.zoho.com"
+        sender_email = "credito@findii.co"
+        sender_password = os.getenv('EMAIL_PASSWORD')
+        EMAIL_DEFAULT = 'comercial@findii.co'
+        EMAIL_DEFAULT_NAME = 'Equipo Comercial Findii'
 
     email_settings = {
         "smtp_server": smtp_server,
