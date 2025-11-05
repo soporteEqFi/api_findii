@@ -752,7 +752,7 @@ Plazo: {plazo} meses
 Estado: {solicitud['estado']}
 
 👉 Para continuar con la gestión, accede al portal de asesores aquí:
-https://updated-crm.netlify.app/
+https://oneplatform.findii.co/
 
 Recuerda que tu acompañamiento es clave para agilizar la aprobación del crédito y garantizar una excelente experiencia al cliente.
 
@@ -781,13 +781,13 @@ def enviar_email_banco(email_settings, data):
         solicitante = data['solicitante']
         print(solicitante)
         solicitud = data['solicitud']
-        # CORREGIDO: ubicacion está dentro del solicitante, no en data['ubicacion']
+        # CORREGIDO: ubicación está dentro del solicitante, no en data['ubicacion']
         ubicacion_data = solicitante.get('ubicacion', {})
         detalle_credito = solicitud.get('detalle_credito', {})
         info_extra = solicitante.get('info_extra', {})
         actividad_economica = solicitante.get('actividad_economica', {})
         informacion_financiera = solicitante.get('informacion_financiera', {})
-
+        documentos = data.get('documentos', [])  # Obtener documentos adjuntos
 
         # EXTRAER DATOS DIRECTAMENTE COMO LO HACEN LOS OTROS EMAILS
         # Usar el mismo patrón que los emails del solicitante y asesor
@@ -942,6 +942,8 @@ Monto solicitado: {formatear_dinero(monto_solicitado)}
 Cuota inicial: {formatear_dinero(cuota_inicial)}
 Plazo: {plazo_meses} meses
 
+👉 Para continuar con la gestión, accede al portal de bancos aquí:
+https://oneplatform.findii.co/
 
 Quedamos atentos a su confirmación y a cualquier información adicional que requieran para agilizar el proceso.
 
@@ -953,8 +955,40 @@ Responsable: {data['asesor']['nombre']}
 Correo del responsable: {data['asesor']['correo']}"""
 
         msg.attach(MIMEText(body, 'plain'))
+
+        # Adjuntar documentos si existen
+        if documentos and isinstance(documentos, list):
+            from email.mime.base import MIMEBase
+            from email import encoders
+            import base64
+            import os
+            
+            for doc in documentos:
+                try:
+                    if doc.get('documento') and doc.get('nombre_archivo'):
+                        # Decodificar el archivo base64
+                        file_data = base64.b64decode(doc['documento'])
+                        
+                        # Crear el adjunto
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(file_data)
+                        encoders.encode_base64(part)
+                        
+                        # Obtener la extensión del archivo
+                        filename = doc['nombre_archivo']
+                        if not any(filename.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']):
+                            filename += '.pdf'  # Asumir PDF si no hay extensión
+                            
+                        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+                        msg.attach(part)
+                        print(f"Documento adjuntado: {filename}")
+                except Exception as e:
+                    print(f"Error adjuntando documento: {str(e)}")
+                    continue
+
         return send_email(email_settings, msg)
 
     except Exception as e:
         print(f"Error enviando email al banco: {str(e)}")
+        raise  # Relanzar la excepción para manejo superior
         return False
