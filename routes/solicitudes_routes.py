@@ -168,4 +168,3 @@ def obtener_ciudades_disponibles():
 def obtener_estados_disponibles():
     return con_solicitudes.obtener_estados_disponibles()
 
-

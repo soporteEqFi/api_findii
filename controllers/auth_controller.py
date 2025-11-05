@@ -16,23 +16,26 @@ class AuthController:
     def login(self):
         """Endpoint de login."""
         try:
+            print("\n" + "="*60)
+            print("[LOGIN] 🚀 INICIO DE LOGIN")
+            print("="*60)
+
             # Debug: imprimir datos recibidos
-            # print("=== DEBUG LOGIN ===")
-            # print(f"Content-Type: {request.content_type}")
-            # print(f"Raw data: {request.get_data()}")
+            print(f"[LOGIN] 📥 Content-Type: {request.content_type}")
+            print(f"[LOGIN] 📥 Raw data: {request.get_data()}")
 
             body = request.get_json(silent=True) or {}
-            # print(f"Parsed JSON: {body}")
+            print(f"[LOGIN] 📥 Parsed JSON: {body}")
 
             # Validar campos requeridos
             correo = body.get("correo") or body.get("email")  # Soportar ambos nombres
             contraseña = body.get("contraseña") or body.get("password")  # Soportar ambos nombres
 
-            print(f"Correo extraído: {correo}")
-            print(f"Contraseña extraída: {'***' if contraseña else None}")
+            print(f"[LOGIN] 📧 Correo extraído: {correo}")
+            print(f"[LOGIN] 🔐 Contraseña extraída: {'***' if contraseña else None}")
 
             if not correo or not contraseña:
-                print("ERROR: Campos faltantes")
+                print("[LOGIN] ❌ ERROR: Campos faltantes")
                 return jsonify({
                     "ok": False,
                     "error": "Correo y contraseña son requeridos",
@@ -43,13 +46,44 @@ class AuthController:
                     }
                 }), 400
 
-                        # Autenticar usuario
-            print(f"Intentando autenticar: {correo}")
+            # Autenticar usuario
+            print(f"[LOGIN] 🔍 Intentando autenticar usuario: {correo}")
             usuario = self.model.authenticate_user(correo, contraseña)
-            print(f"Resultado autenticación: {usuario is not None}")
+            print(f"[LOGIN] 📊 Resultado autenticación: {usuario is not None}")
+
+            if usuario:
+                print(f"[LOGIN] ✅ Usuario autenticado - ID: {usuario.get('id')}, Nombre: {usuario.get('nombre')}")
+            else:
+                print(f"[LOGIN] ❌ Usuario NO autenticado (None retornado)")
 
             if not usuario:
-                print("ERROR: Usuario no autenticado")
+                print(f"[LOGIN] 🔍 Verificando si es usuario temporal (para mensaje específico)...")
+                # Verificar si el usuario existe pero está inactivo o expirado
+                try:
+                    usuario_info = self.model._verificar_usuario_temporal(correo)
+                    print(f"[LOGIN] 📊 Resultado verificación temporal: {usuario_info}")
+
+                    if usuario_info:
+                        if usuario_info.get("inactivo"):
+                            print("[LOGIN] ❌ ERROR: Usuario temporal inactivo")
+                            return jsonify({
+                                "ok": False,
+                                "error": "Usuario inactivo",
+                                "message": "Tu cuenta temporal está desactivada. Contacta al administrador.",
+                                "error_code": "USER_INACTIVE"
+                            }), 403
+                        elif usuario_info.get("expirado"):
+                            print("[LOGIN] ❌ ERROR: Usuario temporal expirado")
+                            return jsonify({
+                                "ok": False,
+                                "error": "Cuenta expirada",
+                                "message": f"Tu cuenta temporal expiró el {usuario_info.get('fecha_expiracion', '')}. Contacta al administrador para renovar el acceso.",
+                                "error_code": "USER_EXPIRED"
+                            }), 403
+                except Exception as verif_error:
+                    print(f"[LOGIN] ⚠️ Error verificando usuario temporal: {verif_error}")
+
+                print("[LOGIN] ❌ ERROR: Usuario no autenticado - Credenciales inválidas")
                 return jsonify({
                     "ok": False,
                     "error": "Credenciales inválidas",
@@ -57,20 +91,34 @@ class AuthController:
                 }), 401
 
             # Crear token JWT
-            expires = timedelta(hours=24)  # Token válido por 24 horas
-            access_token = create_access_token(
-                identity=usuario["id"],
-                expires_delta=expires
-            )
+            print(f"[LOGIN] 🔐 Creando token JWT para usuario ID: {usuario.get('id')}")
+            try:
+                expires = timedelta(hours=24)  # Token válido por 24 horas
+                access_token = create_access_token(
+                    identity=usuario["id"],
+                    expires_delta=expires
+                )
+                print(f"[LOGIN] ✅ Token JWT creado exitosamente")
+            except Exception as token_error:
+                print(f"[LOGIN] ❌ ERROR creando token JWT: {token_error}")
+                import traceback
+                traceback.print_exc()
+                raise
 
-            print(f"Usuario: {usuario}")
+            print(f"[LOGIN] 👤 Datos usuario: {usuario}")
 
             # Obtener información de la empresa
             empresa_info = None
             if usuario.get("empresa_id"):
-                empresa_info = self.model.get_empresa_info(usuario["empresa_id"])
+                print(f"[LOGIN] 🏢 Obteniendo información de empresa ID: {usuario.get('empresa_id')}")
+                try:
+                    empresa_info = self.model.get_empresa_info(usuario["empresa_id"])
+                    print(f"[LOGIN] 🏢 Empresa info: {empresa_info}")
+                except Exception as empresa_error:
+                    print(f"[LOGIN] ⚠️ Error obteniendo empresa: {empresa_error}")
+                    empresa_info = None
 
-            return jsonify({
+            respuesta = {
                 "ok": True,
                 "access_token": access_token,
                 "user": {
@@ -84,13 +132,27 @@ class AuthController:
                 },
                 "empresa": empresa_info,
                 "message": "Login exitoso"
-            }), 200
+            }
+
+            print(f"[LOGIN] ✅ LOGIN EXITOSO - Enviando respuesta")
+            print("="*60 + "\n")
+
+            return jsonify(respuesta), 200
 
         except Exception as ex:
+            print(f"\n[LOGIN] ❌❌❌ ERROR EXCEPCIÓN EN LOGIN ❌❌❌")
+            print(f"[LOGIN] Tipo de error: {type(ex).__name__}")
+            print(f"[LOGIN] Mensaje: {str(ex)}")
+            print(f"[LOGIN] 📋 Traceback completo:")
+            import traceback
+            traceback.print_exc()
+            print("="*60 + "\n")
+
             return jsonify({
                 "ok": False,
                 "error": str(ex),
-                "message": "Error interno del servidor"
+                "message": "Error interno del servidor",
+                "error_type": type(ex).__name__
             }), 500
 
     @jwt_required()
