@@ -87,6 +87,75 @@ class EstadisticasModel:
                 fecha = solicitud.get("created_at", "")[:10]  # Solo la fecha YYYY-MM-DD
                 solicitudes_por_dia[fecha] = solicitudes_por_dia.get(fecha, 0) + 1
 
+            # Métricas de radicaciones y montos
+            # Definir estados que consideramos como radicaciones para métricas
+            estados_radicados = ["Radicado", "Aprobado", "Rechazado"]
+
+            # Consultar solicitudes radicadas (filtradas por rol)
+            radicados_query = (
+                supabase
+                .table("solicitudes")
+                .select("estado,banco_nombre,detalle_credito")
+                .eq("empresa_id", empresa_id)
+                .in_("estado", estados_radicados)
+            )
+            radicados_query = self._aplicar_query_filtros_rol(radicados_query, usuario_info, empresa_id)
+            radicados_resp = radicados_query.execute()
+            radicados_data = _get_data(radicados_resp) or []
+
+            # Helper para extraer monto del detalle_credito de forma robusta
+            def _extraer_monto(detalle: dict) -> float:
+                if not isinstance(detalle, dict):
+                    return 0.0
+                # Candidatos comunes
+                for k in ("monto_radicado", "monto_solicitado", "monto", "valor_solicitado"):
+                    v = detalle.get(k)
+                    if isinstance(v, (int, float)):
+                        return float(v)
+                    if isinstance(v, str):
+                        try:
+                            return float(v)
+                        except:
+                            pass
+                # Buscar en tipos de crédito específicos
+                for sub in ("credito_vehicular", "credito_hipotecario", "credito_consumo", "credito_comercial", "microcredito", "credito_educativo"):
+                    subobj = detalle.get(sub)
+                    if isinstance(subobj, dict):
+                        v = subobj.get("monto_solicitado") or subobj.get("monto")
+                        if isinstance(v, (int, float)):
+                            return float(v)
+                        if isinstance(v, str):
+                            try:
+                                return float(v)
+                            except:
+                                pass
+                return 0.0
+
+            total_creditos = 0
+            total_monto = 0.0
+            radicaciones_por_estado: Dict[str, int] = {}
+            monto_por_estado: Dict[str, float] = {}
+            radicaciones_por_banco: Dict[str, int] = {}
+            monto_por_banco: Dict[str, float] = {}
+
+            for item in radicados_data:
+                estado_item = item.get("estado", "Sin Estado")
+                banco_item = item.get("banco_nombre", "Sin Banco")
+                detalle = item.get("detalle_credito") or {}
+
+                monto = _extraer_monto(detalle)
+
+                total_creditos += 1
+                total_monto += monto
+
+                radicaciones_por_estado[estado_item] = radicaciones_por_estado.get(estado_item, 0) + 1
+                monto_por_estado[estado_item] = round(monto_por_estado.get(estado_item, 0.0) + monto, 2)
+
+                # Solo exponer desglose por banco cuando el usuario puede ver múltiples bancos
+                if not usuario_info or usuario_info.get("rol") in ["admin", "supervisor", "empresa"]:
+                    radicaciones_por_banco[banco_item] = radicaciones_por_banco.get(banco_item, 0) + 1
+                    monto_por_banco[banco_item] = round(monto_por_banco.get(banco_item, 0.0) + monto, 2)
+
             return {
                 "total_solicitantes": total_solicitantes,
                 "total_solicitudes": total_solicitudes,
@@ -94,7 +163,14 @@ class EstadisticasModel:
                 "solicitudes_por_banco": solicitudes_por_banco,
                 "solicitudes_por_ciudad": solicitudes_por_ciudad,
                 "total_documentos": total_documentos,
-                "solicitudes_por_dia": solicitudes_por_dia
+                "solicitudes_por_dia": solicitudes_por_dia,
+                # Nuevas métricas solicitadas
+                "total_creditos": total_creditos,
+                "radicaciones_por_banco": radicaciones_por_banco,
+                "radicaciones_por_estado": radicaciones_por_estado,
+                "total_monto": round(total_monto, 2),
+                "monto_por_banco": monto_por_banco,
+                "monto_por_estado": monto_por_estado,
             }
 
         except Exception as e:
@@ -106,7 +182,14 @@ class EstadisticasModel:
                 "solicitudes_por_banco": {},
                 "solicitudes_por_ciudad": {},
                 "total_documentos": 0,
-                "solicitudes_por_dia": {}
+                "solicitudes_por_dia": {},
+                # Nuevas métricas (defaults)
+                "total_creditos": 0,
+                "radicaciones_por_banco": {},
+                "radicaciones_por_estado": {},
+                "total_monto": 0,
+                "monto_por_banco": {},
+                "monto_por_estado": {},
             }
 
     def estadisticas_rendimiento(self, empresa_id: int, usuario_info: dict = None, dias: int = 30) -> Dict[str, Any]:
