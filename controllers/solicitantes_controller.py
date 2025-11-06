@@ -530,9 +530,9 @@ class SolicitantesController:
                     if key in request.files:
                         # getlist también funciona para una sola entrada
                         files_list.extend(request.files.getlist(key))
-                # print(f"   📎 Archivos recibidos (multipart): {len(files_list)}")
+                print(f"   📎 Archivos recibidos (multipart): {len(files_list)}")
             else:
-                # print(f"   📨 Content-Type recibido: {content_type} (sin multipart, no hay archivos)")
+                print(f"   📨 Content-Type recibido: {content_type} (sin multipart, no hay archivos)")
                 body = request.get_json(silent=True) or {}
                 files_list = []
 
@@ -634,6 +634,9 @@ class SolicitantesController:
                             documento_url=public_url,
                             solicitante_id=solicitante_id,
                         )
+                        # Guardar también los bytes para adjuntar directamente al email (sin descargar)
+                        doc_saved['_bytes'] = file_bytes  # Bytes en memoria para adjuntar
+                        doc_saved['_content_type'] = content_type  # Tipo MIME para adjuntar
                         documentos_creados.append(doc_saved)
                         # print(f"   ✅ Documento subido: {original_name}")
                     except Exception as e:
@@ -967,21 +970,47 @@ class SolicitantesController:
             # print(f"   👥 Referencias: {len(referencias_creadas)}")
             # print(f"   📄 Solicitudes: {len(solicitudes_creadas)}")
 
-            # 8. ENVIAR EMAILS DE CONFIRMACIÓN (SOLICITANTE, ASESOR Y BANCO)
-            print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
+            # 8. OBTENER DOCUMENTOS DESDE BD (por si se subieron después o en llamadas separadas)
+            print(f"\n📎 OBTENIENDO DOCUMENTOS DESDE BD PARA EMAILS...")
             try:
-                # Pasar el JSON original para extraer correos de forma robusta
-                email_enviado = enviar_email_registro_completo(response_data, body)
-                if email_enviado:
-                    print(f"   ✅ Emails enviados exitosamente")
-                    response_data["emails_enviados"] = True
-                else:
-                    print(f"   ⚠️ No se pudieron enviar todos los emails, pero el registro se creó correctamente")
-                    response_data["emails_enviados"] = False
-            except Exception as email_error:
-                print(f"   ❌ Error enviando emails: {str(email_error)}")
-                response_data["emails_enviados"] = False
-                # No fallar la operación por error de email
+                documentos_desde_bd = self.documentos_model.list(solicitante_id=solicitante_id)
+                print(f"   📊 Documentos encontrados en BD: {len(documentos_desde_bd)}")
+
+                # Combinar documentos creados aquí con los de la BD
+                # Si hay documentos creados aquí con _bytes, mantenerlos; sino usar los de la BD
+                documentos_ids_creados = {doc.get('id') for doc in documentos_creados if doc.get('id')}
+                documentos_finales = list(documentos_creados)  # Mantener los creados aquí (con _bytes)
+
+                # Agregar documentos de la BD que no estén ya en documentos_creados
+                for doc_bd in documentos_desde_bd:
+                    if doc_bd.get('id') not in documentos_ids_creados:
+                        documentos_finales.append(doc_bd)
+
+                # Actualizar response_data con todos los documentos
+                response_data["data"]["documentos"] = documentos_finales
+                print(f"   ✅ Total documentos para email: {len(documentos_finales)}")
+            except Exception as e:
+                print(f"   ⚠️ Error obteniendo documentos desde BD: {e}")
+                # Continuar con documentos_creados si hay error
+                print(f"   📊 Usando documentos creados aquí: {len(documentos_creados)}")
+
+            # 9. NO ENVIAR EMAILS AUTOMÁTICAMENTE
+            # Los emails se enviarán cuando el frontend llame al endpoint POST /solicitantes/<solicitante_id>/enviar-emails
+            # después de subir todos los documentos
+            print(f"\n📧 Emails NO enviados automáticamente")
+            print(f"   ℹ️ Para enviar emails, llamar: POST /solicitantes/{solicitante_id}/enviar-emails")
+            response_data["emails_enviados"] = False
+            response_data["emails_pendientes"] = True
+            response_data["endpoint_enviar_emails"] = f"/solicitantes/{solicitante_id}/enviar-emails"
+            response_data["message"] = f"Registro completo creado exitosamente. Solicitante ID: {solicitante_id}. Para enviar emails, llamar POST {response_data['endpoint_enviar_emails']}"
+
+            # Limpiar bytes temporales de documentos para evitar problemas de serialización JSON
+            documentos_para_limpiar = response_data.get("data", {}).get("documentos", [])
+            for doc in documentos_para_limpiar:
+                if '_bytes' in doc:
+                    del doc['_bytes']
+                if '_content_type' in doc:
+                    del doc['_content_type']
 
             log_response(response_data)
             return jsonify(response_data), 201
@@ -1070,6 +1099,133 @@ class SolicitantesController:
             log_response(response_data)
 
             return jsonify(response_data)
+
+        except ValueError as ve:
+            log_error(ve, "ERROR DE VALIDACIÓN")
+            return jsonify({"ok": False, "error": str(ve)}), 400
+        except Exception as ex:
+            log_error(ex, "ERROR INESPERADO")
+            return jsonify({"ok": False, "error": str(ex)}), 500
+
+    def enviar_emails_registro_completo(self, solicitante_id: int):
+        """
+        Envía los emails de confirmación después de que se hayan subido todos los documentos.
+        Este endpoint debe ser llamado por el frontend después de subir todos los documentos.
+        """
+        log_request_details("ENVIAR EMAILS REGISTRO COMPLETO", f"solicitante_id={solicitante_id}")
+
+        try:
+            empresa_id = self._empresa_id()
+
+            # 1. Obtener datos del solicitante principal
+            solicitante = self.model.get_by_id(id=solicitante_id, empresa_id=empresa_id)
+            if not solicitante:
+                return jsonify({"ok": False, "error": "Solicitante no encontrado"}), 404
+
+            # 2. Obtener todas las entidades relacionadas (similar a traer_todos_registros)
+            try:
+                ubicaciones = self.ubicaciones_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+            except Exception as e:
+                ubicaciones = []
+
+            try:
+                actividad_economica_list = self.actividad_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                actividad_economica = actividad_economica_list[0] if actividad_economica_list else None
+            except Exception as e:
+                actividad_economica = None
+
+            try:
+                financiera_list = self.financiera_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+                informacion_financiera = financiera_list[0] if financiera_list else None
+            except Exception as e:
+                informacion_financiera = None
+
+            try:
+                referencias = self.referencias_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+            except Exception as e:
+                referencias = []
+
+            try:
+                solicitudes = self.solicitudes_model.list(empresa_id=empresa_id, solicitante_id=solicitante_id)
+            except Exception as e:
+                solicitudes = []
+
+            # 3. Obtener documentos con reintentos (por si se están subiendo en paralelo)
+            import time
+            documentos = []
+            max_intentos = 10  # Hasta 10 intentos
+            delay_intento = 2  # 2 segundos entre intentos (total hasta 20 segundos)
+
+            print(f"\n📎 Buscando documentos para enviar en emails...")
+            for intento in range(max_intentos):
+                try:
+                    documentos = self.documentos_model.list(solicitante_id=solicitante_id)
+                    if documentos and len(documentos) > 0:
+                        print(f"   ✅ Documentos encontrados: {len(documentos)} (intento {intento + 1}/{max_intentos})")
+                        break
+                    else:
+                        if intento < max_intentos - 1:
+                            print(f"   ⏳ No hay documentos aún (intento {intento + 1}/{max_intentos}), esperando {delay_intento}s...")
+                            time.sleep(delay_intento)
+                        else:
+                            print(f"   ⚠️ No se encontraron documentos después de {max_intentos} intentos")
+                except Exception as e:
+                    print(f"   ⚠️ Error obteniendo documentos (intento {intento + 1}): {e}")
+                    if intento < max_intentos - 1:
+                        time.sleep(delay_intento)
+                    else:
+                        documentos = []
+
+            print(f"   📊 Total documentos para enviar: {len(documentos)}")
+
+            # 4. Construir response_data similar al de crear_registro_completo
+            response_data = {
+                "ok": True,
+                "data": {
+                    "solicitante": solicitante,
+                    "ubicaciones": ubicaciones or [],
+                    "actividad_economica": actividad_economica,
+                    "informacion_financiera": informacion_financiera,
+                    "referencias": referencias or [],
+                    "solicitudes": solicitudes or [],
+                    "documentos": documentos or []
+                }
+            }
+
+            # 5. Obtener el JSON original si está disponible (para extraer correos)
+            # Si no está disponible, intentar construir desde los datos
+            original_json = None
+            body = request.get_json(silent=True) or {}
+            if body:
+                original_json = body
+
+            # 6. Enviar emails
+            print(f"\n📧 ENVIANDO EMAILS DE CONFIRMACIÓN...")
+            try:
+                email_enviado = enviar_email_registro_completo(response_data, original_json)
+                if email_enviado:
+                    print(f"   ✅ Emails enviados exitosamente")
+                    return jsonify({
+                        "ok": True,
+                        "message": "Emails enviados exitosamente",
+                        "emails_enviados": True,
+                        "total_documentos": len(documentos)
+                    }), 200
+                else:
+                    return jsonify({
+                        "ok": False,
+                        "error": "No se pudieron enviar todos los emails",
+                        "emails_enviados": False
+                    }), 500
+            except Exception as email_error:
+                print(f"   ❌ Error enviando emails: {str(email_error)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({
+                    "ok": False,
+                    "error": f"Error enviando emails: {str(email_error)}",
+                    "emails_enviados": False
+                }), 500
 
         except ValueError as ve:
             log_error(ve, "ERROR DE VALIDACIÓN")

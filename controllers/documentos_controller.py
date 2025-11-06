@@ -17,10 +17,15 @@ class DocumentosController:
 
     def create(self):
         try:
+            print(f"\n📎 [DOCUMENTOS] Creando documento...")
+
             # Soporta multipart/form-data (preferido) y JSON como fallback
             file = request.files.get("file")
             if not file:
+                print(f"   ❌ No se recibió archivo")
                 return jsonify({"ok": False, "error": "Archivo (file) es requerido"}), 400
+
+            print(f"   📄 Archivo recibido: {file.filename}")
 
             # Obtener solicitante_id desde form, query o JSON
             solicitante_id = (
@@ -29,32 +34,70 @@ class DocumentosController:
                 or (request.get_json(silent=True) or {}).get("solicitante_id")
             )
             if not solicitante_id:
+                print(f"   ❌ No se recibió solicitante_id")
                 return jsonify({"ok": False, "error": "solicitante_id es requerido"}), 400
             try:
                 solicitante_id = int(solicitante_id)
             except Exception:
                 return jsonify({"ok": False, "error": "solicitante_id debe ser entero"}), 400
 
+            print(f"   👤 Solicitante ID: {solicitante_id}")
+
             original_name = secure_filename(file.filename or "documento")
             ext = os.path.splitext(original_name)[1]
             unique_name = f"{uuid.uuid4().hex}{ext}" if ext else uuid.uuid4().hex
             storage_path = f"solicitantes/{solicitante_id}/{unique_name}"
 
-            # Subir a Supabase Storage (bucket: document)
+            print(f"   📁 Ruta storage: {storage_path}")
+
+            # Subir a Supabase Storage (bucket: document) con reintentos
             content_type = file.mimetype or "application/octet-stream"
             file_bytes = file.read()
+            print(f"   📊 Tamaño archivo: {len(file_bytes)} bytes, tipo: {content_type}")
+
             storage = supabase.storage.from_("document")
-            storage.upload(
-                storage_path,
-                file_bytes,
-                file_options={
-                    "content-type": content_type,
-                    "upsert": "true",
-                    # opcional: "cache-control": "3600",
-                },
-            )
+
+            # Intentar subir con reintentos (por problemas de conexión)
+            import time
+            max_intentos_upload = 3
+            delay_reintento = 2  # segundos
+
+            for intento_upload in range(max_intentos_upload):
+                try:
+                    print(f"   ⬆️ Subiendo a Supabase Storage... (intento {intento_upload + 1}/{max_intentos_upload})")
+                    storage.upload(
+                        storage_path,
+                        file_bytes,
+                        file_options={
+                            "content-type": content_type,
+                            "upsert": "true",
+                            # opcional: "cache-control": "3600",
+                        },
+                    )
+                    print(f"   ✅ Archivo subido a Storage exitosamente")
+                    break  # Salir del loop si fue exitoso
+                except Exception as upload_error:
+                    error_type = type(upload_error).__name__
+                    error_msg = str(upload_error)
+
+                    # Si es un error de conexión/red, reintentar
+                    if "disconnected" in error_msg.lower() or "connection" in error_msg.lower() or "timeout" in error_msg.lower() or "protocol" in error_msg.lower():
+                        if intento_upload < max_intentos_upload - 1:
+                            print(f"   ⚠️ Error de conexión (intento {intento_upload + 1}/{max_intentos_upload}): {error_type}")
+                            print(f"   ⏳ Reintentando en {delay_reintento} segundos...")
+                            time.sleep(delay_reintento)
+                            continue
+                        else:
+                            # Último intento falló
+                            print(f"   ❌ Error de conexión después de {max_intentos_upload} intentos")
+                            raise
+                    else:
+                        # Otro tipo de error, no reintentar
+                        print(f"   ❌ Error no relacionado con conexión: {error_type}: {error_msg}")
+                        raise
 
             # Obtener URL pública
+            print(f"   🔗 Obteniendo URL pública...")
             public_url_resp = storage.get_public_url(storage_path)
             public_url: str | None = None
             if isinstance(public_url_resp, dict):
@@ -70,15 +113,23 @@ class DocumentosController:
                 # fallback por si la lib devuelve directamente el string
                 public_url = str(public_url_resp)
 
+            print(f"   🔗 URL pública: {public_url}")
+
             # Guardar registro en la tabla 'documentos'
+            print(f"   💾 Guardando registro en BD...")
             saved = self.model.create(
                 nombre=original_name,
                 documento_url=public_url,
                 solicitante_id=solicitante_id,
             )
+            print(f"   ✅ Documento creado exitosamente - ID: {saved.get('id')}")
 
             return jsonify({"ok": True, "data": saved}), 201
         except Exception as ex:
+            print(f"   ❌ ERROR creando documento: {type(ex).__name__}: {str(ex)}")
+            import traceback
+            print(f"   📋 Traceback:")
+            traceback.print_exc()
             return jsonify({"ok": False, "error": str(ex)}), 500
 
     def list(self):

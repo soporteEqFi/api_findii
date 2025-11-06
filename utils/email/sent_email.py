@@ -1,10 +1,14 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 import os
 import time as std_time
 import uuid
 from datetime import datetime
+from typing import Tuple, Optional
+import requests
 
 from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
@@ -28,7 +32,9 @@ def config_email():
         "smtp_server": smtp_server,
         "smtp_port": 465,
         "sender_email": sender_email,
-        "sender_password": sender_password
+        "sender_password": sender_password,
+        "email_default": EMAIL_DEFAULT,
+        "email_default_name": EMAIL_DEFAULT_NAME
     }
 
     return email_settings
@@ -140,6 +146,7 @@ def mapear_datos_para_email(response_data, original_json=None):
         actividad_economica = data.get("actividad_economica", {})
         informacion_financiera = data.get("informacion_financiera", {})
         referencias = data.get("referencias", [])
+        documentos = data.get("documentos", [])
 
         # Obtener primera solicitud si existe
         primera_solicitud = solicitudes[0] if solicitudes else {}
@@ -260,6 +267,7 @@ def mapear_datos_para_email(response_data, original_json=None):
         datos_mapeados = {
             "id_radicado": id_radicado,
             "solicitante": {
+                "id": solicitante.get("id"),  # Incluir ID para poder obtener documentos después
                 "nombre_completo": nombre_completo,
                 "correo_electronico": correo_electronico,
                 "datos_basicos": {
@@ -287,7 +295,8 @@ def mapear_datos_para_email(response_data, original_json=None):
             "banco": {
                 "nombre_usuario": nombre_banco_usuario,
                 "correo_usuario": correo_banco_usuario
-            }
+            },
+            "documentos": documentos  # Incluir documentos para adjuntar
         }
 
         # print(f"\n✅ DATOS MAPEADOS CORRECTAMENTE PARA ENVIO DE EMAILS:")
@@ -296,6 +305,7 @@ def mapear_datos_para_email(response_data, original_json=None):
         # print(f"   👨‍💼 Asesor: {nombre_asesor} ({correo_asesor})")
         # print(f"   🏦 Banco: {nombre_banco_usuario} ({correo_banco_usuario})")
         # print(f"   📊 Estado de emails: Solicitante={bool(correo_electronico.strip())}, Asesor={bool(correo_asesor.strip())}, Banco={bool(correo_banco_usuario.strip())}")
+        # print(f"   📎 Documentos disponibles: {len(documentos)}")
 
         return datos_mapeados
 
@@ -333,6 +343,13 @@ def enviar_email_registro_completo(response_data, original_json=None):
         if not email_settings["sender_password"]:
             print("❌ No se encontró la contraseña del email en las variables de entorno")
             return False
+
+        # Verificar documentos disponibles (ya deberían estar en response_data si se llamó desde el endpoint de envío)
+        documentos_en_datos = datos_email.get('documentos', [])
+        if documentos_en_datos:
+            print(f"\n   ✅ Documentos disponibles en datos_email: {len(documentos_en_datos)}")
+        else:
+            print(f"\n   ℹ️ No hay documentos en datos_email (puede que no se hayan subido aún)")
 
         resultados = {
             "solicitante": False,
@@ -373,14 +390,16 @@ def enviar_email_registro_completo(response_data, original_json=None):
         banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
 
         # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
+        EMAIL_DEFAULT = email_settings.get("email_default", "comercial@findii.co")
+        EMAIL_DEFAULT_NAME = email_settings.get("email_default_name", "Equipo Comercial Findii")
+
         if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
             # print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
             # print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
             # print("   📧 Enviando email al correo por defecto: comercial@findii.co")
             # Sobrescribir el email del banco con el correo por defecto
-            # datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
-            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME # produccion: Equipo Comercial Findii, desarrollo: Equipo desarrollo Findii
+            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT
+            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
         elif email_banco and email_banco.strip():
             print("📧 Enviando email al banco...")
@@ -389,9 +408,8 @@ def enviar_email_registro_completo(response_data, original_json=None):
             print("⚠️ WARNING: No se encontró email del banco o está vacío")
             print(f"   📧 Enviando email al correo por defecto: {EMAIL_DEFAULT}")
             # Enviar a comercial@findii.co como fallback
-            # datos_email['banco']['correo_usuario'] = 'comercial@findii.co'
-            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
-            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME # produccion: Equipo Comercial Findii, desarrollo: Equipo desarrollo Findii
+            datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT
+            datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME
             resultados["banco"] = enviar_email_banco(email_settings, datos_email)
 
         # Verificar si al menos uno se envió exitosamente
@@ -410,6 +428,149 @@ def enviar_email_registro_completo(response_data, original_json=None):
         print(f"❌ ERROR GENERAL enviando emails de registro completo: {str(e)}")
         print(f"📊 Resumen de envíos: Solicitante: ❌, Asesor: ❌, Banco: ❌")
         return False
+
+def descargar_archivo_desde_url(url: str, timeout: int = 30) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Descarga un archivo desde una URL y retorna los bytes del archivo y el nombre.
+
+    Args:
+        url: URL del archivo a descargar
+        timeout: Tiempo máximo de espera en segundos
+
+    Returns:
+        Tupla (bytes_del_archivo, nombre_archivo) o (None, None) si hay error
+    """
+    try:
+        print(f"   📥 Descargando archivo desde: {url}")
+        response = requests.get(url, timeout=timeout, stream=True)
+        response.raise_for_status()
+
+        # Intentar obtener el nombre del archivo desde el header Content-Disposition
+        content_disposition = response.headers.get('Content-Disposition', '')
+        nombre_archivo = None
+        if 'filename=' in content_disposition:
+            nombre_archivo = content_disposition.split('filename=')[1].strip('"\'')
+
+        # Si no hay nombre en el header, extraer de la URL
+        if not nombre_archivo:
+            nombre_archivo = url.split('/')[-1].split('?')[0]
+            if not nombre_archivo or nombre_archivo == '':
+                nombre_archivo = 'documento'
+
+        # Leer el contenido del archivo
+        archivo_bytes = response.content
+        print(f"   ✅ Archivo descargado: {nombre_archivo} ({len(archivo_bytes)} bytes)")
+
+        return archivo_bytes, nombre_archivo
+
+    except requests.exceptions.RequestException as e:
+        print(f"   ❌ Error descargando archivo desde {url}: {str(e)}")
+        return None, None
+    except Exception as e:
+        print(f"   ❌ Error inesperado descargando archivo: {str(e)}")
+        return None, None
+
+def adjuntar_documentos_a_email(msg: MIMEMultipart, documentos: list, descripcion: str = "documentos"):
+    """
+    Adjunta documentos a un mensaje de email.
+
+    Args:
+        msg: Objeto MIMEMultipart del email
+        documentos: Lista de documentos con estructura:
+            [
+                {
+                    "nombre": "nombre_archivo.pdf",
+                    "documento_url": "https://...",
+                    "_bytes": b"..." (opcional, bytes en memoria para adjuntar directamente),
+                    "_content_type": "application/pdf" (opcional, tipo MIME)
+                },
+                ...
+            ]
+        descripcion: Descripción para mensajes de log
+
+    Returns:
+        Número de documentos adjuntados exitosamente
+    """
+    print(f"\n   🔍 DEBUG adjuntar_documentos_a_email:")
+    print(f"      📊 documentos recibido: {documentos is not None}")
+    print(f"      📊 es lista: {isinstance(documentos, list)}")
+    print(f"      📊 cantidad: {len(documentos) if documentos and isinstance(documentos, list) else 0}")
+
+    if not documentos or not isinstance(documentos, list):
+        print(f"   ⚠️ No se pueden adjuntar documentos: documentos es None o no es lista")
+        return 0
+
+    documentos_adjuntados = 0
+
+    print(f"\n   📎 Adjuntando {len(documentos)} {descripcion}...")
+
+    for idx, doc in enumerate(documentos):
+        print(f"\n   🔍 Procesando documento {idx+1}/{len(documentos)}...")
+        try:
+            nombre_archivo = doc.get("nombre") or doc.get("nombre_archivo") or "documento"
+
+            # PRIORIDAD 1: Usar bytes directamente si están disponibles (más eficiente)
+            if "_bytes" in doc and doc["_bytes"]:
+                archivo_bytes = doc["_bytes"]
+                tipo_mime = doc.get("_content_type", "application/octet-stream")
+                print(f"   📎 Usando bytes en memoria para: {nombre_archivo}")
+            else:
+                # PRIORIDAD 2: Descargar desde URL si no hay bytes en memoria
+                documento_url = doc.get("documento_url") or doc.get("url")
+
+                if not documento_url:
+                    print(f"   ⚠️ Documento sin URL ni bytes, saltando: {nombre_archivo}")
+                    continue
+
+                print(f"   📥 Descargando desde URL: {nombre_archivo}")
+                archivo_bytes, nombre_descargado = descargar_archivo_desde_url(documento_url)
+
+                if not archivo_bytes:
+                    print(f"   ❌ No se pudo descargar el archivo: {nombre_archivo}")
+                    continue
+
+                # Usar el nombre del documento si está disponible, sino el descargado
+                nombre_archivo = nombre_archivo if nombre_archivo != "documento" else nombre_descargado
+
+                # Determinar el tipo MIME basado en la extensión
+                extension = os.path.splitext(nombre_archivo)[1].lower()
+                tipo_mime_map = {
+                    '.pdf': 'application/pdf',
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png',
+                    '.doc': 'application/msword',
+                    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    '.xls': 'application/vnd.ms-excel',
+                    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                }
+                tipo_mime = tipo_mime_map.get(extension, 'application/octet-stream')
+
+            # Crear el adjunto
+            tipo_principal, tipo_secundario = tipo_mime.split('/', 1) if '/' in tipo_mime else ('application', 'octet-stream')
+            part = MIMEBase(tipo_principal, tipo_secundario)
+            part.set_payload(archivo_bytes)
+            encoders.encode_base64(part)
+
+            # Configurar headers del adjunto
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename="{nombre_archivo}"'
+            )
+
+            # Adjuntar al mensaje
+            print(f"   🔧 Adjuntando part al mensaje...")
+            msg.attach(part)
+            print(f"   ✅ Part adjuntado exitosamente")
+            documentos_adjuntados += 1
+            print(f"   ✅ Documento adjuntado: {nombre_archivo} ({len(archivo_bytes)} bytes)")
+
+        except Exception as e:
+            print(f"   ❌ Error adjuntando documento {doc.get('nombre', 'desconocido')}: {str(e)}")
+            continue
+
+    print(f"   📊 Total documentos adjuntados: {documentos_adjuntados}/{len(documentos)}")
+    return documentos_adjuntados
 
 def format_second_holder_info(info):
     """Formatea la información del segundo titular para mostrarla de manera legible"""
@@ -696,11 +857,20 @@ def enviar_email_asesor(email_settings, data):
     Envía email de notificación al asesor
     """
     try:
+        EMAIL_DEFAULT = email_settings.get("email_default", "comercial@findii.co")
+        ENVIRONMENT = os.getenv('ENVIRONMENT')
+
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
-        # Enviar tanto al asesor como a comercial@findii.co
-        destinatarios = [data['asesor']['correo'], EMAIL_DEFAULT] # produccion: comercial@findii.co, desarrollo: equitisoporte@gmail.com
-        msg['To'] = ', '.join(destinatarios)
+
+        # En development, solo enviar a equitisoporte@gmail.com
+        if ENVIRONMENT == 'development':
+            msg['To'] = EMAIL_DEFAULT
+        else:
+            # En producción, enviar tanto al asesor como a comercial@findii.co
+            destinatarios = [data['asesor']['correo'], EMAIL_DEFAULT]
+            msg['To'] = ', '.join(destinatarios)
+
         msg['Subject'] = f"Nueva solicitud asignada a tu gestión – Cliente: {data['solicitante']['nombre_completo']}"
 
         # Extraer información para el email
@@ -772,9 +942,19 @@ def enviar_email_banco(email_settings, data):
     Envía email de notificación al banco con toda la información completa del solicitante
     """
     try:
+        EMAIL_DEFAULT = email_settings.get("email_default", "comercial@findii.co")
+        ENVIRONMENT = os.getenv('ENVIRONMENT')
+
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
-        msg['To'] = data['banco']['correo_usuario']
+
+        # En development, solo enviar a equitisoporte@gmail.com
+        if ENVIRONMENT == 'development':
+            msg['To'] = EMAIL_DEFAULT
+        else:
+            # En producción, enviar al correo del banco
+            msg['To'] = data['banco']['correo_usuario']
+
         msg['Subject'] = f"Nueva solicitud de crédito - {data['solicitante']['nombre_completo']}"
 
         # Extraer información para el email
@@ -787,7 +967,15 @@ def enviar_email_banco(email_settings, data):
         info_extra = solicitante.get('info_extra', {})
         actividad_economica = solicitante.get('actividad_economica', {})
         informacion_financiera = solicitante.get('informacion_financiera', {})
-        documentos = data.get('documentos', [])  # Obtener documentos adjuntos
+        documentos = data.get('documentos', [])  # Obtener documentos desde datos mapeados
+
+        # Debug: verificar documentos
+        print(f"\n   🔍 DEBUG - Documentos recibidos en enviar_email_banco:")
+        print(f"      📊 Cantidad: {len(documentos) if documentos else 0}")
+        if documentos:
+            print(f"      📋 Primer documento: {documentos[0] if len(documentos) > 0 else 'N/A'}")
+            for idx, doc in enumerate(documentos[:3]):  # Mostrar primeros 3
+                print(f"      📄 Doc {idx+1}: nombre={doc.get('nombre', 'N/A')}, url={'✅' if doc.get('documento_url') else '❌'}, bytes={'✅' if doc.get('_bytes') else '❌'}")
 
         # EXTRAER DATOS DIRECTAMENTE COMO LO HACEN LOS OTROS EMAILS
         # Usar el mismo patrón que los emails del solicitante y asesor
@@ -945,6 +1133,8 @@ Plazo: {plazo_meses} meses
 👉 Para continuar con la gestión, accede al portal de bancos aquí:
 https://oneplatform.findii.co/
 
+{f'📎 NOTA: Se adjuntan {len(documentos)} documento(s) con la información y documentación del solicitante.' if documentos and isinstance(documentos, list) and len(documentos) > 0 else ''}
+
 Quedamos atentos a su confirmación y a cualquier información adicional que requieran para agilizar el proceso.
 
 Gracias por su apoyo y gestión. 😊
@@ -956,35 +1146,59 @@ Correo del responsable: {data['asesor']['correo']}"""
 
         msg.attach(MIMEText(body, 'plain'))
 
-        # Adjuntar documentos si existen
-        if documentos and isinstance(documentos, list):
-            from email.mime.base import MIMEBase
-            from email import encoders
-            import base64
-            import os
-            
-            for doc in documentos:
+        # Verificar si hay documentos disponibles (ya deberían estar en datos_email)
+        # Si no hay documentos, intentar obtener desde BD como fallback
+        if not documentos or len(documentos) == 0:
+            print(f"\n   🔍 No hay documentos en datos_email, intentando obtener desde BD...")
+            from data.supabase_conn import supabase
+
+            def _get_data_supabase_banco(resp):
+                """Helper para obtener datos de respuesta de Supabase"""
+                if hasattr(resp, "data"):
+                    return resp.data
+                if isinstance(resp, dict) and "data" in resp:
+                    return resp["data"]
+                return []
+
+            # Obtener solicitante_id desde solicitante (dict del mapeo que ahora incluye id)
+            solicitante_id_banco = None
+
+            if isinstance(solicitante, dict):
+                solicitante_id_banco = solicitante.get('id')
+
+            if not solicitante_id_banco:
+                solicitante_data = data.get('solicitante', {})
+                if isinstance(solicitante_data, dict):
+                    solicitante_id_banco = solicitante_data.get('id')
+
+            if solicitante_id_banco:
                 try:
-                    if doc.get('documento') and doc.get('nombre_archivo'):
-                        # Decodificar el archivo base64
-                        file_data = base64.b64decode(doc['documento'])
-                        
-                        # Crear el adjunto
-                        part = MIMEBase('application', 'octet-stream')
-                        part.set_payload(file_data)
-                        encoders.encode_base64(part)
-                        
-                        # Obtener la extensión del archivo
-                        filename = doc['nombre_archivo']
-                        if not any(filename.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']):
-                            filename += '.pdf'  # Asumir PDF si no hay extensión
-                            
-                        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
-                        msg.attach(part)
-                        print(f"Documento adjuntado: {filename}")
+                    documentos_bd_banco = supabase.table("documentos").select("*").eq("solicitante_id", solicitante_id_banco).execute()
+                    documentos_data_banco = _get_data_supabase_banco(documentos_bd_banco)
+
+                    if documentos_data_banco:
+                        print(f"   ✅ Documentos encontrados en BD: {len(documentos_data_banco)}")
+                        documentos = documentos_data_banco
+                    else:
+                        print(f"   ℹ️ No hay documentos en BD para solicitante_id: {solicitante_id_banco}")
                 except Exception as e:
-                    print(f"Error adjuntando documento: {str(e)}")
-                    continue
+                    print(f"   ⚠️ Error obteniendo documentos desde BD: {e}")
+        else:
+            print(f"\n   ✅ Documentos ya disponibles en datos_email: {len(documentos)}")
+
+        # Adjuntar documentos si existen
+        print(f"\n   🔍 DEBUG - Antes de adjuntar documentos:")
+        print(f"      📊 documentos es None: {documentos is None}")
+        print(f"      📊 documentos es lista: {isinstance(documentos, list)}")
+        print(f"      📊 len(documentos): {len(documentos) if documentos else 0}")
+
+        if documentos and isinstance(documentos, list) and len(documentos) > 0:
+            print(f"   ✅ Adjuntando {len(documentos)} documento(s)...")
+            adjuntar_documentos_a_email(msg, documentos, "documentos del solicitante")
+            print(f"   ✅ Función adjuntar_documentos_a_email completada")
+        else:
+            print("   ⚠️ No hay documentos para adjuntar al email del banco")
+            print(f"      Razón: documentos={documentos}, tipo={type(documentos)}, len={len(documentos) if documentos else 'N/A'}")
 
         return send_email(email_settings, msg)
 

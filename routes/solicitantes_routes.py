@@ -62,3 +62,23 @@ def editar_registro_completo(id: int):
 def descargar_ventas_excel():
     """Descargar todos los solicitantes en formato Excel"""
     return con_solicitantes.descargar_ventas_excel()
+
+
+@solicitantes.route("/<int:solicitante_id>/enviar-emails", methods=["POST"])
+@cross_origin()
+def enviar_emails_registro_completo(solicitante_id: int):
+    """
+    Envía los emails de confirmación después de que se hayan subido todos los documentos.
+
+    Este endpoint debe ser llamado por el frontend después de subir todos los documentos.
+    Los emails se enviarán con todos los documentos adjuntos.
+
+    Body opcional (para pasar correos si no están en la BD):
+    {
+        "correo_asesor": "asesor@ejemplo.com",
+        "nombre_asesor": "Nombre Asesor",
+        "correo_banco_usuario": "banco@ejemplo.com",
+        "nombre_banco_usuario": "Nombre Banco Usuario"
+    }
+    """
+    return con_solicitantes.enviar_emails_registro_completo(solicitante_id)
