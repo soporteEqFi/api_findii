@@ -12,6 +12,7 @@ import requests
 
 from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
+from data.supabase_conn import supabase
 
 def config_email():
     ENVIRONMENT = os.getenv('ENVIRONMENT')
@@ -247,6 +248,23 @@ def mapear_datos_para_email(response_data, original_json=None):
                 # print(f"   👨‍💼 Asesor (procesado): '{nombre_asesor}' ('{correo_asesor}')")
                 # print(f"   🏦 Usuario banco (procesado): '{nombre_banco_usuario}' ('{correo_banco_usuario}')")
 
+        # Intentar usar usuario asignado directamente desde la BD para asegurar notificación correcta
+        assigned_to_user_id = primera_solicitud.get("assigned_to_user_id")
+        if assigned_to_user_id:
+            try:
+                usuario_asignado_resp = supabase.table("usuarios").select("nombre, correo").eq("id", assigned_to_user_id).execute()
+                usuario_asignado_data = getattr(usuario_asignado_resp, "data", None)
+                if isinstance(usuario_asignado_data, list) and usuario_asignado_data:
+                    usuario_asignado = usuario_asignado_data[0]
+                    correo_asignado = (usuario_asignado.get("correo") or "").strip()
+                    nombre_asignado = (usuario_asignado.get("nombre") or "").strip()
+                    if correo_asignado:
+                        correo_asesor = correo_asignado
+                    if nombre_asignado:
+                        nombre_asesor = nombre_asignado
+            except Exception as asignado_error:
+                print(f"⚠️ No se pudo obtener datos del usuario asignado {assigned_to_user_id}: {asignado_error}")
+
         # Validar que los datos críticos no estén vacíos
         # print(f"\n🔍 VALIDACIÓN FINAL DE DATOS:")
         # print(f"   📧 Correo solicitante: '{correo_electronico}' - {'✅ Válido' if correo_electronico.strip() else '❌ Vacío'}")
@@ -359,7 +377,7 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # 1. Enviar email al solicitante
         email_solicitante = datos_email['solicitante']['correo_electronico']
-        if email_solicitante and email_solicitante.strip():
+        if isinstance(email_solicitante, str) and email_solicitante.strip():
             resultados["solicitante"] = enviar_email_solicitante(email_settings, datos_email)
         else:
             print("⚠️ WARNING: No se encontró email del solicitante o está vacío")
@@ -372,7 +390,7 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # 2. Enviar email al asesor
         email_asesor = datos_email['asesor']['correo']
-        if email_asesor and email_asesor.strip():
+        if isinstance(email_asesor, str) and email_asesor.strip():
             print("📧 Enviando email al asesor...")
             resultados["asesor"] = enviar_email_asesor(email_settings, datos_email)
         else:
@@ -386,8 +404,11 @@ def enviar_email_registro_completo(response_data, original_json=None):
 
         # 3. Enviar email al banco
         email_banco = datos_email['banco']['correo_usuario']
-        ciudad_solicitud = datos_email['solicitud'].get('ciudad_solicitud', '').strip()
-        banco_nombre = datos_email['solicitud'].get('banco_nombre', '').strip()
+        ciudad_raw = datos_email['solicitud'].get('ciudad_solicitud')
+        banco_raw = datos_email['solicitud'].get('banco_nombre')
+
+        ciudad_solicitud = ciudad_raw.strip() if isinstance(ciudad_raw, str) else ''
+        banco_nombre = banco_raw.strip() if isinstance(banco_raw, str) else ''
 
         # Si no hay ciudad o banco, enviar a comercial@findii.co por defecto
         EMAIL_DEFAULT = email_settings.get("email_default", "comercial@findii.co")
@@ -863,13 +884,19 @@ def enviar_email_asesor(email_settings, data):
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
 
-        # En development, solo enviar a equitisoporte@gmail.com
-        if ENVIRONMENT == 'development':
-            msg['To'] = EMAIL_DEFAULT
-        else:
-            # En producción, enviar tanto al asesor como a comercial@findii.co
-            destinatarios = [data['asesor']['correo'], EMAIL_DEFAULT]
-            msg['To'] = ', '.join(destinatarios)
+        destinatarios = []
+        correo_asesor = (data.get('asesor', {}) or {}).get('correo')
+
+        if correo_asesor:
+            destinatarios.append(correo_asesor)
+
+        # Mantener copia operativa solo fuera de development
+        if EMAIL_DEFAULT and ENVIRONMENT != 'development':
+            destinatarios.append(EMAIL_DEFAULT)
+
+        print("DEBUG: destinatarios", destinatarios)
+
+        msg['To'] = ', '.join(destinatarios) if destinatarios else EMAIL_DEFAULT or ''
 
         msg['Subject'] = f"Nueva solicitud asignada a tu gestión – Cliente: {data['solicitante']['nombre_completo']}"
 
