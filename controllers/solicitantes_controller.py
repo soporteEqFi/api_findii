@@ -44,6 +44,42 @@ class SolicitantesController:
         except Exception as exc:
             raise ValueError("empresa_id debe ser entero") from exc
 
+    def _resolve_assigned_user_id(self, candidate_id, *, default_user_id: str | int, empresa_id: int) -> int:
+        """
+        Determina el assigned_to_user_id válido.
+        - Si se recibe candidate_id, valida que sea entero y pertenezca a la empresa.
+        - Si no se recibe, usa default_user_id (generalmente el creador).
+        """
+        try:
+            default_id = int(default_user_id)
+        except Exception as exc:
+            raise ValueError("X-User-Id debe ser entero") from exc
+
+        if candidate_id is None or (isinstance(candidate_id, str) and not candidate_id.strip()):
+            return default_id
+
+        try:
+            resolved_id = int(candidate_id)
+        except Exception as exc:
+            raise ValueError("assigned_to_user_id debe ser entero") from exc
+
+        if resolved_id == default_id:
+            return resolved_id
+
+        # Validar que el usuario asignado exista y pertenezca a la empresa
+        try:
+            assigned_resp = supabase.table("usuarios").select("id").eq("id", resolved_id).eq("empresa_id", empresa_id).execute()
+            assigned_data = getattr(assigned_resp, "data", None)
+            if assigned_data is None and isinstance(assigned_resp, dict):
+                assigned_data = assigned_resp.get("data")
+        except Exception as exc:
+            raise ValueError(f"No fue posible validar assigned_to_user_id: {exc}") from exc
+
+        if not assigned_data:
+            raise ValueError("assigned_to_user_id no pertenece a la empresa")
+
+        return resolved_id
+
     def create(self):
         log_request_details("CREAR SOLICITANTE", "solicitantes")
 
@@ -536,6 +572,14 @@ class SolicitantesController:
                 body = request.get_json(silent=True) or {}
                 files_list = []
 
+            print("\n📦 BODY RECIBIDO (crear_registro_completo):")
+            try:
+                import json as _json_debug
+
+                print(_json_debug.dumps(body, ensure_ascii=False, indent=2))
+            except Exception:
+                print(body)
+
             # print(f"\n📋 EMPRESA ID: {empresa_id}")
             # print(f"\n📦 DATOS RECIBIDOS:")
             # print(f"   Claves principales: {list(body.keys())}")
@@ -563,7 +607,15 @@ class SolicitantesController:
             # Manejar solicitudes (puede ser objeto o lista)
             solicitud_obj = body.get("solicitud", {})
             solicitudes_list = body.get("solicitudes", [])
-            datos_solicitudes = [solicitud_obj] if solicitud_obj else solicitudes_list
+            if solicitudes_list:
+                if solicitud_obj:
+                    datos_solicitudes = [
+                        {**solicitud_obj, **item} for item in solicitudes_list
+                    ]
+                else:
+                    datos_solicitudes = solicitudes_list
+            else:
+                datos_solicitudes = [solicitud_obj] if solicitud_obj else []
 
             # print(f"\n🔍 DATOS EXTRAÍDOS:")
             # print(f"   Solicitante: {len(datos_solicitante)} campos")
@@ -916,12 +968,28 @@ class SolicitantesController:
                     if not user_id:
                         raise ValueError("X-User-Id header es requerido para crear solicitudes")
 
+                    assigned_candidate = solicitud_data.get("assigned_to_user_id")
+                    if assigned_candidate is None:
+                        assigned_candidate = body.get("assigned_to_user_id")
+                    print(
+                        f"   🔍 Solicitud data (create) {idx + 1}: {solicitud_data}"
+                    )
+                    assigned_to_user_id = self._resolve_assigned_user_id(
+                        assigned_candidate,
+                        default_user_id=user_id,
+                        empresa_id=empresa_id,
+                    )
+                    print(
+                        f"   👤 Resolviendo asignado (create) solicitud {idx + 1}: "
+                        f"candidate={assigned_candidate!r} -> resolved={assigned_to_user_id}"
+                    )
+
                     # Preparar datos para el modelo (solo campos que acepta el modelo)
                     datos_para_modelo = {
                         "empresa_id": empresa_id,
                         "solicitante_id": solicitante_id,
                         "created_by_user_id": int(user_id),
-                        "assigned_to_user_id": int(user_id),  # Asignar al mismo usuario que crea
+                        "assigned_to_user_id": assigned_to_user_id,
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
                     }
@@ -932,7 +1000,24 @@ class SolicitantesController:
                     if ciudad:
                         datos_para_modelo["ciudad_solicitud"] = ciudad
 
+                    print(f"   🧾 Payload solicitud (create) {idx + 1}: {datos_para_modelo}")
+
                     solicitud_creada = self.solicitudes_model.create(**datos_para_modelo)
+                    if (
+                        solicitud_creada
+                        and isinstance(solicitud_creada, dict)
+                        and solicitud_creada.get("id")
+                        and solicitud_creada.get("assigned_to_user_id") != assigned_to_user_id
+                    ):
+                        try:
+                            solicitud_creada = self.solicitudes_model.update(
+                                id=solicitud_creada["id"],
+                                empresa_id=empresa_id,
+                                base_updates={"assigned_to_user_id": assigned_to_user_id},
+                                detalle_credito_merge=None,
+                            )
+                        except Exception as assign_sync_error:
+                            print(f"   ⚠️ No se pudo sincronizar assigned_to_user_id post-creación: {assign_sync_error}")
                     solicitudes_creadas.append(solicitud_creada)
                     # print(f"   ✅ Solicitud {idx + 1} creada con ID: {solicitud_creada['id']}")
             # else:
@@ -1256,7 +1341,17 @@ class SolicitantesController:
             datos_actividad = body.get("actividad_economica", {})
             datos_financiera = body.get("informacion_financiera", {})
             datos_referencias = body.get("referencias", [])
-            datos_solicitudes = body.get("solicitudes", [])
+            solicitud_obj_edit = body.get("solicitud", {})
+            solicitudes_list_edit = body.get("solicitudes", [])
+            if solicitudes_list_edit:
+                if solicitud_obj_edit:
+                    datos_solicitudes = [
+                        {**solicitud_obj_edit, **item} for item in solicitudes_list_edit
+                    ]
+                else:
+                    datos_solicitudes = solicitudes_list_edit
+            else:
+                datos_solicitudes = [solicitud_obj_edit] if solicitud_obj_edit else []
 
             # 1. ACTUALIZAR SOLICITANTE
             solicitante_actualizado = None
@@ -1554,6 +1649,25 @@ class SolicitantesController:
                     if correo_banco_usuario:
                         detalle_credito["correo_banco_usuario"] = correo_banco_usuario
 
+                    assigned_field_in_payload = "assigned_to_user_id" in solicitud_data
+                    assigned_candidate = solicitud_data.get("assigned_to_user_id")
+                    if not assigned_field_in_payload and "assigned_to_user_id" in body:
+                        assigned_field_in_payload = True
+                        assigned_candidate = body.get("assigned_to_user_id")
+                    print(
+                        f"   🔍 Solicitud data keys (edit) {idx + 1}: {list(solicitud_data.keys())}"
+                    )
+
+                    resolved_assigned_to = self._resolve_assigned_user_id(
+                        assigned_candidate if assigned_field_in_payload else None,
+                        default_user_id=user_id,
+                        empresa_id=empresa_id,
+                    )
+                    print(
+                        f"   👤 Resolviendo asignado (edit) solicitud {idx + 1}: "
+                        f"candidate={assigned_candidate!r} -> resolved={resolved_assigned_to}"
+                    )
+
                     datos_para_modelo = {
                         "estado": solicitud_data.get("estado", "Pendiente"),
                         "detalle_credito": detalle_credito
@@ -1563,6 +1677,8 @@ class SolicitantesController:
                         datos_para_modelo["banco_nombre"] = solicitud_data["banco_nombre"]
                     if solicitud_data.get("ciudad_solicitud"):
                         datos_para_modelo["ciudad_solicitud"] = solicitud_data["ciudad_solicitud"]
+                    if assigned_field_in_payload:
+                        datos_para_modelo["assigned_to_user_id"] = resolved_assigned_to
 
                     # Buscar solicitud existente para actualizar
                     solicitud_id = solicitud_data.get("id")
@@ -1594,15 +1710,45 @@ class SolicitantesController:
                             detalle_credito_merge=detalle_credito
                         )
                         # print(f"   ✅ Solicitud {solicitud_existente['id']} actualizada exitosamente")
+                        if (
+                            solicitud_actualizada
+                            and isinstance(solicitud_actualizada, dict)
+                            and assigned_field_in_payload
+                            and solicitud_actualizada.get("assigned_to_user_id") != resolved_assigned_to
+                        ):
+                            try:
+                                solicitud_actualizada = self.solicitudes_model.update(
+                                    id=solicitud_existente["id"],
+                                    empresa_id=empresa_id,
+                                    base_updates={"assigned_to_user_id": resolved_assigned_to},
+                                    detalle_credito_merge=None,
+                                )
+                            except Exception as assign_sync_error:
+                                print(f"   ⚠️ No se pudo sincronizar assigned_to_user_id post-actualización: {assign_sync_error}")
                     else:
                         # print(f"   🆕 CREANDO nueva solicitud (no hay solicitudes existentes)")
                         datos_para_modelo.update({
                             "empresa_id": empresa_id,
                             "solicitante_id": solicitante_id,
                             "created_by_user_id": int(user_id),
-                            "assigned_to_user_id": int(user_id)
+                            "assigned_to_user_id": resolved_assigned_to
                         })
                         solicitud_actualizada = self.solicitudes_model.create(**datos_para_modelo)
+                        if (
+                            solicitud_actualizada
+                            and isinstance(solicitud_actualizada, dict)
+                            and solicitud_actualizada.get("id")
+                            and solicitud_actualizada.get("assigned_to_user_id") != resolved_assigned_to
+                        ):
+                            try:
+                                solicitud_actualizada = self.solicitudes_model.update(
+                                    id=solicitud_actualizada["id"],
+                                    empresa_id=empresa_id,
+                                    base_updates={"assigned_to_user_id": resolved_assigned_to},
+                                    detalle_credito_merge=None,
+                                )
+                            except Exception as assign_sync_error:
+                                print(f"   ⚠️ No se pudo sincronizar assigned_to_user_id post-creación (editar): {assign_sync_error}")
 
                     solicitudes_actualizadas.append(solicitud_actualizada)
 
