@@ -297,7 +297,7 @@ def mapear_datos_para_email(response_data, original_json=None):
                 "info_extra": info_extra,
                 "ubicacion": detalle_direccion,
                 "actividad_economica": detalle_actividad,
-                "informacion_financiera": detalle_financiera,
+                "informacion_financiera": informacion_financiera,  # Incluir toda la información financiera, no solo el detalle
                 "referencias": referencias
             },
             "solicitud": {
@@ -1031,39 +1031,6 @@ def enviar_email_banco(email_settings, data):
         ciudad_residencia = 'No especificado'
         correspondencia = ubicacion_data.get('recibir_correspondencia', 'No especificado')
 
-        # Información de actividad económica - acceso directo
-        # CORREGIDO: acceder directamente a actividad_economica sin detalle_actividad
-        tipo_actividad = actividad_economica.get('tipo_actividad_economica', 'No especificado')
-        # Para empleados, buscar en datos_empleado
-        datos_empleado = actividad_economica.get('datos_empleado', {})
-        empresa = datos_empleado.get('nombre_empresa', 'No especificado')
-        cargo = datos_empleado.get('cargo', 'No especificado')
-        salario_base = datos_empleado.get('salario_base', '0')
-
-        # Información financiera - acceso directo
-        # CORREGIDO: acceder directamente a informacion_financiera sin detalle_financiera
-        ingreso_basico = informacion_financiera.get('ingreso_basico_mensual', '0')
-        ingreso_variable = informacion_financiera.get('ingreso_variable_mensual', '0')
-        otros_ingresos = informacion_financiera.get('otros_ingresos_mensuales', '0')
-        gastos_financieros = informacion_financiera.get('gastos_financieros_mensuales', '0')
-        gastos_personales = informacion_financiera.get('gastos_personales_mensuales', '0')
-        declara_renta = informacion_financiera.get('declara_renta', 'No especificado')
-
-        # Información del crédito - acceso directo
-        tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
-        credito_vehicular = detalle_credito.get('credito_vehicular', {})
-        if credito_vehicular:
-            valor_vehiculo = credito_vehicular.get('valor_vehiculo', 'N/A')
-            cuota_inicial = credito_vehicular.get('cuota_inicial', 'N/A')
-            plazo_meses = credito_vehicular.get('plazo_meses', 'N/A')
-            monto_solicitado = credito_vehicular.get('monto_solicitado', 'N/A')
-            estado_vehiculo = credito_vehicular.get('estado_vehiculo', 'N/A')
-            tipo_credito_especifico = credito_vehicular.get('tipo_credito', tipo_credito)
-        else:
-            valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
-
-
-
         # Formatear valores monetarios con separadores de miles
         def formatear_dinero(valor):
             if not valor or valor in ['N/A', 'No especificado', '', 'None', '0']:
@@ -1091,7 +1058,56 @@ def enviar_email_banco(email_settings, data):
             except:
                 return 'No reportado'
 
+        # Información de actividad económica - formato dinámico
+        # Extraer tipo de actividad para el título
+        tipo_actividad = actividad_economica.get('tipo_actividad_economica', 'No especificado')
+        # Crear copia sin el campo tipo_actividad_economica para formatear dinámicamente el resto
+        actividad_economica_formatear = {k: v for k, v in actividad_economica.items() if k != 'tipo_actividad_economica'}
+        # Formatear dinámicamente todos los campos de actividad económica
+        actividad_economica_str_raw = formatear_campos_dinamicos(actividad_economica_formatear, "", nivel_indentacion=0)
+        # Agregar salto de línea inicial si hay contenido formateado
+        actividad_economica_str = f"\n{actividad_economica_str_raw}" if actividad_economica_str_raw else ""
 
+        # Información financiera - formato dinámico
+        # Extraer totales principales para mostrarlos primero
+        totales_lineas = []
+        total_ingresos = informacion_financiera.get('total_ingresos_mensuales', None)
+        total_egresos = informacion_financiera.get('total_egresos_mensuales', None)
+        total_activos = informacion_financiera.get('total_activos', None)
+        total_pasivos = informacion_financiera.get('total_pasivos', None)
+
+        if total_ingresos is not None:
+            totales_lineas.append(f"Total ingresos mensuales: {formatear_dinero(total_ingresos)}")
+        if total_egresos is not None:
+            totales_lineas.append(f"Total egresos mensuales: {formatear_dinero(total_egresos)}")
+        if total_activos is not None:
+            totales_lineas.append(f"Total activos: {formatear_dinero(total_activos)}")
+        if total_pasivos is not None:
+            totales_lineas.append(f"Total pasivos: {formatear_dinero(total_pasivos)}")
+
+        totales_str = "\n".join(totales_lineas) if totales_lineas else ""
+
+        # Crear diccionario con solo los campos dinámicos (excluyendo campos del nivel superior ya mostrados)
+        campos_fijos = ['total_ingresos_mensuales', 'total_egresos_mensuales', 'total_activos', 'total_pasivos',
+                        'id', 'solicitante_id', 'empresa_id', 'created_at', 'updated_at']
+        informacion_financiera_dinamica = {k: v for k, v in informacion_financiera.items()
+                                          if k not in campos_fijos and v is not None and v != ''}
+        # Formatear dinámicamente todos los campos restantes
+        informacion_financiera_str_raw = formatear_campos_dinamicos(informacion_financiera_dinamica, "", nivel_indentacion=0)
+        informacion_financiera_str = f"\n{informacion_financiera_str_raw}" if informacion_financiera_str_raw else ""
+
+        # Información del crédito - acceso directo
+        tipo_credito = detalle_credito.get('tipo_credito', 'N/A')
+        credito_vehicular = detalle_credito.get('credito_vehicular', {})
+        if credito_vehicular:
+            valor_vehiculo = credito_vehicular.get('valor_vehiculo', 'N/A')
+            cuota_inicial = credito_vehicular.get('cuota_inicial', 'N/A')
+            plazo_meses = credito_vehicular.get('plazo_meses', 'N/A')
+            monto_solicitado = credito_vehicular.get('monto_solicitado', 'N/A')
+            estado_vehiculo = credito_vehicular.get('estado_vehiculo', 'N/A')
+            tipo_credito_especifico = credito_vehicular.get('tipo_credito', tipo_credito)
+        else:
+            valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
 
         # Obtener fecha y hora actual en formato 12 horas
         fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
@@ -1129,21 +1145,10 @@ Tipo de vivienda: {tipo_vivienda}
 Correspondencia: {correspondencia}
 
 📌 ACTIVIDAD ECONÓMICA
-Tipo de actividad económica: {tipo_actividad}
-Empresa: {empresa}
-Cargo: {cargo}
-Salario base: {formatear_dinero(salario_base)}
+Tipo de actividad económica: {tipo_actividad}{actividad_economica_str if actividad_economica_str else ''}
 
 📌 INFORMACIÓN FINANCIERA
-Total ingresos mensuales: {formatear_dinero(informacion_financiera.get('total_ingresos_mensuales', '0'))}
-Total egresos mensuales: {formatear_dinero(informacion_financiera.get('total_egresos_mensuales', '0'))}
-Detalle:
-  Ingreso básico: {formatear_dinero(ingreso_basico)}
-  Ingreso variable: {formatear_dinero(ingreso_variable)}
-  Otros ingresos: {formatear_dinero(otros_ingresos)}
-  Gastos financieros: {formatear_dinero(gastos_financieros)}
-  Gastos personales: {formatear_dinero(gastos_personales)}
-  Declara renta: {declara_renta}
+{totales_str if totales_str else ''}{informacion_financiera_str}
 
 📌 DETALLES DEL CRÉDITO
 Banco: {solicitud['banco_nombre']}
