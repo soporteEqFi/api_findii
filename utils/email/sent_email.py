@@ -161,9 +161,20 @@ def mapear_datos_para_email(response_data, original_json=None):
         correo_electronico = solicitante.get("correo", "")
 
         # Extraer campos dinámicos
-        info_extra = solicitante.get("info_extra", {})
+        info_extra = solicitante.get("info_extra", {}) or {}
         detalle_credito = primera_solicitud.get("detalle_credito", {})
+
+        # CORREGIDO: Incluir todos los campos de ubicación (campos fijos + detalle_direccion)
         detalle_direccion = primera_ubicacion.get("detalle_direccion", {}) if primera_ubicacion else {}
+        ubicacion_completa = {}
+        if primera_ubicacion:
+            # Incluir campos fijos de ubicación
+            ubicacion_completa["ciudad_residencia"] = primera_ubicacion.get("ciudad_residencia")
+            ubicacion_completa["departamento_residencia"] = primera_ubicacion.get("departamento_residencia")
+            # Incluir todos los campos de detalle_direccion
+            if isinstance(detalle_direccion, dict):
+                ubicacion_completa.update(detalle_direccion)
+
         detalle_actividad = actividad_economica.get("detalle_actividad", {}) if actividad_economica else {}
         detalle_financiera = informacion_financiera.get("detalle_financiera", {}) if informacion_financiera else {}
 
@@ -265,6 +276,51 @@ def mapear_datos_para_email(response_data, original_json=None):
             except Exception as asignado_error:
                 print(f"⚠️ No se pudo obtener datos del usuario asignado {assigned_to_user_id}: {asignado_error}")
 
+        # CORREGIDO: Si el correo del banco está vacío, buscar en la BD por banco_nombre
+        if not correo_banco_usuario or not correo_banco_usuario.strip():
+            # Buscar banco_nombre en múltiples ubicaciones
+            banco_nombre_buscar = (
+                primera_solicitud.get("banco_nombre", "") or
+                (original_json.get("banco_nombre", "") if original_json else "") or
+                (original_json.get("solicitudes", [{}])[0].get("banco_nombre", "") if original_json and original_json.get("solicitudes") else "")
+            )
+
+            if banco_nombre_buscar and banco_nombre_buscar.strip():
+                try:
+                    empresa_id_email = solicitante.get("empresa_id")
+                    if empresa_id_email:
+                        # Buscar usuarios con rol "banco" cuyo info_extra.banco_nombre coincida
+                        usuarios_banco_resp = supabase.table("usuarios").select("nombre, correo, info_extra").eq("rol", "banco").eq("empresa_id", empresa_id_email).execute()
+                        usuarios_banco_data = getattr(usuarios_banco_resp, "data", None)
+
+                        if isinstance(usuarios_banco_data, list) and usuarios_banco_data:
+                            # Buscar usuario cuyo banco_nombre en info_extra coincida
+                            for usuario_banco in usuarios_banco_data:
+                                info_extra_banco = usuario_banco.get("info_extra", {})
+
+                                # Parsear info_extra si es string
+                                if isinstance(info_extra_banco, str):
+                                    import json
+                                    try:
+                                        info_extra_banco = json.loads(info_extra_banco)
+                                    except json.JSONDecodeError:
+                                        info_extra_banco = {}
+
+                                banco_nombre_usuario = info_extra_banco.get("banco_nombre", "") if isinstance(info_extra_banco, dict) else ""
+
+                                # Comparar banco_nombre (case-insensitive y sin espacios)
+                                if banco_nombre_usuario and banco_nombre_usuario.strip().lower() == banco_nombre_buscar.strip().lower():
+                                    correo_banco_encontrado = (usuario_banco.get("correo") or "").strip()
+                                    nombre_banco_encontrado = (usuario_banco.get("nombre") or "").strip()
+
+                                    if correo_banco_encontrado:
+                                        correo_banco_usuario = correo_banco_encontrado
+                                        nombre_banco_usuario = nombre_banco_encontrado or nombre_banco_usuario
+                                        print(f"   ✅ Correo del banco encontrado en BD: {correo_banco_usuario} (Banco: {banco_nombre_buscar})")
+                                        break
+                except Exception as error_busqueda_banco:
+                    print(f"   ⚠️ No se pudo buscar correo del banco en BD: {error_busqueda_banco}")
+
         # Validar que los datos críticos no estén vacíos
         # print(f"\n🔍 VALIDACIÓN FINAL DE DATOS:")
         # print(f"   📧 Correo solicitante: '{correo_electronico}' - {'✅ Válido' if correo_electronico.strip() else '❌ Vacío'}")
@@ -295,7 +351,7 @@ def mapear_datos_para_email(response_data, original_json=None):
                     "genero": solicitante.get("genero", "N/A")
                 },
                 "info_extra": info_extra,
-                "ubicacion": detalle_direccion,
+                "ubicacion": ubicacion_completa,  # CORREGIDO: incluir todos los campos de ubicación
                 "actividad_economica": detalle_actividad,
                 "informacion_financiera": informacion_financiera,  # Incluir toda la información financiera, no solo el detalle
                 "referencias": referencias
@@ -403,7 +459,7 @@ def enviar_email_registro_completo(response_data, original_json=None):
             std_time.sleep(3)
 
         # 3. Enviar email al banco
-        email_banco = datos_email['banco']['correo_usuario']
+        email_banco = datos_email.get('banco', {}).get('correo_usuario', '') or ''
         ciudad_raw = datos_email['solicitud'].get('ciudad_solicitud')
         banco_raw = datos_email['solicitud'].get('banco_nombre')
 
@@ -414,24 +470,47 @@ def enviar_email_registro_completo(response_data, original_json=None):
         EMAIL_DEFAULT = email_settings.get("email_default", "comercial@findii.co")
         EMAIL_DEFAULT_NAME = email_settings.get("email_default_name", "Equipo Comercial Findii")
 
+        # CORREGIDO: Validar y normalizar el email del banco
+        email_banco = email_banco.strip() if isinstance(email_banco, str) else ''
+
         if not ciudad_solicitud or not banco_nombre or ciudad_solicitud == 'N/A' or banco_nombre == 'N/A':
-            # print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
-            # print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
-            # print("   📧 Enviando email al correo por defecto: comercial@findii.co")
+            print("⚠️ WARNING: No se encontró ciudad o banco en la solicitud")
+            print(f"   📍 Ciudad: '{ciudad_solicitud}' - Banco: '{banco_nombre}'")
+            print(f"   📧 Enviando email al correo por defecto: {EMAIL_DEFAULT}")
             # Sobrescribir el email del banco con el correo por defecto
             datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT
             datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
-        elif email_banco and email_banco.strip():
-            print("📧 Enviando email al banco...")
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+            try:
+                resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+            except Exception as e:
+                print(f"❌ ERROR enviando email al banco (fallback por falta de ciudad/banco): {str(e)}")
+                resultados["banco"] = False
+        elif email_banco:
+            print(f"📧 Enviando email al banco a: {email_banco}")
+            try:
+                resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+            except Exception as e:
+                print(f"❌ ERROR enviando email al banco: {str(e)}")
+                print(f"   📧 Intentando enviar al correo por defecto: {EMAIL_DEFAULT}")
+                # Fallback: enviar a correo por defecto si falla el envío al banco
+                datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT
+                datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME
+                try:
+                    resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+                except Exception as e2:
+                    print(f"❌ ERROR enviando email al banco (fallback): {str(e2)}")
+                    resultados["banco"] = False
         else:
             print("⚠️ WARNING: No se encontró email del banco o está vacío")
             print(f"   📧 Enviando email al correo por defecto: {EMAIL_DEFAULT}")
             # Enviar a comercial@findii.co como fallback
             datos_email['banco']['correo_usuario'] = EMAIL_DEFAULT
             datos_email['banco']['nombre_usuario'] = EMAIL_DEFAULT_NAME
-            resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+            try:
+                resultados["banco"] = enviar_email_banco(email_settings, datos_email)
+            except Exception as e:
+                print(f"❌ ERROR enviando email al banco (fallback por falta de email): {str(e)}")
+                resultados["banco"] = False
 
         # Verificar si al menos uno se envió exitosamente
         exito_general = any(resultados.values())
@@ -828,8 +907,14 @@ def enviar_email_solicitante(email_settings, data):
         cuota_inicial = detalle_credito.get('credito_vehicular', {}).get('cuota_inicial', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
 
         # Obtener información adicional del solicitante
-        info_extra = solicitante.get('info_extra', {})
-        celular = info_extra.get('celular', 'N/A')
+        info_extra = solicitante.get('info_extra', {}) or {}
+        ubicacion_solicitante = solicitante.get('ubicacion', {}) or {}
+        # CORREGIDO: Buscar celular en múltiples ubicaciones (info_extra y ubicacion)
+        celular = (info_extra.get('celular') or
+                  info_extra.get('telefono') or
+                  ubicacion_solicitante.get('celular') or
+                  ubicacion_solicitante.get('telefono') or
+                  'N/A')
         profesion = info_extra.get('profesion', 'N/A')
 
         # Obtener fecha y hora actual en formato 12 horas
@@ -914,7 +999,13 @@ def enviar_email_asesor(email_settings, data):
         plazo = detalle_credito.get('credito_vehicular', {}).get('plazo_meses', 'N/A') if 'credito_vehicular' in detalle_credito else 'N/A'
 
         # Información adicional del solicitante
-        celular = info_extra.get('celular', 'N/A')
+        ubicacion_solicitante = solicitante.get('ubicacion', {}) or {}
+        # CORREGIDO: Buscar celular en múltiples ubicaciones (info_extra y ubicacion)
+        celular = (info_extra.get('celular') or
+                  info_extra.get('telefono') or
+                  ubicacion_solicitante.get('celular') or
+                  ubicacion_solicitante.get('telefono') or
+                  'N/A')
         profesion = info_extra.get('profesion', 'N/A')
         estado_civil = info_extra.get('estado_civil', 'N/A')
 
@@ -975,12 +1066,22 @@ def enviar_email_banco(email_settings, data):
         msg = MIMEMultipart()
         msg['From'] = email_settings["sender_email"]
 
+        # CORREGIDO: Validar y obtener el correo del banco de manera segura
+        correo_banco = data.get('banco', {}).get('correo_usuario', '') or ''
+        correo_banco = correo_banco.strip() if isinstance(correo_banco, str) else ''
+
         # En development, solo enviar a equitisoporte@gmail.com
         if ENVIRONMENT == 'development':
             msg['To'] = EMAIL_DEFAULT
+            print(f"🔧 [DEV] Enviando email al banco a: {EMAIL_DEFAULT}")
         else:
-            # En producción, enviar al correo del banco
-            msg['To'] = data['banco']['correo_usuario']
+            # En producción, enviar al correo del banco o usar el default si está vacío
+            if correo_banco:
+                msg['To'] = correo_banco
+                print(f"📧 [PROD] Enviando email al banco a: {correo_banco}")
+            else:
+                print(f"⚠️ [PROD] Correo del banco vacío, usando default: {EMAIL_DEFAULT}")
+                msg['To'] = EMAIL_DEFAULT
 
         msg['Subject'] = f"Nueva solicitud de crédito - {data['solicitante']['nombre_completo']}"
 
@@ -1013,7 +1114,12 @@ def enviar_email_banco(email_settings, data):
         correo_electronico = solicitante.get('correo_electronico', solicitante.get('correo', 'No especificado'))
 
         # Información adicional del solicitante - acceso directo a info_extra
-        celular = info_extra.get('celular', 'No especificado')
+        # CORREGIDO: Buscar celular en múltiples ubicaciones (info_extra y ubicacion)
+        celular = (info_extra.get('celular') or
+                  info_extra.get('telefono') or
+                  ubicacion_data.get('celular') or
+                  ubicacion_data.get('telefono') or
+                  'No especificado')
         profesion = info_extra.get('profesion', 'No especificado')
         nivel_estudios = info_extra.get('nivel_estudio', info_extra.get('nivel_estudios', 'No especificado'))
         estado_civil = info_extra.get('estado_civil', 'No especificado')
@@ -1023,12 +1129,11 @@ def enviar_email_banco(email_settings, data):
         personas_a_cargo = info_extra.get('personas_a_cargo', '0')
 
         # Información de ubicación - acceso directo
-        # CORREGIDO: usar ubicacion_data y acceder directamente a los campos disponibles
+        # CORREGIDO: ahora ubicacion_data incluye todos los campos (ciudad_residencia, departamento_residencia + detalle_direccion)
         direccion_residencia = ubicacion_data.get('direccion_residencia', 'No especificado')
         tipo_vivienda = ubicacion_data.get('tipo_vivienda', 'No especificado')
-        # Estos campos no están disponibles en la estructura actual, usar valores por defecto
-        departamento_residencia = 'No especificado'
-        ciudad_residencia = 'No especificado'
+        departamento_residencia = ubicacion_data.get('departamento_residencia', 'No especificado')
+        ciudad_residencia = ubicacion_data.get('ciudad_residencia', 'No especificado')
         correspondencia = ubicacion_data.get('recibir_correspondencia', 'No especificado')
 
         # Formatear valores monetarios con separadores de miles
@@ -1232,9 +1337,16 @@ Correo del responsable: {data['asesor']['correo']}"""
             print("   ⚠️ No hay documentos para adjuntar al email del banco")
             print(f"      Razón: documentos={documentos}, tipo={type(documentos)}, len={len(documentos) if documentos else 'N/A'}")
 
-        return send_email(email_settings, msg)
+        resultado = send_email(email_settings, msg)
+        if resultado:
+            print(f"✅ Email al banco enviado exitosamente a: {msg.get('To', 'desconocido')}")
+        else:
+            print(f"❌ Falló el envío del email al banco a: {msg.get('To', 'desconocido')}")
+        return resultado
 
     except Exception as e:
-        print(f"Error enviando email al banco: {str(e)}")
-        raise  # Relanzar la excepción para manejo superior
+        print(f"❌ ERROR CRÍTICO enviando email al banco: {str(e)}")
+        import traceback
+        print(f"📋 Traceback: {traceback.format_exc()}")
+        # CORREGIDO: Retornar False en lugar de relanzar para no interrumpir el flujo
         return False
