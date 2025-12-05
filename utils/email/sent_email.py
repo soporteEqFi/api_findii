@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Tuple, Optional
 import requests
+import pytz
 
 from dotenv import load_dotenv
 load_dotenv()  # Cargar .env del directorio del proyecto
@@ -917,8 +918,8 @@ def enviar_email_solicitante(email_settings, data):
                   'N/A')
         profesion = info_extra.get('profesion', 'N/A')
 
-        # Obtener fecha y hora actual en formato 12 horas
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
+        # Obtener fecha y hora actual en formato 12 horas (zona horaria America/Bogota)
+        fecha_hora_envio = datetime.now(pytz.timezone('America/Bogota')).strftime("%d/%m/%Y a las %I:%M:%S %p")
 
         # Cuerpo del mensaje para el solicitante
         body = f"""Hola {solicitante['nombre_completo']},
@@ -1009,8 +1010,8 @@ def enviar_email_asesor(email_settings, data):
         profesion = info_extra.get('profesion', 'N/A')
         estado_civil = info_extra.get('estado_civil', 'N/A')
 
-        # Obtener fecha y hora actual en formato 12 horas
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
+        # Obtener fecha y hora actual en formato 12 horas (zona horaria America/Bogota)
+        fecha_hora_envio = datetime.now(pytz.timezone('America/Bogota')).strftime("%d/%m/%Y a las %I:%M:%S %p")
 
         # Cuerpo del mensaje para el asesor
         body = f"""Hola {data['asesor']['nombre']},
@@ -1214,8 +1215,8 @@ def enviar_email_banco(email_settings, data):
         else:
             valor_vehiculo = cuota_inicial = plazo_meses = monto_solicitado = estado_vehiculo = tipo_credito_especifico = 'N/A'
 
-        # Obtener fecha y hora actual en formato 12 horas
-        fecha_hora_envio = datetime.now().strftime("%d/%m/%Y a las %I:%M:%S %p")
+        # Obtener fecha y hora actual en formato 12 horas (zona horaria America/Bogota)
+        fecha_hora_envio = datetime.now(pytz.timezone('America/Bogota')).strftime("%d/%m/%Y a las %I:%M:%S %p")
 
         # Cuerpo del mensaje mejorado para el banco
         body = f"""Buenos días,
