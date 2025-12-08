@@ -148,7 +148,9 @@ class SchemaCompletoModel:
                     "default_value": campo.get("default_value"),
                     "list_values": list_values_procesados,
                     "conditional_on": campo.get("conditional_on"),
-                    "order_index": campo.get("order_index", 999)  # Columna fija de BD
+                    "order_index": campo.get("order_index", 999),  # Columna fija de BD
+                    "min_value": campo.get("min_value"),  # Validación numérica mínima
+                    "max_value": campo.get("max_value")   # Validación numérica máxima
                 }
                 campos_dinamicos_formateados.append(campo_formateado)
 
