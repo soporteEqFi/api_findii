@@ -81,6 +81,8 @@ CREATE TABLE public.json_field_definition (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   conditional_on jsonb,
   order_index smallint,
+  min_value numeric,
+  max_value numeric,
   CONSTRAINT json_field_definition_pkey PRIMARY KEY (id),
   CONSTRAINT json_field_definition_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
 );
