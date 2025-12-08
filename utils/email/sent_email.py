@@ -767,7 +767,30 @@ def email_body_and_send(email_settings, data):
 def send_email(email_settings, msg):
     """
     Envía correo usando SSL para Zoho (puerto 465)
+    ⚠️ MODO DEBUG: El envío real está bloqueado temporalmente
     """
+    # ========== MODO DEBUG: ENVÍO BLOQUEADO ==========
+    # Extraer información del mensaje para logginghttp://localhost:5173/
+    # destinatario = msg.get('To', 'Desconocido') if isinstance(msg, dict) else getattr(msg, 'get', lambda x: 'Desconocido')('To')
+    # asunto = msg.get('Subject', 'Sin asunto') if isinstance(msg, dict) else getattr(msg, 'get', lambda x: 'Sin asunto')('Subject')
+
+    # print("=" * 80)
+    # print("🚫 MODO DEBUG: ENVÍO DE CORREO BLOQUEADO")
+    # print("=" * 80)
+    # print(f"📧 CORREO QUE SE ENVIARÍA:")
+    # print(f"   ✉️  DE:      {email_settings.get('sender_email', 'N/A')}")
+    # print(f"   📬 PARA:    {destinatario}")
+    # print(f"   📝 ASUNTO:  {asunto}")
+    # print(f"   🌐 SERVIDOR: {email_settings.get('smtp_server', 'N/A')}")
+    # print(f"   🔌 PUERTO:   {email_settings.get('smtp_port', 'N/A')}")
+    # print("=" * 80)
+    # print("✅ Simulación exitosa - El correo NO fue enviado realmente")
+    # print("=" * 80)
+
+    # Retornar True para simular envío exitoso
+    # return True
+
+    # ========== CÓDIGO ORIGINAL COMENTADO ==========
     max_attempts = 3
     retry_delay = 2  # segundos entre intentos
 
