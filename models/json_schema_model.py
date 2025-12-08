@@ -15,8 +15,8 @@ class JSONSchemaModel:
     TABLE = "json_field_definition"
 
     def get_schema(self, *, empresa_id: int, entity: str, json_column: str) -> List[Dict[str, Any]]:
-        # Incluir order_index en la consulta (asumiendo que ya existe la columna)
-        resp = supabase.table(self.TABLE).select("id, empresa_id, entity, json_column, key, type, required, list_values, description, default_value, conditional_on, order_index, created_at").eq("empresa_id", empresa_id).eq("entity", entity).eq("json_column", json_column).execute()
+        # Incluir order_index, min_value y max_value en la consulta
+        resp = supabase.table(self.TABLE).select("id, empresa_id, entity, json_column, key, type, required, list_values, description, default_value, conditional_on, order_index, min_value, max_value, created_at").eq("empresa_id", empresa_id).eq("entity", entity).eq("json_column", json_column).execute()
         data = _get_resp_data(resp)
         return data or []
 
@@ -91,6 +91,8 @@ class JSONSchemaModel:
                 "default_value": processed_item.get("default_value"),
                 "conditional_on": processed_item.get("conditional_on"),
                 "order_index": processed_item.get("order_index", 999),  # Columna fija
+                "min_value": processed_item.get("min_value"),  # Validación numérica mínima
+                "max_value": processed_item.get("max_value"),  # Validación numérica máxima
             }
             print(f"✅ Item normalizado: {normalized_item}")
             payload.append(normalized_item)
