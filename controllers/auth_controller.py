@@ -20,19 +20,11 @@ class AuthController:
             print("[LOGIN] 🚀 INICIO DE LOGIN")
             print("="*60)
 
-            # Debug: imprimir datos recibidos
-            print(f"[LOGIN] 📥 Content-Type: {request.content_type}")
-            print(f"[LOGIN] 📥 Raw data: {request.get_data()}")
-
             body = request.get_json(silent=True) or {}
-            print(f"[LOGIN] 📥 Parsed JSON: {body}")
 
             # Validar campos requeridos
             correo = body.get("correo") or body.get("email")  # Soportar ambos nombres
             contraseña = body.get("contraseña") or body.get("password")  # Soportar ambos nombres
-
-            print(f"[LOGIN] 📧 Correo extraído: {correo}")
-            print(f"[LOGIN] 🔐 Contraseña extraída: {'***' if contraseña else None}")
 
             if not correo or not contraseña:
                 print("[LOGIN] ❌ ERROR: Campos faltantes")
@@ -105,17 +97,12 @@ class AuthController:
                 traceback.print_exc()
                 raise
 
-            print(f"[LOGIN] 👤 Datos usuario: {usuario}")
-
             # Obtener información de la empresa
             empresa_info = None
             if usuario.get("empresa_id"):
-                print(f"[LOGIN] 🏢 Obteniendo información de empresa ID: {usuario.get('empresa_id')}")
                 try:
                     empresa_info = self.model.get_empresa_info(usuario["empresa_id"])
-                    print(f"[LOGIN] 🏢 Empresa info: {empresa_info}")
                 except Exception as empresa_error:
-                    print(f"[LOGIN] ⚠️ Error obteniendo empresa: {empresa_error}")
                     empresa_info = None
 
             respuesta = {
