@@ -1,8 +1,12 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 import os
+
+from utils.supabase_errors import is_supabase_connectivity_error, get_supabase_error_message
+from data.supabase_conn import check_supabase_health
 from routes.json_fields_routes import json_fields
 from routes.solicitudes_routes import solicitudes
 from routes.solicitantes_routes import solicitantes
@@ -87,8 +91,44 @@ def error_bad_request(error):
     print(f"❌ ERROR BAD REQUEST: {error}")
     return {"ok": False, "error": "Solicitud incorrecta"}, 400
 
+
+def error_service_unavailable(error):
+    """Cuando Supabase u otro servicio crítico no está disponible."""
+    msg = get_supabase_error_message(error) if is_supabase_connectivity_error(error) else "Servicio no disponible temporalmente."
+    print(f"⚠️ 503 - SERVICIO NO DISPONIBLE: {error}")
+    return jsonify({"ok": False, "error": msg}), 503
+
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Verifica estado de la API y conectividad con Supabase."""
+    ok, err = check_supabase_health()
+    if ok:
+        return jsonify({"ok": True, "status": "healthy", "supabase": "connected"}), 200
+    return jsonify({
+        "ok": False,
+        "status": "degraded",
+        "supabase": "disconnected",
+        "error": str(err)[:200] if err else "Unknown",
+    }), 503
+
+
+# Handlers de error (siempre registrados, también con gunicorn/uwsgi)
+app.register_error_handler(404, pagina_no_encontrada)
+app.register_error_handler(500, error_interno)
+app.register_error_handler(400, error_bad_request)
+app.register_error_handler(503, error_service_unavailable)
+
+
+@app.errorhandler(Exception)
+def handle_unhandled_exception(exc):
+    """Excepciones de conectividad -> 503, resto -> 500. No captura HTTPException (404, 405, etc.)."""
+    if isinstance(exc, HTTPException):
+        raise exc
+    if is_supabase_connectivity_error(exc):
+        return error_service_unavailable(exc)
+    return error_interno(exc)
+
+
 if __name__ == "__main__":
-    app.register_error_handler(404, pagina_no_encontrada)
-    app.register_error_handler(500, error_interno)
-    app.register_error_handler(400, error_bad_request)
     app.run(host="0.0.0.0", port=5000, debug=True)
